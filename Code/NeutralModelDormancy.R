@@ -1,0 +1,222 @@
+###Neutral model with dormancy###
+
+rm(list=ls())
+graphics.off()
+
+#m = active migration coefficient
+#beta = dormant migration coefficient
+#DEATH = death rate from dormant pool
+#DISTURBANCE = likelihood of a disturbance event
+#A_Jmeta = size of metacommunity active pool
+#D_Jmeta = size of metacommunity dormant pool
+#A_J = size of local community active pool
+#D_J = startind size of local community dormant pool
+#v = speciation rate in metacommunity
+#wall_time = how long the simulation will run for 
+#output_file_name = file name to store final data
+
+
+###FUNCTION ONE COALESCNCE FUNCTION####
+#coalescence code from Jmames to generate community abundances
+
+coalescence_test <- function(Jm,v) 
+{
+  #Initialise a vector lineages of length Jm with 1 as every entry.
+  lineages <- seq(1,1,length=Jm)
+  #Initialise an empty vector abundances.
+  abundances <- c()
+  #Initialise a number N=Jm.
+  N <- Jm
+  #Calculate θ, where θ=ν (Jm-1)/(1-ν).
+  theta <- v*(Jm-1)/(1-v)
+  while(N > 1) # If N > 1 repeat the code
+  {
+    #Choose an index Jm of the vector lineages at random according to a uniform distribution.
+    linvect <- 1:length(lineages)
+    Jm <- sample(linvect,size=1)
+    # Pick a random decimal number randnum between 0 and 1.
+    randnum <- runif(1)
+    if (randnum <theta/(theta+N-1))
+    {
+      # If randnum <θ/(θ+N-1) 
+      # append lineages[Jm] to the vector abundances.
+      abundances <- c(abundances,lineages[Jm])
+    } else {
+      # If randnum ≥θ/(θ+N-1)
+      # choose another index i of the vector lineages at random, but not allowing i = Jm.  
+      # Then set lineages[i] = lineages[i] + lineages[Jm].
+      i <- sample(linvect[-Jm],size=1)
+      lineages[i] <- lineages[i] + lineages[Jm]
+    }
+    #remove lineages[Jm] from lineages so that the lineages vector is now one shorter.
+    lineages <- lineages [-Jm]
+    #Decrease N by one so that N still gives the length of the lineages vector.
+    N <- N-1
+  }  
+  #Add the only element left in lineages to the end of abundances.
+  abundances <- c(abundances,lineages[1])
+  #END: a vector of simulated species abundances is stored in abundances.
+  return(abundances)
+}
+
+
+###FUNCTION TWO GET MY METACOMMUNITY###
+metacommunity <- function(Jm,v) {
+  
+  meta <- vector() #empty vector for storing the community
+  
+  meta_abundance <- coalescence_test(Jm,v) #run coalescence test and get species abundances
+  meta_abundance <- sort(meta_abundance, decreasing =TRUE)
+  
+  for (a in 1:length(meta_abundance)) {
+      meta <- c(meta, rep(a, meta_abundance[[a]])) #repeat for each species by abundance to give meta vector
+  } 
+  
+  return(meta)
+}
+
+
+
+###FUNCTION THREE TO RUN NON-DISTURBANCE TIMESTEP ON DORMANT COMMUNITY###
+non_disturbance_timestep <- function(D_com, D_mig, JdM, DEATH){
+  #does a migration event happen from the dormant metacommunity to local dormant community
+  num1 <- runif(1)
+  num2 <- runif(1)
+  
+  if(num1 <= D_mig){
+    D_com <- c(D_com, sample(JdM, 1, replace=TRUE)) #add randomly chosen propagule from dormant metacommunity
+  }
+  
+  #does a death event occur in the local dormant community
+  if(num2 <= DEATH){
+    ind <- sample(1:length(D_com), 1) #choose index of local dormant community member to be replaced
+    D_com <- D_com[-ind] #remove from local dormant community
+  }
+  
+  return(D_com)
+}
+
+
+###FUNCTION FOUR TO RUN ONE DISTURBANCE EVENT ON COMMUNITY #####
+active_disturbance_timestep <- function(A_com, D_com, A_mig, D_mig, JdM, JaM, DEATH, BIRTH) {
+  
+  ind <- sample(1:length(A_com), 1) #choose index of local community member to be replaced
+  D_com <- c(D_com, A_com[ind]) #add that individual to dormant community
+  A_com <- A_com[-ind] #remove from local active community
+  
+  num3 <- runif(1) #random number to decide if metacommunity migration will occure
+  num4 <- runif(1) #random number to decide if birth or reactivation replaces removed active individual
+  
+  if (num3 <= A_mig) { #migration event from active metacommunity to active local community occures
+    A_com <- c(A_com, sample(JaM, 1, replace=TRUE)) #add randomly chosen propagule from metacommunity
+  } else{
+    if (num4 <= BIRTH){
+      A_com <- c(A_com, sample(A_com, 1, replace=TRUE)) #add randomly chosen propagule from local active community
+    } else {
+      D_ind <- sample(1:length(D_com), 1) #choose index of local dormant community member to become active
+      A_com <- c(A_com, D_com[D_ind]) #add that individual to active community
+      D_com <- D_com[-D_ind] #remove from local dormant community
+    }
+  }
+  
+  D_com <- non_disturbance_timestep(D_com, D_mig, JdM, DEATH)
+  
+  #bind the active and dormant communities so they can both be returned at the end of the function
+  n <- max(length(A_com), length(D_com))
+  length(A_com) <- n                      
+  length(D_com) <- n
+  Both_coms <- cbind(A_com, D_com)
+  
+  return(Both_coms)
+  
+}
+
+####FUNCTION FIVE TO GIVE SPECIES RICHNESS OF ACTIVE AND DORMANT COMMUNITY####
+how_many_species <- function(A_com, D_com){
+  active_richness <- length(unique(A_com))
+  dormant_richness <- length(unique(D_com))
+  richnesses <- data.frame(active_richness, dormant_richness)
+  names(richnesses) <- c("Active", "Dormant")
+  
+  return(richnesses)
+}
+
+
+#####FUNCTION SIX TO RUN MY SIMULATION MODEL#####
+
+
+# m=0.3
+# beta=0.4
+# DEATH=0.3
+# DISTURBANCE=0.4
+# A_Jmeta=10000
+# D_Jmeta=10000
+# A_J=1000
+# D_J=1000
+# v=0.1
+# wall_time = 1
+# i <- 1
+# output_file_name = paste0("DormancySim_", i, ".rda")
+
+RUN_MY_SIM <- function(A_Jmeta, D_Jmeta, A_J, D_J, v, m, beta, DEATH, DISTURBANCE, wall_time, output_file_name) {
+  
+  #i <- 1 #count timesteps 
+  j <- 1 #count timeseries
+  
+  species_timeseries <- data.frame(Active=integer(), Dormant=integer()) 
+  
+  JaM <- metacommunity(A_Jmeta, v) #active metacommunity
+  JdM <- metacommunity(D_Jmeta, v) #dormant metacommunity
+  
+  A_com <- rep(1, A_J) #active local community
+  D_com <- rep(1, D_J) #dormant local community
+
+  A_mig <- m*length(JaM)/(length(JaM)+length(JdM)) #immigration rate of active members from active metacom to active local com
+  D_mig <-beta*length(JdM)/(length(JaM)+length(JdM)) #immigration rate of dormant members from dormant metacom to dormant local com
+  BIRTH <- (1-m)*length(A_com)/(length(A_com)+length(D_com)) #birth rate of local active propagules 
+  
+  #what's going on with reactivation? do we need this?
+  REACTIVATE <- (1-m)*length(D_com)/(length(A_com)+length(D_com)) #reactivation rate of local dormant individuals into local active com
+  
+  ptm <- proc.time()[3] #set start of timer, this counts in seconds
+  
+  while (proc.time()[3] - ptm < wall_time*60){ 
+    
+    #does a disturbance event occur?
+    disturbance_num <- runif(1)
+    
+    if (disturbance_num <= DISTURBANCE){
+      Both_coms <- active_disturbance_timestep(A_com, D_com, A_mig, D_mig, JdM, JaM, DEATH, BIRTH)
+      A_com <- Both_coms[,1]
+      A_com <- A_com[!is.na(A_com)]
+      D_com <- Both_coms[,2]
+    } else {
+      D_com <- non_disturbance_timestep(D_com, D_mig, JdM, DEATH)
+    }
+    
+    if (i %% 5000 == 0) {
+    x <- how_many_species(A_com, D_com)
+    species_timeseries <- rbind(species_timeseries, x)
+      j <<- j + 1
+    }
+    
+    
+    i <<- i + 1
+    
+  }
+  
+  #bind the active and dormant communities so they can both be returned at the end of the script
+  n <- max(length(A_com), length(D_com))
+  length(A_com) <- n                      
+  length(D_com) <- n
+  Both_coms <- cbind(A_com, D_com)
+  
+  timesteps <- i
+  
+  #save to file
+  
+  total_time <- proc.time()[3] - ptm
+  
+  save(Both_coms, species_timeseries, timesteps, total_time, file = output_file_name)
+  
+}

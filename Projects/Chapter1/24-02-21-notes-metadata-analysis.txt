@@ -1,0 +1,129 @@
+Wednesday 24th February 2021
+
+TODAYS MISSION - DOWNLOAD MY FIRST SEQUENCE DATASET
+
+Today is my first day of working on my meta analysis of cryoconite data and of using JupyterLab for keeping my notes.
+I'm going to start off identifying a few datasets that would be most appropriate to begin my analysis.
+
+Which previous studies have explicitly reported species-area relationships (or lack there of) in of cryoconite holes?
+
+Sommers et al., (2020) Microbial Species–Area Relationships in Antarctic Cryoconite Holes Depend on Productivity
+Darcey et al., (2018) Island biogeography of cryoconite hole bacteria in Antarctica's Taylor Valley and around the world
+Zawierucha et al., (2016) Area, depth and elevation of cryoconite holes in the Arctic do not influence Tardigrada densities
+
+Sommers et al., (2020) Microbial Species–Area Relationships in Antarctic Cryoconite Holes Depend on Productivity
+Sequence data and metadata avaialble in the NCBI’s Sequence Read Archive under PRNJNA668398
+
+Only other study Sommers et al., (2020) references is Darcy et al., (2018). Do they use the same dataset? Sommers et al., (2020) uses amplicon sequencing of bacteria and eukaryotes from a wide range of cryoconite hole sizes on two glaciers (Taylor and Canada) that differ in productivity. 
+Hypotheses: 
+1) More species in larger holes on more productive glacier (Canada) rather than less productive glacier (Taylor)
+2) Additional variation of ISAR within each glacier will be related to productivity (e.g. DNA concentration) as more productive holes essentially function as larger islands
+3) Additional variation in ISAR within each glacier will be related to community evenness. Less even holes will have less of the actual species richness detected (because they will be so rare). So less even community richness = less species detected = less strong ISAR.
+
+Samples were collected in December 2017 with 23 from Canada from 7 to 95cm in diameter and 11 from Taylor from 15 to 95 cm in diameter. All holes within 500m of each other. DDR not detected at this scale (Darcy et al., 2018). Sequence data were classified into ESVs (a.k.a. ASVs).
+
+1) Taxonomically assign sequence data into ESVs
+2) Fit the logarythmic power law model:
+
+log10 S = log10 C + log10 Z * A
+
+Where EVS is equivalent to S and cryoconite hole area is equivalent to A. Repeat for eukaryotes and prokaryotes for each glacier.
+3) Use the powerlaw model to estimate the C and Z parameter for each dataset (i.e. glacier).
+3) Is there a stronger ISAR on the Canada than Taylor glacier? Use analysis of covariance (ANCOVA)
+4) If we account for glacier and hole area, does DNA concentration explain variation in log10 S (ESVs)? Add DNA concentration as covariate to linear regression between log10 S and log10 A after accounting for glacier. 
+5) Does community evenness explain additional vairation of ISAR? Calculate community evenness as inverse Simpson index for each sample. Use sequential partitioning of variance to see if adding evenness metric to linear regression of log10 S and log10 A was significantly related to addtional variation after accounting for glacier. 
+
+10.29am Tried downloading the sequence data and metadata but nothing found in search (https://www.ncbi.nlm.nih.gov/sra). Have messaged NHM/QMUL group for assistance. Will try a different dataset to see if that works while I wait to hear back. Trying Li et al., (2020) PRJNA517449 from Island biogeography of soil bacteria and fungi: similar patterns, but different mechanisms. This worked. Spoke to Carla Greco. She said PRNJNA668398 is a typo and the correct number will be PRJNA668398 because Bioproject accession numbers always start with PRJNA not PRNJNA. I've found the data! 
+
+10.55am How do you download the datasets from the Sequence Read Archive? Is the metadata included with each sample or does that come as a seperate file?
+
+Watching this YouTube tutorial: https://www.youtube.com/watch?v=JvifigTF4yY
+In order to download fastq files from SRA I need to first download the SRA Toolkit.
+
+1) Go to terminal and install SRA Toolkit via the commandline using conda:
+conda install -c bioconda sra-tools
+
+2) Search accession number (from journal article of interest e.g. PRJNA668398) on SRA database. If it's there, a list of results will come up (this is the repository associated with that accessiom number). The second line of each result tells you how it was sequenced e.g. using Illumina MiSeq or 454 GS FLX Titanium. Click on the desired sequence (I'm clicking on Hole 30 Canada Glacier). 
+
+3) On the sequence page you get different info about whatever this sample is. It says this is the sample name (Hole 30 from Canada Glacier). This is the organism (Organism: sediment metagenome). There are different accession numbers - but we're interested in the SRR number (SRR12805327). Copy this number. 
+
+4) Back in commandline type in:
+prefetch SRR12805327
+Should then see that it has downloaded successfully and has 0 unresolved dependencies
+Type:
+ls
+You should see the SRR12805327 folder there. Enter the folder and you will see the file!
+
+5) Now let's convert the SRA data into fastq format! While in the folder with the file type:
+fastq-dump SRR12805327 
+You should now have two files in the folder, SRR12805327.sra and SRR12805327.fastq. 
+
+6) Now we can start looking into our fastq file! What does it look like? How can we manipulate it? Type:
+head SRR12805327.fastq
+head -n 10 SRR12805327.fastq
+
+What does this all mean? Q in fastq stands for quality. fastq file holds information about the quality of the sequence. The quality of that read. How accurate is the base that was chosen to be in that place because most machines can measure this and they know the quality output of that base. From Wiki:
+
+A FASTQ file normally uses four lines per sequence.
+Line 1 begins with a '@' character and is followed by a sequence identifier and an optional description (like a FASTA title line).
+Line 2 is the raw sequence letters.
+Line 3 begins with a '+' character and is optionally followed by the same sequence identifier (and any description) again.
+Line 4 encodes the quality values for the sequence in Line 2, and must contain the same number of symbols as letters in the sequence.
+
+Why is the sequence identifier given on lines 1 and 3 of a sequence in a fastq file? Line 1 also gives you the number of base pairs in the sequence.
+
+Fatsq files can also be converted into fasta files. Fasta files are more simple.
+
+Let's find out how many sequences are in our fastq file. Type:
+wc -l SRR12805327.fastq 
+
+This will tell us how many lines are in the file - but one sequence has several lines! So how many SEQUENCES do we have? Divide the number of lines by 4!
+
+Answer: 112580/4 = 28,145 reads 
+
+Now I'm going to repeat the above processes but I'm going to download all the sequences from the Sommers et al., (2020) study and put the data into my Chapter1/Data/Sommers2020 folder. After downloading each sample I am renaming it e.g. CanadaHole30.
+
+Use the following loop in command line to prefetch all the SRA files:
+
+for (( i = 327; i <= 408; i++ ))
+  do
+  prefetch SRR12805$i
+done
+
+Let's download the metadata table. Click on one of the samples in the repository. On the sample page click on All Runs in the study info. This will take you to the Run Selector page that contains the downloadable metadata table! Woohoo! I also downloaded a text file that lists all the accessory names.
+
+USE THIS LOOP TO ENTER EACH FILE, CONVERT EVERY SRA TO FASTQ AND EXIT THE FILE AGAIN!
+
+for (( i = 327; i <= 408; i++ ))
+  do
+  cd SRR12805$i
+  fastq-dump SRR12805$i.sra
+  cd ..
+done
+
+2.44pm I now have each of the fastq files from each sample in the Sommers et al., (2020) paper. What do I need to do next? 
+
+3pm I'm trying to figure out how I can use R in Jupyter Labs so I can look at the metadata file... but I might just do it using R studio. Not entirely sure what I'm doing. So, let's just focus on getting R working in Jupyter Labs.
+
+After I've got R working I will focus on taxonomically identifying one of the samples.
+
+Install devtools using conda: 
+conda install -c conda-forge r-devtools
+
+Enter R in terminal:
+install.packages("devtools")
+devtools::install_github('IRkernel/IRkernel')
+
+install.packages('IRkernel')
+IRkernel::installspec(user = FALSE)
+
+CAN'T GET R WORKING ON JUPYTER LABS SO MOVING ON!
+
+3.48pm I'm going to following the BVCN Amplicons Lesson 3a Tutorial in Jupyter Labs using QIIME2 and DADA2
+Can I do this directly using this JupyterLab or do I need to do it through Cyverse Discovery Environment? I think I would need to download QIIME2 onto my laptop to do it directly in JupyterLab without using the Cyverse Discovery Environment.
+
+STEP ONE GET THE DATA AND ORGANIZE
+
+Firstly I need to modify the data so it is compatible with QIIME2.
+
+

@@ -1,0 +1,20 @@
+#R4ALL Day 5 - Reproducibility
+
+#British Ecological Society Ecological data reproducibility guide
+
+#at the very least save R scripts at the end of each day and put date on them
+#best to put date first then the name of the draft
+
+#tell git to save a version of your paper
+
+#sort out github to use via rstudio
+
+install.packages("usethis")
+library(usethis)
+
+use_git_config(user.name = "Amy Solman",
+               user.email = "a.b.t.solman@qmul.ac.uk")
+
+usethis::create_github_token()
+
+gitcreds::gitcreds_set()

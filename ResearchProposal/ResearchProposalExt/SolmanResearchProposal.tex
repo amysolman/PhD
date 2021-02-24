@@ -1,0 +1,73 @@
+\documentclass[a4paper, twoside]{report}
+
+\usepackage[british]{babel}
+\usepackage[useregional]{datetime2}
+\DTMlangsetup[en-GB]{showdayofmonth=false} %to remove day from date
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{listings}
+\usepackage{hyperref}
+\hypersetup{colorlinks=false}
+\usepackage{lscape} %to put things landscape
+\usepackage{rotating} %to put things landscape, again
+\usepackage{pdflscape} %trying landscape again
+\usepackage{subfigure}
+\usepackage{amsmath} %for some maths stuff! 
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{csvsimple}
+\usepackage{lscape}%for landscape table in sup mat
+\usepackage{apalike} %for round brackets in references
+\usepackage{titlesec} %for hiding chapter title
+%\usepackage{natbib}
+\usepackage{gensymb} %degree symbol
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries}{}{0pt}{\Huge}
+
+%%%%%This stuff is for generating tables%%%%
+\usepackage{booktabs} % For \toprule, \midrule and \bottomrule
+\usepackage{siunitx} % Formats the units and values
+\usepackage{pgfplotstable} % Generates table from .csv
+
+% Setup siunitx:
+\sisetup{
+  round-mode          = places, % Rounds numbers
+  round-precision     = 2, % to 2 places
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+\title{Integrating microbial dormancy with biogeography in the changing Arctic}
+\author{Amy Solman}
+% Update supervisor and other title stuff in title/title.tex
+
+\begin{document}
+\input{title.tex}
+
+
+\renewcommand{\abstractname}{Abstract}
+\begin{abstract}
+1.  Microorganisms play a fundamental role in nutrient cycling, biogeochemical processes and ecosystem regulation in polar regions. The Arctic is experiencing increased warming compared to the global average, with profound effects for microbial species and their distributions. This study seeks to integrate two understudied areas: microbial biogeography and dormancy in Arctic glaciers and soils. \\
+
+\noindent 2. Dormancy is a survival strategy employed by microorganisms in extreme environments. Active cells can make up less than 10\% of total microbial biomass. Differentiating between dead, dormant and active cells in phylogenetic analysis is integral for understanding community composition and the biogeochemical processes they drive. \\
+
+\noindent 3. Despite their importance, relatively little is known about the biogeographic patterns of microbial communities. Traditionally, microorganisms were assumed to be so abundant, small and free-moving as to be omnipresent and limited only by environmental factors such as pH. However, recent evidence suggests they are subject to many of the same stochastic and deterministic biogeographical mechanisms as macroorganism.\\
+
+\noindent 4. In this study I will incorporate fieldwork, novel laboratory methods and a predictive numerical model, to explore the relationship between microbial dormancy and biogeography in the Arctic across changing seasons and into the future. \\
+
+\noindent \textbf{Keywords:} taxa-area relationships, microbial biogeography, dormancy, niche structure, colonisation-extinction balance, biogeography, climate change, Arctic 
+\end{abstract}
+
+\tableofcontents
+
+\input{introduction.tex}
+\input{aims.tex}
+\input{methods.tex}
+\input{conclusion.tex}
+
+\bibliographystyle{apalike}
+\bibliography{bibliography}
+\addcontentsline{toc}{chapter}{Bibliography}
+\end{document}
