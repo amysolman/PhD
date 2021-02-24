@@ -119,11 +119,32 @@ IRkernel::installspec(user = FALSE)
 
 CAN'T GET R WORKING ON JUPYTER LABS SO MOVING ON!
 
+#######PAUSED TO SET UP NEW GITHUB FOR ALL PHD WORK#########
+1) Go to github website and create new repository
+2) On computer transfer PhD work to new github folder
+3) On github app commit to master
+4) Press 'Push to origin' button
+
 3.48pm I'm going to following the BVCN Amplicons Lesson 3a Tutorial in Jupyter Labs using QIIME2 and DADA2
 Can I do this directly using this JupyterLab or do I need to do it through Cyverse Discovery Environment? I think I would need to download QIIME2 onto my laptop to do it directly in JupyterLab without using the Cyverse Discovery Environment.
 
 STEP ONE GET THE DATA AND ORGANIZE
 
 Firstly I need to modify the data so it is compatible with QIIME2.
+
+Let's start copying over the Sommers2020 directory to data-wrangling. Make a new directory in Data-wrangling to copy fastq only files into.
+
+In terminal:
+cd Documents/GitHub/PhD/Projects/Chapter1/Data-wrangling/
+mkdir fastq-sommers2020
+cp Sommers2020/SRR12805*/*.fastq fastq-sommers2020/
+
+Also copy the metadata file into our new file:
+cp Sommers2020/SraRunTable.txt fastq-sommers2020/
+
+Next, we will modify the fastq file names to match the file format that is expected by qiime2. The BVCN tutorial says I need to name the forward and reverse reads but I don't think mine are forward/reverse. I think we'll leave it there for the day! 
+
+TODAYS MISSION - DOWNLOAD MY FIRST SEQUENCE DATASET - COMPLETE!
+
 
 
