@@ -1,0 +1,150 @@
+Thursday 25th February 2021
+
+MISSION: To analyse one amplicon sequence sample from the Sommers et al., (2020) dataset and classify into ASVs. I am following the BVCN tutorial (https://www.youtube.com/watch?v=2kvdLbbKcJc&list=PL4K-daRUS2A9ACcYbgyde8PRNKFRx4arV&index=3) which suggests this can be done in two ways:
+1) Using QIIME2 and DADA2 in JupyterLabs through the Cyverse Discovery Environment.
+2) Using DADA2 in R
+
+###STEP ONE: ORGANIZE THE DATA FOR QIIME2###
+Guide:
+https://github.com/biovcnet/topic-amplicons/blob/master/Lesson03a/organize.data.md
+
+I have already copied my fastq ONLY files plus the metadata file from the Sommmers et al., (2020) dataset to a new folder in Data-wrangling.
+
+I'm not sure what to do as the tutorial says I need to rename my reads forward and reverse but as far as I can see there is only one fastq file per sample rather than one for forward and one for reverse reads.
+
+Note: How can I tell what's already been done to a sequence when I download it from a repository?
+
+I'm going to assume that I only have forward reads and name the files as such.
+
+Anyway, I have created a file called qiime_import and moved my fastq files to there. I am now renaming them:
+rename 's/(.*)\.fastq/$1_01_L001_R1_001.fastq/' *.fastq
+
+Now I'm going to compress the fastq files (the .gz extension is expected by qiime2):
+gzip *.fastq
+
+Next I'm using an Rscript to wrangle the data in my script: 
+add-categorical-numeric-to-metadata.R
+
+Finally, I'm going move two directories up and compress everything in fastq-sommers2020:
+cd ../..
+tar -czvf fastq-sommers2020.tar.gz fastq-sommers2020/
+
+###STOP: ISSUE###
+I've been talking to Carla and Paddy and basically it's super weird because the dataset has 41 cryoconite holes, with two squences (18S and 16S) per cryoconite hole. But I SHOULD have four sequences per cryoconite, forward and reverse reads for 18S and 16S runs!
+
+On Carla's recommendation I'm going to run the data through FastQC to look at the quality of data and see what format it is in. So how do I do this?!
+Because I do not have fastqc on my local jupyterlab thing I opened up the BVCN binder, uploaded one of my fastqc.qz files and ran:
+fastqc <file name>
+
+I'm going to enter JupyterLabs through Cyverse and try and run the FastQC through there instead of the BVCN binder. 
+Setting up Cyverse guide https://github.com/biovcnet/topic-amplicons/blob/master/Lesson03a/setting.up.md
+
+1) Transfer fastq.gz files from data-wrangling/fastq-sommers2020 to Cyverse using Cyberduck (tutorial: https://cyverse-data-store-guide.readthedocs-hosted.com/en/latest/step1.html#download-and-first-time-configuration-of-cyberduck)
+2) Open JupyterLabs through Cyverse and name analysis
+3) Select output/input folders etc then hit launch analysis 
+
+Okay, basically I could not get FastQC working through jupyterlabs so I downloaded the FastQC application to my laptop using these guides:
+https://www.bioinformatics.babraham.ac.uk/projects/download.html#fastqc
+https://raw.githubusercontent.com/s-andrews/FastQC/master/INSTALL.txt
+
+###ISSUE RESOLVED###
+Carla told me that the reason I had one file instead of two files is because when I transformed the sra files to fastq files I did add the split command:
+fastq-dump <filename> --split-files --origfmt
+
+So back to the beginning. I'm going to:
+1) Delete the SRR folders from Data/Sommers2020 directory and re-download and convert to forward and reverse fastq using this loop:
+
+for (( i = 327; i <= 408; i++ ))
+  do
+  prefetch SRR12805$i
+done
+
+for (( i = 327; i <= 408; i++ ))
+  do
+  cd SRR12805$i
+  fastq-dump SRR12805$i.sra --split-files --origfmt
+  cd ..
+done
+
+2) Delect the old fastq-sommers folder and re-copy the data
+
+Manually copy Sommers2020 to Data-wrangling folder
+cd Documents/GitHub/PhD/Projects/Chapter1/Data-wrangling/
+mkdir fastq-sommers2020
+cp Sommers2020/SRR12805*/*.fastq fastq-sommers2020/
+cp Sommers2020/SraRunTable.txt fastq-sommers2020/
+
+###STEP ONE: ORGANIZE THE DATA FOR QIIME2###
+Guide:
+https://github.com/biovcnet/topic-amplicons/blob/master/Lesson03a/organize.data.md
+
+I have already copied my fastq ONLY files plus the metadata file from the Sommmers et al., (2020) dataset to a new folder in Data-wrangling.
+
+cd fastq-sommers2020
+mkdir qiime_import
+mv *.fastq qiime_import
+cd qiime_import
+rename 's/_/_00_L001_R/' *
+rename 's/.fastq/_001.fastq/' *
+gzip *.fastq
+
+Now I'm going to use my R script to modify the metadata file to include data type of each column:
+add-categorical-numeric-to-metadata.R
+This deposits the wrangled table in the fastq-sommers2020 directory 
+Finally, I'm going move two directories up and compress everything in fastq-sommers2020:
+cd ../..
+tar -czvf fastq-sommers2020.tar.gz fastq-sommers2020/
+
+###STEP TWO: INSTALL QIIME2 OR GET CYVERSE ACCOUNT###
+
+For option 1 you need to either:
+A) Have QIIME2 locally installed
+B) Have a Cyverse account with the QIIME2 app set up in the Discovery Environment
+
+I have already done part B using the following tutorial:
+https://cyverse-data-store-guide.readthedocs-hosted.com/en/latest/step1.html#download-and-first-time-configuration-of-cyberduck
+https://github.com/biovcnet/topic-amplicons/blob/master/Lesson03a/setting.up.md
+https://www.youtube.com/watch?v=zNdho4gwZ9M&feature=youtu.be
+
+1) Add file to Cyverse using Cyberduck
+2) Log into Cyverse
+3) Lauch discovery environment
+4) Click Apps, search for Jupyter and launch the Jupyter with QIIME2 option
+5) Name analysis, select output folder, put fastq-sommers2020 for Input Data, choose maximum capacity of Resource Requirements, hit Launch Analysis
+6) Click the Analysis buttom, click on go to analysis
+
+###AT THIS STAGE THE CYVERSE ENVIRONMENT HAS STOPPED WORKING AND WILL NOT LAUNCH JUPYTERLABS SKIP TO USING R SECTION###
+
+7) Once your Jupyter environment is open is to connect to the data store: Click on the Discovery Environment icon on the left (blue swooshy thing). The parameters for the IRODS Setup Config should be mostly filled out. You just need to enter your cyverse user name and password and hit submit. A directory listing of your files in the Data Store should appear below.
+8) Next, we have to initialize. Click on Terminal in the launcher to open a terminal window.Type iinit. Enter your password again (Note: no text will appear as you type) and press Enter.
+
+###STEP THREE: SETTING UP A QIIME2 JUPYTERLAB IN VICE###
+1) Close the terminal and return to launcher
+2) Click on Python 3 notebook and name (note we will be using Bash functions in a python notebook because it looks better. Preceed bash commands with ! for use in python)
+
+REMEMBER - the VICE environment is temporary. Remember to save to local computer or Data Store by:
+
+- You can transfer files to and from your Data Store using iCommands (described above in "Navigating Around").
+- You can right click on files and download them directly to your computer.
+- From the Discovery Environment, in the Analyses window, there is a 3-dotted button on the right side of each of your analyses. When you click that button, there is an option for Complete and Save Outputs. This will end your analysis session and send all files from the temporary environment to the 'Analysis' folder in your Data Store (or whichever folder you chose in step 4 above.
+
+Now we are ready to start our first notebook.
+
+Next I upload the file to Data Store in Cyverse and then decompress it using tar -xzvf qiime2_wd.tar.gz.
+
+###USING A LOCAL INSTALLATION OF QIIME2###
+
+Follow these instructions to install QIIME2 on computer 
+https://docs.qiime2.org/2021.2/install/native/
+
+In terminal navigate to Data-wrangling folder and activate Qiime environment by typing:
+conda activate qiime2-2021.2
+
+qiime tools import \
+  --type 'SampleData[PairedEndSequencesWithQuality]' \
+  --input-path fastq-sommers2020/qiime_import \
+  --input-format CasavaOneEightSingleLanePerSampleDirFmt \
+  --output-path work/demux-paired-end.qza
+
+From there follow the rest of the tutorial https://www.youtube.com/watch?v=2kvdLbbKcJc&list=PL4K-daRUS2A9ACcYbgyde8PRNKFRx4arV&index=3
+

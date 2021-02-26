@@ -1,0 +1,216 @@
+GOOD MORNING!
+
+7.47am Cyverse environment still isn't working so I've emailed their support team. I have also emailed Anne about getting access to the NHM server to use QIIME + support on using it. I've also asked if I can email people regarding my ultramarathon walk.
+
+MISSION FOR TODAY: SUCCESSFULLY USE QIIME FROM THE COMMANDLINE (IF THIS ISN'T POSSIBLE THEN FOLLOW THE TUTORIAL IN R TO TAXONOMICALLY IDENTIFY ONE SAMPLE SEQUENCE 16S)
+
+First I'm going to look at the metadata table via Rstudio and make sure my first sample is 16S. YEs, sample ending 327 is 16S.
+
+Today I'm going to follow this tutorial 
+QIIME2 + DADA2- Jupyter Labs Demo
+https://www.youtube.com/watch?v=2kvdLbbKcJc&list=PL4K-daRUS2A9ACcYbgyde8PRNKFRx4arV&index=3
+https://github.com/biovcnet/topic-amplicons/blob/master/Lesson03a/analysis.md
+
+Now I'm going to open command line, cd to Data-wrangling folder, and type the following commands (I've re-installed qiime here because for some reason it was saying conda didn't have qiime2 installed):
+
+wget https://data.qiime2.org/distro/core/qiime2-2021.2-py36-osx-conda.yml
+conda env create -n qiime2-2021.2 --file qiime2-2021.2-py36-osx-conda.yml
+rm qiime2-2021.2-py36-osx-conda.yml
+
+###ACTIVATE THE CONDA ENVIRONMENT###
+
+conda activate qiime2-2021.2
+
+###CHECK THE QIIME2 INSTALLATION###
+
+qiime info
+
+###IMPORT 2 FASTQ FILES INTO QIIME FORMAT###
+
+qiime tools import \
+  --type 'SampleData[PairedEndSequencesWithQuality]' \
+  --input-path fastq-sommers2020/qiime_import_16S \
+  --input-format CasavaOneEightSingleLanePerSampleDirFmt \
+  --output-path work/demux-paired-end.qza
+  
+###REMOVE PRIMERS###
+  
+  qiime cutadapt trim-paired
+  
+#I'm getting the primers from https://earthmicrobiome.org/protocols-and-standards/16s/ as described by Sommers et al., (2020)
+#The primer sequences are :
+Updated sequences: 515F (Parada)–806R (Apprill), forward-barcoded:
+FWD:GTGYCAGCMGCCGCGGTAA; REV:GGACTACNVGGGTWTCTAAT 
+
+#On the forward reads we are trimming the 5' end for the forward primer (GTGYCAGCMGCCGCGGTAA). We're trimming the 3' end for the reverse compliment of the reverse primer (ATTAGAWACCCBDGTAGTCC). On the reverse reads we're trimming the reverse primer (GGACTACNVGGGTWTCTAAT) and then the reverse compliment of the forward primer (TTACCGCGGCKGCTGGCAC).
+  
+#######NOTE: REMEMBER TO READ THROUGH THE METHODS SECTION IN THE PAPER FOR INFO TO HELP YOU WITH PROCESSING THE READS! ALSO, I'VE DIVIDED THE FOLDER qiime_import INTO 18S AND 16S READS
+
+  qiime cutadapt trim-paired \
+--i-demultiplexed-sequences work/demux-paired-end.qza \
+--p-cores 8 \
+--p-front-f GTGCCAGCMGCCGCGGTAA \
+--p-adapter-f ATTAGAWACCCBDGTAGTCC \
+--p-front-r GGACTACHVGGGTWTCTAAT \
+--p-adapter-r TTACCGCGGCKGCTGGCAC \
+--p-minimum-length 215 \
+--p-discard-untrimmed \
+--o-trimmed-sequences work/demux-paired-end-trimmed.qza \
+--verbose 
+
+###THERE IS A PROBLEM WITH MY TRIMMING STEP###
+Most of my reads are being removed because they do not have the adaptors I specified so I've removed the --p-discard-untrimmed \ command
+
+  qiime cutadapt trim-paired \
+--i-demultiplexed-sequences work/demux-paired-end.qza \
+--p-cores 16 \
+--p-front-f GTGCCAGCMGCCGCGGTAA \
+--p-adapter-f ATTAGAWACCCBDGTAGTCC \
+--p-front-r GGACTACHVGGGTWTCTAAT \
+--p-adapter-r TTACCGCGGCKGCTGGCAC \
+--p-minimum-length 160 \
+--o-trimmed-sequences work/demux-paired-end-trimmed.qza \
+--verbose 
+
+
+###CHECK QUALITY OF TRIMMED READS###
+qiime demux summarize \
+--i-data work/demux-paired-end-trimmed.qza \
+--o-visualization work/demux-paired-end-trimmed.qzv
+
+###VISUALIZE###
+qiime tools view work/demux-paired-end-trimmed.qzv
+
+###CHECK DOCUMENTATION ON DADA2 IN QIIME###
+qiime dada2
+
+qiime dada2 denoise-paired 
+
+###I took the trimming positions from the Sommers et al., (2020) paper
+
+qiime dada2 denoise-paired \
+--i-demultiplexed-seqs work/demux-paired-end-trimmed.qza \
+--p-trunc-len-f 200 \
+--p-trunc-len-r 160 \
+--p-n-threads 0 \
+--output-dir work/DADA2_denoising_output \
+--verbose
+
+###LETS LOOK AT THE RESULTS###
+qiime metadata tabulate \
+  --m-input-file work/DADA2_denoising_output/denoising_stats.qza \
+  --o-visualization work/DADA2_denoising_output/denoising_stats.qzv
+  
+  qiime tools view work/DADA2_denoising_output/denoising_stats.qzv
+  
+###SUMMARY OF THE REMAINING SEQUENCE READS###
+
+  qiime feature-table tabulate-seqs \
+--i-data work/DADA2_denoising_output/representative_sequences.qza \
+--o-visualization work/DADA2_denoising_output/rep_seqs.qzv 
+
+###Through the sequence table generated below you can click on a representative sequence and BLAST it
+qiime tools view work/DADA2_denoising_output/rep_seqs.qzv
+
+###FEATURE TABLE###
+
+qiime feature-table summarize \
+--i-table work/DADA2_denoising_output/table.qza \
+--o-visualization work/DADA2_denoising_output/table.qzv 
+
+qiime tools view work/DADA2_denoising_output/table.qzv
+
+###ASSIGN TAXONOMY###
+
+###TO DO THIS USING SILVA WE HAVE TO INSTALL AND ACTIVATE A DIFFERENT VERSION OF QIIME2
+
+wget https://data.qiime2.org/distro/core/qiime2-2019.10-py36-osx-conda.yml
+conda env create -n qiime2-2019.10 --file qiime2-2019.10-py36-osx-conda.yml
+rm qiime2-2019.10-py36-osx-conda.yml
+conda activate qiime2-2019.10
+
+DOWNLOAD SILVA 
+ wget https://data.qiime2.org/2019.10/common/silva-132-99-515-806-nb-classifier.qza
+mv silva-132-99-515-806-nb-classifier.qza work/
+
+ASSIGN TAXONOMY USING SILVA CLASSIFIER
+
+###NOTE: COMMAND C TO TERMINATE RUNNING COMMAND###
+####STILL NOT WORKING AS I DON'T HAVE ENOUGH SPACE! 
+So I'm currently emptying my trash bin on my laptop to see how much space it frees up...Freed up 50Gb on my hard drive
+I've backed up my computer to my external hard drive.
+
+###Then I'm going to follow these instructions to try and reassign my tmp folder and run the classification again
+https://forum.qiime2.org/t/error-on-running-silva-132-99-nb-classifier-1-qza-classifier/13252/3 
+I have reassigned by TMPDIR to a folder called data
+
+
+# Classify the representative sequences
+qiime feature-classifier classify-sklearn \
+--i-classifier work/silva-132-99-515-806-nb-classifier.qza \
+--i-reads work/DADA2_denoising_output/representative_sequences.qza \
+--output-dir work/classified_sequences \
+--verbose
+
+# and visualize
+qiime metadata tabulate \
+  --m-input-file work/classified_sequences/classification.qza \
+  --o-visualization work/classified_sequences/taxonomy.qzv
+  
+  qiime tools view work/classified_sequences/taxonomy.qzv
+  
+###LETS MAKE A PHYLOGENETIC TREE!###
+
+mkdir work/phylogeny
+
+MAKE A MULTIPLE SEQUENCE ALIGNMENT WITH MAFFT
+
+qiime alignment mafft \
+  --i-sequences work/DADA2_denoising_output/representative_sequences.qza \
+  --o-alignment work/phylogeny/aligned-rep-seqs.qza
+  
+###MASK THE ALIGNMENT###
+
+qiime alignment mask \
+  --i-alignment work/phylogeny/aligned-rep-seqs.qza \
+  --o-masked-alignment work/phylogeny/masked-aligned-rep-seqs.qza
+  
+###CONSTRUCT THE PHYLOGENY###
+
+qiime phylogeny fasttree \
+  --i-alignment work/phylogeny/masked-aligned-rep-seqs.qza \
+  --o-tree work/phylogeny/fasttree-tree.qza
+  
+###ROOT THE TREE SO IT CAN BE USED IN UNIFRAC###
+
+qiime phylogeny midpoint-root \
+  --i-tree work/phylogeny/fasttree-tree.qza \
+  --o-rooted-tree work/phylogeny/fasttree-tree-rooted.qza
+  
+Note that all of the steps above (mafft alignment> mask> fasttree> midpoint root) could have been run with one command, align-to-tree-mafft-fasttree
+
+###LET'S EXPORT OUR WORK
+
+mkdir work/export
+
+qiime tools export \
+  --input-path work/DADA2_denoising_output/table.qza \
+  --output-path work/export/table
+  
+biom convert \
+-i work/export/table/feature-table.biom \
+-o work/export/table/table.tsv --to-tsv
+
+qiime tools export \
+  --input-path work/DADA2_denoising_output/representative_sequences.qza \
+  --output-path work/export/rep-seqs.fasta
+  
+qiime tools export \
+  --input-path work/classified_sequences/classification.qza \
+  --output-path work/export/taxonomy
+  
+qiime tools export \
+  --input-path work/phylogeny/fasttree-tree-rooted.qza \
+  --output-path work/export/exported-tree
+  
+MISSION: TODAY SUCCESSFUL FOLLOWED THE QIIME 2 DADA2 TUTORIAL TO TAXONOMICALLY IDENTIFY A 16S CRYOCONITE DATASET AND CONSTRUCT A PHYLOGENETIC TREE!!!! WELL BLOODY DONE!
