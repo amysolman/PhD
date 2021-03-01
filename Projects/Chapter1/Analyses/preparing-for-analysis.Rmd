@@ -1,0 +1,198 @@
+---
+title: "28-02-21-metadata-analysis"
+author: "Amy Solman"
+date: "28/02/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### load packages
+
+```{r}
+library(tidyverse)
+library(phyloseq)
+library(readr)
+library(seqinr)
+library(decontam)
+library(ape)
+library(vegan)
+```
+```{r}
+# Import count table. Skip first row of tsv file, which is just some text
+count_table <- read_tsv(file="export/table/table.tsv", skip=1)
+
+# And specify that the first column of the data are rownames
+count_table <- column_to_rownames(count_table, var = colnames(count_table)[1])
+
+# Import taxonomy of ASVs
+taxonomy <- read_tsv(file="export/taxonomy/taxonomy.tsv")
+
+# Import tree file
+tree = read_tree("export/exported-tree/tree.nwk")
+
+#Import fasta
+asv_fasta <- read.fasta(file="export/rep-seqs.fasta/dna-sequences.fasta")
+```
+
+In addition to the files produced by QIIME2 we want to import the metadata file. This has information about the samples like location, hole size etc. 
+```{r}
+sample_info_tab <- read_csv(file="export/SraRunTable-wrangle.tsv")
+
+# Also delete the row with the QIIME2 category codes
+
+sample_info_tab <- sample_info_tab[-c(1),]
+sample_info_tab <- sample_info_tab[,-c(1)] # and the random column lol
+sample_info_tab <- sample_info_tab[!grepl("18S", sample_info_tab$Library.Name),] #only include 16S samples
+sample_info_tab <- sample_info_tab[-c(42:80),] #remove reverse reads so we only have one entry per sample
+```
+
+### Removing contaminants
+The first thing to do before any analyses (not just ordinations) is to remove potential contamination. One way to do this is the [Decontam] (https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-018-0605-2) package. In the Happy Belly dataset the first four columns in the count_table are the blanks (sample B1, B2, B3, B4). Which columns in the count table are blanks for my dataset? Which rows in library.name of my metadata begin with NT?
+
+```{r}
+# Make a logical vector that states which entries in the count_table are 'TRUE' for blanks/controls and 'FALSE' for genuine samples
+vector_for_decontam <- startsWith(sample_info_tab$Library.Name, "NT")
+
+# The command, isContaminant, expects a matrix with rows as samples and ASVs as columns. So first we need to convert our table from a tibble to a numeric (dataframe)
+count_table_df <- as.data.frame(count_table)
+
+# And run isContaminant, while transforming the matric with t()
+contam_df <- isContaminant(t(count_table_df), neg=vector_for_decontam)
+
+# Take a look at the results
+table(contam_df$contaminant) # how many ASVs were identified as contaminants? None. Why?
+
+# Make a vector holding the identified contaminant IDs
+contam_asvs <- row.names(contam_df[contam_df$contaminant == TRUE, ])
+
+# Check the taxonomy of these contaminants
+taxonomy[taxonomy$`Feature ID` %in% contam_asvs] #Why don't I have any contaminants?!?
+
+```
+
+### Remove contaminants ASVs from data files. Also remove blanks from table now that we have used them for decontamination. 
+
+```{r}
+#Make a new fasta file without the contaminant ASVs
+asv_fasta_no_contam <- asv_fasta
+asv_fasta_no_contam[contam_asvs] <- NULL
+
+# Make new count table
+# set up logical vector for rows which are contamination
+vector_for_contam_count_table <- rownames(count_table) %in% contam_asvs
+# remove contaminating asvs
+count_table_no_contam <- count_table[!vector_for_contam_count_table,]
+
+# and remove blank samples
+#what is the index of "TRUE" values in the vector_for_decontam
+true_index <- NULL
+for (i in 1:length(vector_for_decontam)){
+  if (vector_for_decontam[[i]] == "TRUE"){
+    true_index <- c(true_index, i)
+  }
+}
+count_table_no_contam <- count_table_no_contam[,-c(true_index)]  #remove those samples
+
+# Make new taxonomy table
+# set up a logical vector for rows which are contamination
+vector_for_contam_taxonomy <- taxonomy$`Feature ID` %in% contam_asvs
+#remove contaminating ASVs
+taxonomy_no_contam <- taxonomy[!vector_for_contam_taxonomy,]
+
+# Make a new tree file
+# This is a phyloseq object so we can use a phyloseq command called prune_taxa
+tree_no_contam <- prune_taxa(count_table_no_contam$`#OTU ID`, tree)
+```
+
+### Check sequencing depth with rarefaction curves
+The are many caveats to using rarefaction curves for interpreting diversity, so use the with caution. Still, they give a sense of your sampling depth and are useful in comparing across smples from the same dataset.
+
+```{r}
+# Use rarecurve from the vegan package. Rarecurve expects teh datasetas a dataframe so we need to use as.data.frame again:
+count_table_no_contam_df <- as.data.frame(count_table_no_contam)
+
+#Plot the rarefaction curves, color-coding by the colors listed in sample_info_tab, which indicate sample type, and tranforming using t()
+rarecurve(t(count_table_no_contam_df), step=100, cex=0.5, col=palette(rainbow(nrow(sample_info_tab))), lwd=2, ylab="ASVs", label=T)
+# And add a veritical line to the plot indicating the fewest # of sequences from any sample
+abline(v=(min(rowSums(t(count_table_no_contam_df)))))
+
+```
+Could colour code rarefaction curves by sample type to compare ASV richness if appropriate
+
+### Remove singletons
+You may or may not want to remove singletons based on whether or not you have ASVs or OTUs and what your scientific questions are. DADA2 also tries to reduce the number of singletons, so you may not have any. But still, some can be introduced. Here are examples of how to remove singletons. Note that we are removing singletons "and" ASVs that have an abundance of zero (<=1).
+
+First example using tidyverse
+```{r}
+count_table_no_contam_no_singletons <- filter(count_table_no_contam, rowSums(count_table_no_contam)>1)
+```
+
+Second, using base R (here we use the dataframe version of the count table):
+```{r}
+count_table_no_contam_no_singletons_df <- count_table_no_contam_df[which(!rowSums(count_table_no_contam_df) <= 1), ]
+```
+
+Third, using tools from the phyloseq package:
+```{r}
+# First convert to phyloseq package
+count_table_no_contam_phyloseq <- otu_table(count_table_no_contam, taxa_are_rows = TRUE)
+
+# Then filter using filter taxa
+count_table_no_contam_no_singletons_phyloseq <- prune_taxa(taxa_sums(count_table_no_contam_phyloseq) > 1, count_table_no_contam_phyloseq)
+```
+
+### Transformation
+In this analysis we are considering tag-sequencing or amplicon data. This type of sequence data is compositional, because it does not represent true absolute abundance. The total number of sequences in this dataset is arbitrary (set by sequence depth), thus it is inappropriate to make conclusions about the abundance of a given species or taxa. It is important to acknowledge this in both your analysis and interpretation of the data. 
+
+Recommended resources to learn more about dealing with compositional data:
+    
+* Gloor, G. B., Macklaim, J. M., Pawlowsky-Glahn, V. & Egozcue, J. J. Microbiome Datasets Are Compositional: And This Is Not Optional. Front. Microbiol. 8, 57–6 (2017).
+* Weiss, S. et al. Normalization and microbial differential abundance strategies depend upon data characteristics. Microbiome 5, 1–18 (2017).
+* McMurdie, P. J. & Holmes, S. Waste Not, Want Not: Why Rarefying Microbiome Data Is Inadmissible. PLoS Comput Biol 10, e1003531 (2014).
+* Coenen AR, Hu SK, Luo E, Muratore D, Weitz JS. A Primer for Microbiome Time-Series Analysis. Front Genet. 2020 Apr 21;11:310.
+
+Normalization of abundance data is important in order to equalize for sampling effort across your samples before you continue with any downstream analyses. There are many different ways to do this, and depending on your downstream purposes, some are better than others. The most simple type of normalization is to standardize to 1 (so you are dealing with fractional abundances) or to re-sample at the depth of your least deeply sampled sample. However, these are not generally accepted practises any more, particularly if you are going to do multivariate tests downstream. This is because these basic normalization appraoches do not adjust the distribution of abundance data, and many downstream statistical tests assume a normal distribution. 
+
+Transformations can be carried out using the DeSeq2 package (http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003531). Also another common approach is the Hellinger transformation (https://link.springer.com/article/10.1007/s004420100716), which reduced the influence of zeros. In sequencing data, an abundance score of zero does not actually mean that an ASV is not present. It could mean that we just did not sequence it. Furthermore, an ASV with an abundance of zero will be stringly negatively correlated with an ASVthat has a high abundance from the sampe sample. But in microbial ecology, the abundance of one ASV is not necessarily ecologically meaningful to describe the presence of another, and so we want to resuce the influence of these zeroes (and in general, low abundance ASVs) in this dataset while also fitting our distribution to a normal distribution.
+
+The Vegan package has a variety of transformation options in the 'decostand' function. Here we will call the Hellinger method:
+
+```{r}
+count_table_hellinger <- decostand(t(count_table_no_contam_no_singletons), "hellinger")
+# Note that Vegan expected our rows as samples so we had to use t() again
+
+# Convert back to a tibble and switch rows for columns again (as_tibble has a weird thing where it will delete the rownames unless you specify rownames = NA)
+count_table_hellinger <- as_tibble(t(count_table_hellinger), rownames = NA)
+
+# Compare the untransformed to the transformed data
+head(count_table_no_contam_no_singletons) #untransformed
+head(count_table_hellinger)
+```
+
+### Export cleaned data to tsv or fasta or nwk files
+At this point, you could continue working in R with the R objects in your Global Environment as is. But it's also a good idea to export these cleaned-up files, incase you want to upload them into another project later:
+```{r}
+### Make a results directly
+# And export all files:
+#fasta
+write.fasta(asv_fasta_no_contam, taxonomy_no_contam$`Feature ID`, "results/cleaned_files/Sommers_16S_ASVs.fasta")
+#transformed count table
+write.table(count_table_hellinger, "results/cleaned_files/count_table_hellinger.tsv", sep="\t", quote=F, col.names=NA)
+#taxonomy
+write.table(taxonomy_no_contam, "results/cleaned_files/taxonomy.tsv", sep="\t", quote=F, col.names=NA)
+# tree file
+ape::write.tree(tree_no_contam, "results/cleaned_files/tree.nwk")
+```
+
+Another option is to save() all files in R as an R object
+```{r}
+save(asv_fasta_no_contam, count_table_hellinger, taxonomy_no_contam, tree_no_contam, file = "results/cleaned_files/cleanedfiles.RData")
+```
+
+And later you can load them with:
+```{r}
+load("results/cleaned_files/cleanedfiles.RData")
+```
