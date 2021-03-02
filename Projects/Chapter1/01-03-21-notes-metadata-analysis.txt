@@ -3,8 +3,8 @@ Mondat 1st March 2021
 This morning I have: checked all my emails, emailed the school regarding my L2B walk (James has donated £50!). I've also addedd a couple of notes to my TO DO list.
 
 Things that need to be done at some point:
-1) Prep Sommers et al., (2020) 16S amplicon output for analysis - 01/03/2021
-2) Carry out ordination analysis - 02/03/2021 - 03/03/2021
+1) Prep Sommers et al., (2020) 16S amplicon output for analysis - 01/03/2021 DONE
+2) Carry out ordination analysis - 02/03/2021 - 03/03/2021 DONE
 3) Go through pipeline with someone to check for issues - 04/03/2021
 4) Test for DDR and ISAR - 05/03/2021
 5) Multivariate analysis of community assembly mechanisms - 08/03/2021 - 09/03/2021
@@ -27,4 +27,5 @@ TODAYS MISSION: PREP 16S AMPLICON DATA FOR ANALYSIS
 
 I am preping my data in the R markdown script preparing-for-analysis.Rmd
 
+MISSION: COMPLETED AMPLICON DATA PREP ARE STARTED ORDINATION ANALYSIS using ordination-1.Rmd and ordination-2.Rmd
 

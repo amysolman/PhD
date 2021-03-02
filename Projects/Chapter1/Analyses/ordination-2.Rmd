@@ -5,26 +5,352 @@ date: "01/03/2021"
 output: html_document
 ---
 
+THIS SCRIPT IS TAKEN FROM THE BIOINFORMATICS VIRTUAL COORDINATION NETWORK https://github.com/biovcnet/
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Written by Daniel Muratore & Sarah Hu
+## Please cite/read - Coenen AR, Hu SK, Luo E, Muratore D, Weitz JS. A Primer for Microbiome Time-Series Analysis. Front Genet. 2020 Apr 21;11:310.
+# Original (and more):
+# https://github.com/WeitzGroup/analyzing_microbiome_timeseries
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+#Load libraries
+```{r}
+rm(list=ls())
+# install.packages(c("ape", "compositions", "plotly", "RColorBrewer", "tidyverse", "vegan", "cowplot"))
+library(compositions); library(tidyverse); library(vegan); library(ape)
+library(cowplot);library(plotly);library(RColorBrewer)
+```
+# Load our R object and metadata
+# We want the ASV table and taxonomy info
+# Here I want the ASV count table prior to QCand filtering. So we want it before filtering singletons/Eukaryotes/unassigned 
+Import the "cleaned up" R data object from our previous data prep step
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+```{r}
+load("results/cleaned_files/cleanedfiles.RData")
+sample_info_tab <- read_tsv("results/cleaned_files/SraRunTable-mod.tsv")
 
-```{r cars}
-summary(cars)
+#I'm going to change the names of the samples here so I can differentiate between glaciers further on in the analysis
+names(count_table_no_contam) <- sample_info_tab$Sample.Name
+colnames(count_table_no_contam) <- gsub("T", "T_", colnames(count_table_no_contam))
+colnames(count_table_no_contam) <- gsub("CAN", "CAN_", colnames(count_table_no_contam))
+
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+I need to start off by combining my count_table_no_contam dataframe with my taxonomy_no_contam dataframe
+```{r}
+taxonomy <- taxonomy_no_contam %>%
+  mutate(taxonomy=str_replace_all(string=Taxon, pattern="D_\\d*\\__", replacement="")) %>%
+  mutate(taxonomy=str_replace_all(string=taxonomy, pattern=";$", replacement="")) %>%
+separate(taxonomy, into=c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
+  select(-Taxon, -Confidence) %>%
+  column_to_rownames(var='Feature ID')
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+tax_counts <- cbind(count_table_no_contam, taxonomy)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+QC and filtering
+```{r}
+# QC and filtering
+counts_qced <- tax_counts %>% 
+  # Remove OTUs without assignments
+  filter(!(Kingdom == "Unassigned" | Kingdom == "Eukaryota" | Phylum == "NA")) %>%
+  # Remove singletons
+  mutate(otu_sum = rowSums(select_if(., is.numeric))) %>% 
+  filter(otu_sum > 1) %>% 
+  # Select OTU count data only, set row names
+  select(starts_with(c("CAN", "T"))) %>% 
+  #rownames_to_column(var=ASV.ID) %>%
+  rownames_to_column("ASV.ID") %>%
+  column_to_rownames(var = "ASV.ID") %>% 
+  data.frame
+head(counts_qced)
+```
+
+Select taxonomy information, make a key
+This bit isn't essential for this analysis but could be useful at some point
+```{r}
+#tax_key <- tax_counts %>%
+ # select(!starts_with("SRR")) %>%
+  #data.frame
+```
+
+ASV data are compositional
+Compositional data does not represent absolute abundances. The total number of sequences in your data is arbitrary. Meaning, with an increase in the relative abundance of an ASV this necessarily decrease the relative abundance of all other members. Because these data are compositional, theyare on a simplex.The data being on a simplex means, if we know the abundance of all of the ASVs except for one, we still have the same amount of information as if we knew all of the ASVs. This is important to acknowledge when you approach data analysis and interpretation.
+
+## References / recommended reading:
+# (1) THIS TUTORIAL: Coenen AR, Hu SK, Luo E, Muratore D, Weitz JS. A Primer for Microbiome Time-Series Analysis. Front Genet. 2020 Apr 21;11:310.
+# (2) Gloor, G. B., Macklaim, J. M., Pawlowsky-Glahn, V. & Egozcue, J. J. Microbiome Datasets Are Compositional: And This Is Not Optional. Front. Microbiol. 8, 57–6 (2017).
+# (3) Weiss, S. et al. Normalization and microbial differential abundance strategies depend upon data characteristics. Microbiome 5, 1–18 (2017).
+# (4) McMurdie, P. J. & Holmes, S. Waste Not, Want Not: Why Rarefying Microbiome Data Is Inadmissible. PLoS Comput Biol 10, e1003531 (2014).
+# (5) Silverman JD, Washburne AD, Mukherjee S, David LA. A phylogenetic transform enhances analysis of compositional microbiota data. eLife. 2017 Feb 15;6:e21887. 
+
+Evidence of compositionality (diagnostic):
+Do I need to transform my data?
+```{r}
+covariance_matrix <- as.matrix(counts_qced) %*% t(counts_qced)
+# %*% = matrix multiplication sign in R; used here to multiply OTU/ASV data matrix to itself to estimate covariance.
+```
+
+```{r}
+cov_determinant <- det(covariance_matrix)
+cov_determinant # The determinant of the covariance matrix (what we just calculated) is equivalent to the product of the proportion of variance explained by every PCA axis. If the determinant is 0, that means there is an axis which explains 0 variance that we can't separate from the other axes. The data need to be transformed to be suitable for PCA. 
+```
+
+Data transformations
+Another approach to PCA ordination w/Compositional Data: Log-Ratio Transofrmations
+Log-ratio combat issues with variance and distribution, all variables will be transformed to the belative to the abundance of arbitary focal taxon. Divide all the count databy the abundance of a focal taxa and take the natural log. So why do this? This is one way we can transform our amplicon data to be more appropriate/suitable for many statistical approaches.
+ilr - isometric log ratio
+clr - centered log ratio, values will be centerd around the geometric average
+
+```{r}
+counts_log_rats <- data.frame(compositions::ilr(t(counts_qced)))
+# diel_log_rats <- data.frame(ilr(t(diel_qced)))
+# These are complicated to interpret however because you move from D simplex to D-1 euclidean. But using these we can see we are now in invertible covariance regime.
+```
+
+Checking the difference the log-ratio made on the data characteristics
+```{r}
+new_covdet <- det(as.matrix(counts_log_rats) %*% t(counts_log_rats))
+cov_determinant #Original Count Data
+new_covdet # After doing a log ratio, you see that none of the axes are equal to 0. Therefore the axes for PCoA explain variance.
+```
+
+Visualize these axes - recall what the goal of an ordination is for this type of data
+Ordinations - taking complex data and working to present it in 2-3 dimensions, we are placing a new coordinate system (fitting) in place. Principal Component Analysis (PCA) works to generate this coordinate system that is most appropriate for your data. Evaluated based on the eigen decomposition from sample covariance matrix.  (Eigenvectors = principle axes)
+```{r}
+lograt_pca <- prcomp(counts_log_rats)
+class(lograt_pca)
+lograt_pca$sdev # Explore components of prcomp output
+```
+
+Visual representation - screenplot
+```{r}
+lograt_variances <- as.data.frame(lograt_pca$sdev^2/sum(lograt_pca$sdev^2)) %>% #Extract axes
+  # Format to plot
+  select(PercVar = 'lograt_pca$sdev^2/sum(lograt_pca$sdev^2)') %>% 
+  rownames_to_column(var = "PCaxis") %>% 
+  data.frame
+```
+
+Plot screenplot
+```{r}
+ggplot(lograt_variances, aes(x = as.numeric(PCaxis), y = PercVar)) + 
+  geom_bar(stat = "identity", fill = "grey", color = "black") +
+  theme_minimal() +
+  theme(axis.title = element_text(color = "black", face = "bold", size = 10),
+        axis.text.y = element_text(color = "black", face = "bold"),
+        axis.text.x = element_blank()) +
+  labs(x = "PC axis", y = "% Variance", title = "Log-Ratio PCA Screeplot")
+```
+
+We can see that this is most appropriate on 2 axis.
+
+Visualize the PCA
+```{r}
+# Visualize the PCA
+# lograt_pca$
+lograt_pca$x #View PC values
+pca_lograt_frame <- data.frame(lograt_pca$x) %>% 
+  rownames_to_column(var = "Glacier") %>% 
+  separate(Glacier, into = c("Glacier", "excess"), sep = "_") %>% 
+  select(-excess) %>% 
+  data.frame
+head(pca_lograt_frame)
+```
+
+Plot PCA
+```{r}
+ggplot(pca_lograt_frame) +
+  geom_point(aes(x = PC1, y = PC2, fill = Glacier), size = 4, shape = 21, color = "black") +
+  ylab(paste0('PC2 ', round(lograt_variances[2,2]*100,2),'%')) + #Extract y axis value from variance
+  xlab(paste0('PC1 ', round(lograt_variances[1,2]*100,2),'%')) + #Extract x axis value from variance
+  scale_fill_brewer(palette = 'Dark2', name = 'Glacier') +
+  ggtitle('Log-Ratio PCA Ordination') +
+  coord_fixed(ratio = 1) +
+  theme_bw()
+```
+
+PCoA
+PCoA is doing a PCA on a distance matrix constructed from the data.
+We then need a distance matrix
+Different distance metrics emphasize seperate attributes/factors in microbial community comparison
+
+For instance, if we want to prioritize differences in presence/absence between samples - use Jaccard. This can be estimated from untransformed count data, and does a pretty good job considering rare taxa. Another is unweighted UniFrac that includes phylogenetic relatedness (see ordination-1)
+```{r}
+jac_dmat <- vegdist(t(counts_qced), method="jaccard") # Jaccard dist metric
+pcoa_jac <- pcoa(jac_dmat) #Perform PCoA
+#jac_dmat = jaccard dissimilarity index of data
+# pcoa_jac = PCoA result
+```
+
+Again we will use the screenplot approach to see how the PCoA turned out
+
+Extract variances from pcoa, from jaccard calculated dist. metrix
+```{r}
+jac_variances <- data.frame(pcoa_jac$values$Relative_eig) %>%
+  select(PercVar='pcoa_jac.values.Relative_eig') %>%
+  rownames_to_column(var="PCaxis") %>%
+  data.frame
+head(jac_variances)
+```
+
+Screenplot check
+```{r}
+ggplot(jac_variances, aes(x=as.numeric(PCaxis), y=PercVar))+
+  geom_bar(stat="identity", fill="grey", color="black")+
+  theme_minimal()+
+  theme(axis.title=element_text(color="black", face="bold", size=10),
+        axis.text.y=element_text(color="black", face="bold"),
+        axis.text.x=element_blank())+
+  labs(x="PC axis", y= "% Variance", title = "Log-Ratio PCoA Screenplot")
+```
+
+How to read this plot: Before we plot the actual ordination, we need to decide which axes to present. We need to select as few axes as possible (so we can visualize) which capture largeamounts of variance. In this example, we see the first axis captures most of the variance, so we definitely will shwo that one. Then the next axes shows less and the remaining axes all show less in comparison. Therefore, we can exclude everything after the second axis. We'll plot 3 axis below just to show how it is done if the 2nd and 3rd axis showed similar amounts of variance.
+
+Plot in 3-D with plotly
+
+Extract vairances from pcoa, from jaccard calculated dist. metrix
+where samples fall among axes
+```{r}
+pcoa_jac_df <- data.frame(pcoa_jac$vectors) %>%
+ rownames_to_column(var = "Glacier") %>% 
+  separate(Glacier, into = c("Glacier", "excess"), sep = "_") %>% 
+  select(-excess) %>% 
+  data.frame
+head(pcoa_jac_df)
+```
+
+Select eigen values from dataframe, round to 4 places. These will be the axes for the 3-D plot
+Extractvariancesfrom previously generated dataframe, round and multiply by 100 for plotting
+```{r}
+eigenvalues <- round(jac_variances[,2], digits=4)*100
+
+#Plotly - 3-D
+plot_ly(pcoa_jac_df, type='scatter3d', mode='markers',
+        x=~Axis.2, y=~Axis.3,z=~Axis.1,colors=~brewer.pal(6,'Set1'), color=~Glacier) %>%
+  layout(font=list(size=18),
+         title='PCoA Jaccard Distance',
+         scene=list(xaxis=list(title=paste0('Co 2 ', eigenvalues[2], '%'),
+                               showticklabels=FALSE, zerolinecolor='black'),
+                               yaxis=list(title=paste0('Co 3 ', eigenvalues[3], '%'),
+                                          showticklabels=FALSE,zerolinecolor='black'),
+                    zaxis=list(title=paste0('Co 1 ', eigenvalues[1], '%'),
+                               showticklabels=FALSE,zerolinecolor='black')))
+```
+Performing the log-ratio transformation makes the data all occupy a similar dynamic range, so we can use magnitude-sensitive distances like euclidean distance 
+
+Comapre other transformations
+Take ilr transformed data and estimate euclidean distance
+```{r}
+#counts_log_rats <- data.frame(compositions::ilr(t(counts_qced))) # taken from above
+euc_dmat <- dist(counts_log_rats, method = "euclidean")
+#Euclidean, recommended for analysis of the difference in compositions, e.g. when we are working to understand changes in relative abundance. Because it depends on the composition, we must input transformed data.
+```
+
+Conduct ordination with distance matrix = PCoA
+```{r}
+pcoa_euc <- ape::pcoa(euc_dmat)
+```
+
+Extract variances from pcoa, from jaccard calculated distance metric
+```{r}
+euc_variances <- data.frame(pcoa_euc$values$Relative_eig) %>%
+  select(PercVar = 'pcoa_euc.values.Relative_eig') %>%
+  rownames_to_column(var="PCaxis") %>%
+  data.frame
+head(euc_variances)
+```
+
+Screenplot check
+```{r}
+ggplot(euc_variances, aes(x=as.numeric(PCaxis), y=PercVar))+
+  geom_bar(stat="identity", fill="grey", color="black")+
+  theme_minimal()+
+  theme(axis.title=element_text(color="black", face="bold", size=10),
+        axis.text.y=element_text(color="black", face="bold"),
+        axis.text.x=element_blank())+
+  labs(z="PC axis", y="% Variance", title="Euclidean\nLog-Ratio PCoA Screenplot")
+```
+
+By trying two different metrics, we can see a difference in ordination output. Recall for the Jaccard distance, we need 3 axis to present the ordination. Here, using euclidean distance, because of the complex covariance structure of the realtive compositions, the data do not easily ordinate into 2 or 3 dimensions.
+
+We can repeat this is 3 dimensions also.
+```{r}
+pcoa_euc_df <- data.frame(pcoa_euc$vectors) %>%
+  rownames_to_column(var="Glacier") %>%
+  separate(Glacier, into =c("Glacier", "excess"), sep="_") %>%
+  select(-excess) %>%
+  data.frame
+head(pcoa_euc_df)
+```
+
+Select eigen values from dataframe, round to 4 places. these will be the axes for the 3-D plot.
+Extract variances from previously generated dataframe, round and multiply by 100 for plotting
+```{r}
+eigenvalues <- round(euc_variances[,2],digits=4)*100
+
+#Plotly 3-d
+plot_ly(pcoa_euc_df, type='scatter3d', mode='markers',
+        x=~Axis.2,y=~Axis.3,z=~Axis.1,colors=~brewer.pal(6,'Set1'),color=~Glacier)%>%
+  layout(font=list(size=18),
+         title='PCoA Jaccard Distance',
+         scene=list(xaxis=list(title=paste0('Co 2 ', eigenvalues[2], '%'),
+                               showticklabels=FALSE, zerolinecolor='black'),        yaxis=list(title=paste0('Co 3 ', eigenvalues[3], '%'),
+                                                                                               showticklabels=FALSE, zerolinecolors='black'), zaxis=list(title=paste0('Co 1 ', eigenvalues[1], '%'),
+                                                     showticklabels=FALSE,zerolinecolor='black')))
+```
+
+To compare with the euclidean distance ordination representing differences in relative composition.
+Further note: If your ordination has data which align in a T or + shape perpendicular to the axes, this is often diagnostic of covariance attributed to the higher dimensions which are not plotted
+
+Although our statistical ordinations appear to require at least 3 dimensions to communicate the data.
+However, we don't always have the budget for a 3D plot. So we may want to impose the condition on an ordination technique that the answer MUST go into 2D. We turn to NMDS here.
+
+```{r}
+set.seed(071510) #setting random seed to assure NMDS comes out the same every time
+```
+
+So we can compare the relative composition based distance metric to the presence/absence based distance metric 
+NMDS: force data into a desired number of dimensions, works to preserve all pairwise distances between points.
+
+```{r}
+#euc_dmat <-dist(counts_log_rats, method="euclidean) From above
+euc_nmds<-metaMDS(euc_dmat,k=2,autotransform=FALSE)
+#jac_dmat<-vegdist(t(count_qced), method="jaccard") From above
+jac_nmds<-metaMDS(jac_dmat,k=2,autotransform=FALSE)
+```
+
+Take a look at stress - overall this values i not extremely informative, but know that the closer stress is to 1 the less representative of your actual data the NMDS is.
+```{r}
+euc_nmds$stress 
+jac_nmds$stress #this is more appropriate because it has less stress
+```
+
+Additionally, the axes for NMDS are totally arbitrary, so axis scaling does not matter and data can be rotated/reflected about axes and the NMDS is still the same
+```{r}
+euc_nmds$points #Extract points from NMDS
+
+euc_frame <- data.frame(euc_nmds$points) %>%
+  rownames_to_column(var="Glacier") %>%
+  separate(Glacier, into=c("Glacier", "excess"), sep="_") %>%
+  select(-excess) %>%
+  data.frame 
+
+#plotting euclidean distance NMDS
+
+ggplot(euc_frame, aes(x=MDS1, y=MDS2, fill=Glacier)) +
+  geom_point(size=4, shape=21, color="black", aes(fill=Glacier)) +
+  scale_fill_brewer(palette="Dark2")+
+  theme_bw()+
+  labs(x="NMDS 1", y="NMDS 2", title="Euclidean Distance NMDS")
+```
+
+# Things we did not cover, but you need to think about before performing this on your data.
+## What to do with zeroes? what do they mean in your data? how should you handle them?
+## Outliers! explore them, explain them

@@ -5,19 +5,20 @@ date: "01/03/2021"
 output: html_document
 ---
 
+THIS SCRIPT IS TAKEN FROM THE BIOINFORMATICS VIRTUAL COORDINATION NETWORK https://github.com/biovcnet/
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 Install and load packages
 ```{r}
-library(tidyverse)
-library(phyloseq)
-library(ape)
-
 #clean up the workspace
 rm(list=ls())
 graphics.off()
+library(tidyverse)
+library(phyloseq)
+library(ape)
 ```
 
 Import the "cleaned up" R data object from out previous data prep step
@@ -29,38 +30,11 @@ load("results/cleaned_files/cleanedfiles.RData")
 Import the metadata associated with the samples
 
 ```{r}
-sample_info_tab <- read_csv("export/SraRunTable-wrangle.tsv")
-
-#delete unneccessary row and column
-sample_info_tab <- sample_info_tab[-c(1),]
-sample_info_tab <- sample_info_tab[,-c(1)]
-sample_info_tab <- sample_info_tab[!grepl("18S", sample_info_tab$Library.Name),] #only include 16S samples
-sample_info_tab <- sample_info_tab[-c(42:80),] #remove reverse reads so we only have one entry per sample
-#remove blanks
-x <- startsWith(sample_info_tab$Library.Name, "NT")
-true_index <- NULL
-for (i in 1:length(x)){
-  if (x[[i]] == "TRUE"){
-    true_index <- c(true_index, i)
-  }
-}
-sample_info_tab <- sample_info_tab[-c(true_index),]  #remove those samples
-
-#add a column with glacier name
-Glacier <- NULL
-for (i in 1:nrow(sample_info_tab)){
-  if (startsWith(sample_info_tab$Sample.Name[[i]], "C")){
-    Glacier <- c(Glacier, "Canada")
-  } else {
-    Glacier <- c(Glacier, "Taylor")
-  }
-}
-
-sample_info_tab <- cbind(sample_info_tab, Glacier)
+sample_info_tab <- read_tsv("results/cleaned_files/SraRunTable-mod.tsv")
 
 ```
 
-The taxonomy in the taxonomy table is retained in one column and the different levels are deparated by underscores, eg:
+The taxonomy in the taxonomy table is retained in one column and the different levels are separated by underscores, eg:
 
 ```{r}
 head(taxonomy_no_contam)
