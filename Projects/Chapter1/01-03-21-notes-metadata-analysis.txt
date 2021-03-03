@@ -6,7 +6,7 @@ Things that need to be done at some point:
 1) Prep Sommers et al., (2020) 16S amplicon output for analysis - 01/03/2021 DONE
 2) Carry out ordination analysis - 02/03/2021 - 03/03/2021 DONE
 3) Go through pipeline with someone to check for issues - 04/03/2021
-4) Test for DDR and ISAR - 05/03/2021
+4) Test for DDR and ISAR - 05/03/2021 DONE
 5) Multivariate analysis of community assembly mechanisms - 08/03/2021 - 09/03/2021
 6) Make plan/prep for Svalbard - 08/03/2021
 7) Phylogenetic null model analysis of community assembly mechanisms - 10/03/2021 - 12/03/2021
