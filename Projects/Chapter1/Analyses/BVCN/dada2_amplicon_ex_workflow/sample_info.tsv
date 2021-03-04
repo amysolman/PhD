@@ -1,0 +1,17 @@
+	temp	type	char	color
+BW1	2.0	water	water	blue
+BW2	2.0	water	water	blue
+R10	13.7	rock	glassy	black
+R11BF	7.3	biofilm	biofilm	darkgreen
+R11	7.3	rock	glassy	black
+R12	NA	rock	altered	chocolate4
+R1A	8.6	rock	altered	chocolate4
+R1B	8.6	rock	altered	chocolate4
+R2	8.6	rock	altered	chocolate4
+R3	12.7	rock	altered	chocolate4
+R4	12.7	rock	altered	chocolate4
+R5	12.7	rock	altered	chocolate4
+R6	12.7	rock	altered	chocolate4
+R7	NA	rock	carbonate	darkkhaki
+R8	13.5	rock	glassy	black
+R9	13.7	rock	glassy	black

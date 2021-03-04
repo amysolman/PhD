@@ -1,3 +1,4 @@
 # Ignore all qua files
 *.qza
 *.mp4
+*.RData

@@ -1,0 +1,331 @@
+Thursday 4th March 2021
+
+QIIME2 Workflow From SRA to exported sequences
+
+In this workflow we will:
+1) Get raw sequence data from an online repository
+2) Convert those .sra files to .fastq.qz files (the kind QIIME2 likes to work with)
+3) Rename our files so QIIME2 recognises them
+4) Put all of our .fastq.qz files into one .qza file to be read by QIIME2
+5) Remove primers from our sequences (if necessary)
+6) Using DADA2 in QIIME2, denoise our sequences
+7) Assign taxonomy to the sequences using the Silva database
+8) Construct a phylogenetic tree of our sequences
+9) Export all of our work!
+
+This will produce the following files in the 'work' directory:
+work/demux-paired-end.qza #These are our fastq.qz files in a QIIME2 .qza data file format
+work/demux-paired-end-trimmed.qza #These are our fastq.qz files in a QIIME2 .qza data file format after primers have been trimmed from the sequences
+work/demux-paired-end-trimmed.qzv #This is a summarised vizualisation of our fastq.qz files in a QIIME2 .qza data file format after primers have been trimmed from the sequences
+work/silva-132-99-515-806-nb-classifier.qza #QIIME2 compatible Silva database classifier
+classified_sequences/classification.qza #Classification of ASVs using the Silva classifier and the representative sequences
+classified_sequences/taxonomy.qzv #Visualization of the classification
+DADA2_denoising_output/denoising_stats.qza #Visualization of denoising statistics
+DADA2_denoising_output/denoising_stats.qzv #Info on how many sequences were put into DADA2, how many remain after filtering, what percentage passed filtering, how many were denoised, how many were merged, what percentage were merged, how many were not chimeras, what percentage were not chimeras
+DADA2_denoising_output/rep_seqs.qzv #Visualization of the denoised representative sequences
+DADA2_denoising_output/representative_sequences.qza #The remaining representative sequences after denoising (i.e. a list of all the unique base pair sequences present in the denoised dataset)
+DADA2_denoising_output/table.qza #Feature table of the remaining sequences after denoising that tells us how many samples we have, how many features(ASVs) we have, how frequent (how many individual cells there are) per sample, how many ASVs we see per sample
+DADA2_denoising_output/table.qzv #Visualization of feature table
+export/exported-tree/tree.nwk #The rooted phylogenetic tree 
+export/rep-seqs.fasta/dna-sequences.fasta #The remaining representative sequences after denoising (i.e. a list of all the unique base pair sequences present in the denoised dataset), exported as a fasta file
+export/table/feature-table.biom # ASV count table with sample as columns and ASV as row, in biom format
+export/table/table.tsv #ASV count table with sample as columns and ASV as row
+export/taxonomy/taxonomy.tsv #Table of feature (ASV) IDs and their taxonomic classifications
+phylogeny/aligened-rep-seqs.qza #The results of a multiple sequence alignment, showing how closely related out representative sequences are.
+phylogeny/fasttree-tree-rooted.qza #Phylogenetic tree with midpoint as root
+phylogeny/fasttree-tree.qza #Phylogenetic tree constructed using the multiple sequence alignment from before
+phylogeny/masked-aligned-rep-seqs.qza #The results of the multiple sequence alignment, but with ambiguous alignments removed.
+
+
+In order to download fastq files from SRA I need to first download the SRA Toolkit.
+
+1)Go to terminal and install SRA Toolkit via the commandline using conda:
+
+conda install -c bioconda sra-tools
+
+2) Search accession number (from journal article of interest e.g. PRJNA668398) on SRA database. Get the SRR number and variations (e.g. the files I want are called SRR12805*** from 327 to 408) 
+
+3) Make a folder with the study name in your data directory e.g. Data/Sommers2020. 
+
+mkdir Data
+cd Data
+mkdir Sommers2020
+cd Sommers2020
+
+4) In command line:
+conda install -c bioconda sra-tools
+
+5) Use the following loop in command line to prefetch all the SRA files:
+
+for (( i = 327; i <= 408; i++ ))
+  do
+  prefetch SRR12805$i
+done
+
+***QUESTION: CAN'T REDOWNLOAD THE FILES TO A NEW DIRECTORY - IS THIS NORMAL?***
+
+6) USE THIS LOOP TO ENTER EACH FILE, CONVERT EVERY SRA TO FASTQ AND EXIT THE FILE AGAIN!
+
+for (( i = 327; i <= 408; i++ ))
+  do
+  cd SRR12805$i
+  fastq-dump SRR12805$i.sra --split-files --origfmt
+  cd ..
+done
+
+7) Let's download the metadata table. Click on one of the samples in the repository. On the sample page click on All Runs in the study info. This will take you to the Run Selector page that contains the downloadable metadata table! Woohoo! I also downloaded a text file that lists all the accessory names.
+
+8) Let's start copying over the Sommers2020 directory to data-wrangling. Make a new directory in Data-wrangling to copy fastq only files into.
+
+Manually copy Sommers2020 to Data-wrangling folder
+
+In terminal:
+cd Documents/GitHub/PhD/Projects/Practise/Data-wrangling/
+mkdir fastq-sommers2020
+cp Sommers2020/SRR12805*/*.fastq fastq-sommers2020/
+cp Sommers2020/SraRunTable.txt fastq-sommers2020/
+
+9)
+cd fastq-sommers2020
+mkdir qiime_import
+mv *.fastq qiime_import
+cd qiime_import
+rename 's/_/_00_L001_R/' *
+rename 's/.fastq/_001.fastq/' *
+gzip *.fastq
+
+10) Now I'm going to use my R script to modify the metadata file to include data type of each column:
+
+cd../..
+Rscript add-categorical-numeric-to-metadata.R
+
+This deposits the wrangled table in the fastq-sommers2020 directory 
+
+11) DIVIDED THE FOLDER qiime_import INTO 18S AND 16S READS manually (find a better way to do this?)
+
+12) Check sequences using FASTQC application on laptop
+
+***WHAT SHOULD I EXPECT TO SEE HERE - WHAT ARE WARNING SIGNS THAT SOMETHING IS WRONG?***
+
+13) in Data-wrangling:
+mkdir work
+
+14) In terminal navigate to Data-wrangling folder and activate Qiime environment by typing:
+
+cd ..
+conda activate qiime2-2021.2
+  
+###CHECK THE QIIME2 INSTALLATION###
+
+qiime info
+
+15) ###IMPORT FASTQ FILES INTO QIIME FORMAT###
+
+qiime tools import \
+  --type 'SampleData[PairedEndSequencesWithQuality]' \
+  --input-path fastq-sommers2020/qiime_import_16S \
+  --input-format CasavaOneEightSingleLanePerSampleDirFmt \
+  --output-path work/demux-paired-end.qza
+  
+16)###REMOVE PRIMERS###
+  
+  qiime cutadapt trim-paired
+  
+#I'm getting the primers from https://earthmicrobiome.org/protocols-and-standards/16s/ as described by Sommers et al., (2020)
+#The primer sequences are :
+Updated sequences: 515F (Parada)–806R (Apprill), forward-barcoded:
+FWD:GTGYCAGCMGCCGCGGTAA; REV:GGACTACNVGGGTWTCTAAT 
+
+***AM I PUTTING THESE PRIMERS IN QIIME CORRECTLY?***
+
+#On the forward reads we are trimming the 5' end for the forward primer (GTGYCAGCMGCCGCGGTAA). We're trimming the 3' end for the reverse compliment of the reverse primer (ATTAGAWACCCBDGTAGTCC). On the reverse reads we're trimming the reverse primer (GGACTACNVGGGTWTCTAAT) and then the reverse compliment of the forward primer (TTACCGCGGCKGCTGGCAC).
+  
+#######NOTE: REMEMBER TO READ THROUGH THE METHODS SECTION IN THE PAPER FOR INFO TO HELP YOU WITH PROCESSING THE READS! ALSO, I'VE DIVIDED THE FOLDER qiime_import INTO 18S AND 16S READS
+
+  qiime cutadapt trim-paired \
+--i-demultiplexed-sequences work/demux-paired-end.qza \
+--p-cores 8 \
+--p-front-f GTGCCAGCMGCCGCGGTAA \
+--p-adapter-f ATTAGAWACCCBDGTAGTCC \
+--p-front-r GGACTACHVGGGTWTCTAAT \
+--p-adapter-r TTACCGCGGCKGCTGGCAC \
+--p-minimum-length 215 \
+--p-discard-untrimmed \
+--o-trimmed-sequences work/demux-paired-end-trimmed.qza \
+--verbose 
+
+###THERE IS A PROBLEM WITH MY TRIMMING STEP###
+***WHY DOES THIS NOT TRIM MY READS?***
+***HOW DO I DECIDE WHAT AN APPROPRIATE MINIMUM LENGTH IS?***
+
+Most of my reads are being removed because they do not have the adaptors I specified so I've removed the --p-discard-untrimmed \ command
+
+  qiime cutadapt trim-paired \
+--i-demultiplexed-sequences work/demux-paired-end.qza \
+--p-cores 16 \
+--p-front-f GTGCCAGCMGCCGCGGTAA \
+--p-adapter-f ATTAGAWACCCBDGTAGTCC \
+--p-front-r GGACTACHVGGGTWTCTAAT \
+--p-adapter-r TTACCGCGGCKGCTGGCAC \
+--p-minimum-length 160 \
+--o-trimmed-sequences work/demux-paired-end-trimmed.qza \
+--verbose 
+
+
+17) ###CHECK QUALITY OF TRIMMED READS###
+qiime demux summarize \
+--i-data work/demux-paired-end-trimmed.qza \
+--o-visualization work/demux-paired-end-trimmed.qzv
+
+###VISUALIZE###
+qiime tools view work/demux-paired-end-trimmed.qzv
+
+18) ###CALL DADA2###
+
+•••HOW WOULD I DECIDE WHAT TRIMMING POSITIONS TO USE?•••
+***WHAT DOES DENOISED MEAN?***
+###I took the trimming positions from the Sommers et al., (2020) paper
+
+Where are the adaptors? Front or back? Use trim in DADA2 to cut them, in stead of QIIME2 cutadapt
+FastQC - look at for adaptor - if adaptor isn't there then don't worry about it! Warning: Not all adaptors are picked up by FastQC
+
+qiime dada2 denoise-paired \
+--i-demultiplexed-seqs work/demux-paired-end-trimmed.qza \
+--p-trunc-len-f 200 \
+--p-trunc-len-r 160 \
+--p-n-threads 0 \
+--output-dir work/DADA2_denoising_output \
+--verbose
+
+19) ###LETS LOOK AT THE RESULTS###
+qiime metadata tabulate \
+  --m-input-file work/DADA2_denoising_output/denoising_stats.qza \
+  --o-visualization work/DADA2_denoising_output/denoising_stats.qzv
+  
+  qiime tools view work/DADA2_denoising_output/denoising_stats.qzv
+  
+20) ###SUMMARY OF THE REMAINING SEQUENCE READS###
+
+  qiime feature-table tabulate-seqs \
+--i-data work/DADA2_denoising_output/representative_sequences.qza \
+--o-visualization work/DADA2_denoising_output/rep_seqs.qzv 
+
+###Through the sequence table generated below you can click on a representative sequence and BLAST it
+qiime tools view work/DADA2_denoising_output/rep_seqs.qzv
+
+21) ###FEATURE TABLE###
+
+qiime feature-table summarize \
+--i-table work/DADA2_denoising_output/table.qza \
+--o-visualization work/DADA2_denoising_output/table.qzv 
+
+qiime tools view work/DADA2_denoising_output/table.qzv
+
+22) ###ASSIGN TAXONOMY###
+
+###TO DO THIS USING SILVA WE HAVE TO INSTALL AND ACTIVATE A DIFFERENT VERSION OF QIIME2
+
+Come out of QIIME2
+conda deactivate 
+
+wget https://data.qiime2.org/distro/core/qiime2-2019.10-py36-osx-conda.yml
+conda env create -n qiime2-2019.10 --file qiime2-2019.10-py36-osx-conda.yml
+rm qiime2-2019.10-py36-osx-conda.yml
+conda activate qiime2-2019.10
+conda deactivate 
+
+23) DOWNLOAD SILVA 
+ wget https://data.qiime2.org/2019.10/common/silva-132-99-515-806-nb-classifier.qza
+mv silva-132-99-515-806-nb-classifier.qza work/
+
+ASSIGN TAXONOMY USING SILVA CLASSIFIER
+
+###NOTE: COMMAND C TO TERMINATE RUNNING COMMAND###
+####STILL NOT WORKING AS I DON'T HAVE ENOUGH SPACE! 
+So I'm currently emptying my trash bin on my laptop to see how much space it frees up...Freed up 50Gb on my hard drive
+I've backed up my computer to my external hard drive.
+
+###Then I'm going to follow these instructions to try and reassign my tmp folder and run the classification again
+https://forum.qiime2.org/t/error-on-running-silva-132-99-nb-classifier-1-qza-classifier/13252/3 
+I have reassigned by TMPDIR to a folder called data
+
+
+24) # Classify the representative sequences
+
+conda activate qiime2-2019.10
+
+####WARNING: THE BELOW COMMAND TAKES AN HOUR TO RUN#### 
+
+qiime feature-classifier classify-sklearn \
+--i-classifier work/silva-132-99-515-806-nb-classifier.qza \
+--i-reads work/DADA2_denoising_output/representative_sequences.qza \
+--output-dir work/classified_sequences \
+--verbose
+
+# and visualize
+qiime metadata tabulate \
+  --m-input-file work/classified_sequences/classification.qza \
+  --o-visualization work/classified_sequences/taxonomy.qzv
+  
+  qiime tools view work/classified_sequences/taxonomy.qzv
+  
+25) ###LETS MAKE A PHYLOGENETIC TREE!###
+
+mkdir work/phylogeny
+
+MAKE A MULTIPLE SEQUENCE ALIGNMENT WITH MAFFT (Multiple Alignment using Fast Fourier Transform)
+***WHAT IS MAFFT? WHAT IS HAPPENING IN THIS STEP?***
+Mafft is taking our representative sequences and generating a generate a multiple sequence alignment. This step is looking at the similarities and differences between the representative sequences so it can workout how they are related.
+
+qiime alignment mafft \
+  --i-sequences work/DADA2_denoising_output/representative_sequences.qza \
+  --o-alignment work/phylogeny/aligned-rep-seqs.qza
+  
+26) ###MASK THE ALIGNMENT###
+***WHAT IS HAPPENING IN THIS STEP?***
+Here we will mask (remove) any ambiguously aligned regions prior to performing phylogenetic inference.
+
+qiime alignment mask \
+  --i-alignment work/phylogeny/aligned-rep-seqs.qza \
+  --o-masked-alignment work/phylogeny/masked-aligned-rep-seqs.qza
+  
+27) ###CONSTRUCT THE PHYLOGENY###
+
+qiime phylogeny fasttree \
+  --i-alignment work/phylogeny/masked-aligned-rep-seqs.qza \
+  --o-tree work/phylogeny/fasttree-tree.qza
+  
+28) ###ROOT THE TREE SO IT CAN BE USED IN UNIFRAC###
+***WHAT DOES IT MEAN TO ROOT THE TREE?***
+
+qiime phylogeny midpoint-root \
+  --i-tree work/phylogeny/fasttree-tree.qza \
+  --o-rooted-tree work/phylogeny/fasttree-tree-rooted.qza
+  
+Note that all of the steps above (mafft alignment> mask> fasttree> midpoint root) could have been run with one command, align-to-tree-mafft-fasttree
+
+29) ###LET'S EXPORT OUR WORK
+
+mkdir work/export
+
+qiime tools export \
+  --input-path work/DADA2_denoising_output/table.qza \
+  --output-path work/export/table
+  
+biom convert \
+-i work/export/table/feature-table.biom \
+-o work/export/table/table.tsv --to-tsv
+
+qiime tools export \
+  --input-path work/DADA2_denoising_output/representative_sequences.qza \
+  --output-path work/export/rep-seqs.fasta
+  
+qiime tools export \
+  --input-path work/classified_sequences/classification.qza \
+  --output-path work/export/taxonomy
+  
+qiime tools export \
+  --input-path work/phylogeny/fasttree-tree-rooted.qza \
+  --output-path work/export/exported-tree
+  
+conda deactivate

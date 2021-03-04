@@ -1,0 +1,19 @@
+Thursday 4th March 2021
+
+MISSION: COMPLETE FIRST PHYLOGENETIC NULL MODEL ON SOMMERS ET AL., (2020) 16S AMPLICON DATASET
+
+I am working in Null.Rmd, following Jiao et al., (2020) Balance between community assembly processes mediates species coexistence in agricultural soil microbiomes across eastern China (https://github.com/shuojiao/Community-assembly-processes-and-species-coexistences-of-agricultural-soils-microbiome/blob/master/Null%20analysis.R) and Stegen et al., (2013) https://www.nature.com/articles/ismej201393 Quantifying community assembly processes and identifying features that impose them (https://github.com/stegen/Stegen_etal_ISME_2013) and tutorials from the BVCN (https://github.com/biovcnet/)
+
+I am working in Neutral.Rmd, following the analysis of Burns et al., (2015) Contribution of neutral processes to the assembly of the gut microbial communities changes over host development (https://www.nature.com/articles/ismej2015142#MOESM51) and Jiao et al., (2020) Balance between community assembly processes mediates species coexistence in agricultural soil microbiomes across eastern China (https://github.com/shuojiao/Community-assembly-processes-and-species-coexistences-of-agricultural-soils-microbiome/blob/master/Neutral%20model.R)
+
+Have downloaded the data and code for Pust et al., (2020) The human respiratory tract microbial community structures in healthy and cystic fibrosis infants (https://github.com/mmpust/airway-metagenome-infants). This has some really great code to go through and understand and apply to my analysis.
+
+11am Went through QIIME2 questions with Carla
+
+2pm Going to go through the BVCN "DADA2 utilizing DECIPHER for Taxonomy calling". NOTE: I'm ignoring the cutadapt section because the primers have already been removed from my sequences.
+
+5pm Assigning taxonomy following the BVCN tutorial (https://www.youtube.com/watch?v=NzHc8HFEtlw&list=PL4K-daRUS2A9ACcYbgyde8PRNKFRx4arV&index=5). Will take some time but once this is done I'm going to finish and export my sequences with assigned taxonomy. 
+
+MISSION: HAVE BASIC NULL/NEUTRAL/NETWORK CODE TO USE. HAVE DEEPER UNDERSTANDING OF QIIME2 + DADA2 + DECIPHER SOFTWARE FOR TAXONOMICALLY CLASSIFYING RAW SEQUENCE DATA.
+
+Tomorrow: Go through both ordination scripts and make sure you understand what is happening/what the packages are doing (basically want to get to a point where I can build and use a phyloseq object properly/use a phylogenetic tree for my null model). Go through the phyloseq tutorial (https://joey711.github.io/phyloseq/import-data.html) 

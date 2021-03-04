@@ -1,0 +1,325 @@
+---
+title: "DADA2 utilizing DECIPHER for Taxonomy calling"
+author: "Chris Trivedi & Liz Suter - based on [Mike Lee's DADA2 Workflow Example](https://astrobiomike.github.io/amplicon/dada2_workflow_ex#binder-available)"
+date: "10 May, 2020"
+output: 
+  html_notebook:
+    #toc: true
+    #toc_float: true
+editor_options: 
+  chunk_output_type: console
+---
+---
+<br>
+
+# Prepping and getting the data ready
+
+### Install and load packages
+
+First let's install and load the `DADA2` and `DECIPHER` packages which we will be using for this tutorial.
+```{r}
+rm(list=ls())
+# dada2
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("dada2")
+# DECIPHER
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("DECIPHER")
+```
+
+```{r}
+library(dada2)
+library(DECIPHER)
+```
+
+### Install cutadapt
+
+To trim our primers we will use `cutadapt`, let's install this in a conda environment. 
+
+>**NOTE:** Make sure to run this and the following commands in the RStudio `console`.
+```bash
+conda install -c bioconda cutadapt
+```
+
+### Download the tutorial dataset
+
+We will be using Mike Lee's tutorial dataset from his [Amplicon Analysis workflow](https://astrobiomike.github.io/amplicon/dada2_workflow_ex). He has this hosted on his FigShare. 
+```bash
+cd #<to working folder of your choice>
+curl -L -o dada2_amplicon_ex_workflow.tar.gz https://ndownloader.figshare.com/files/15072638
+tar -xzvf dada2_amplicon_ex_workflow.tar.gz
+rm dada2_amplicon_ex_workflow.tar.gz
+cd dada2_amplicon_ex_workflow/
+```
+
+### Get sample names
+```bash
+ls *_R1.fq | cut -f1 -d "_" > samples
+```
+
+### Removing primers using cutadapt
+```bash
+cutadapt --version # 2.3
+cutadapt -a ^GTGCCAGCMGCCGCGGTAA...ATTAGAWACCCBDGTAGTCC \
+    -A ^GGACTACHVGGGTWTCTAAT...TTACCGCGGCKGCTGGCAC \
+    -m 215 -M 285 --discard-untrimmed \
+    -o B1_sub_R1_trimmed.fq -p B1_sub_R2_trimmed.fq \
+    B1_sub_R1.fq B1_sub_R2.fq
+```
+
+### Checking before and after
+```bash
+### R1 BEFORE TRIMMING PRIMERS
+head -n 2 B1_sub_R1.fq
+# @M02542:42:000000000-ABVHU:1:1101:8823:2303 1:N:0:3
+# GTGCCAGCAGCCGCGGTAATACGTAGGGTGCGAGCGTTAATCGGAATTACTGGGCGTAAAGCGTGCGCAGGCGGTCTTGT
+# AAGACAGAGGTGAAATCCCTGGGCTCAACCTAGGAATGGCCTTTGTGACTGCAAGGCTGGAGTGCGGCAGAGGGGGATGG
+# AATTCCGCGTGTAGCAGTGAAATGCGTAGATATGCGGAGGAACACCGATGGCGAAGGCAGTCCCCTGGGCCTGCACTGAC
+# GCTCATGCACGAAAGCGTGGGGAGCAAACAGGATTAGATACCCGGGTAGTCC
+### R1 AFTER TRIMMING PRIMERS
+head -n 2 B1_sub_R1_trimmed.fq
+# @M02542:42:000000000-ABVHU:1:1101:8823:2303 1:N:0:3
+# TACGTAGGGTGCGAGCGTTAATCGGAATTACTGGGCGTAAAGCGTGCGCAGGCGGTCTTGTAAGACAGAGGTGAAATCCC
+# TGGGCTCAACCTAGGAATGGCCTTTGTGACTGCAAGGCTGGAGTGCGGCAGAGGGGGATGGAATTCCGCGTGTAGCAGTG
+# AAATGCGTAGATATGCGGAGGAACACCGATGGCGAAGGCAGTCCCCTGGGCCTGCACTGACGCTCATGCACGAAAGCGTG
+# GGGAGCAAACAGG
+### R2 BEFORE TRIMMING PRIMERS
+head -n 2 B1_sub_R2.fq
+# @M02542:42:000000000-ABVHU:1:1101:8823:2303 2:N:0:3
+# GGACTACCCGGGTATCTAATCCTGTTTGCTCCCCACGCTTTCGTGCATGAGCGTCAGTGCAGGCCCAGGGGACTGCCTTC
+# GCCATCGGTGTTCCTCCGCATATCTACGCATTTCACTGCTACACGCGGAATTCCATCCCCCTCTGCCGCACTCCAGCCTT
+# GCAGTCACAAAGGCCATTCCTAGGTTGAGCCCAGGGATTTCACCTCTGTCTTACAAGACCGCCTGCGCACGCTTTACGCC
+# CAGTAATTCCGATTAACGCTCGCACCCTACGTATTACCGCGGCTGCTGGCACTCACACTC
+### R2 AFTER TRIMMING PRIMERS
+head -n 2 B1_sub_R2_trimmed.fq
+# @M02542:42:000000000-ABVHU:1:1101:8823:2303 2:N:0:3
+# CCTGTTTGCTCCCCACGCTTTCGTGCATGAGCGTCAGTGCAGGCCCAGGGGACTGCCTTCGCCATCGGTGTTCCTCCGCA
+# TATCTACGCATTTCACTGCTACACGCGGAATTCCATCCCCCTCTGCCGCACTCCAGCCTTGCAGTCACAAAGGCCATTCC
+# TAGGTTGAGCCCAGGGATTTCACCTCTGTCTTACAAGACCGCCTGCGCACGCTTTACGCCCAGTAATTCCGATTAACGCT
+# CGCACCCTACGTA
+```
+
+### Use a loop to run cutadapt on all samples iteratively
+```bash
+for sample in $(cat samples)
+do
+    echo "On sample: $sample"
+    
+    cutadapt -a ^GTGCCAGCMGCCGCGGTAA...ATTAGAWACCCBDGTAGTCC \
+    -A ^GGACTACHVGGGTWTCTAAT...TTACCGCGGCKGCTGGCAC \
+    -m 215 -M 285 --discard-untrimmed \
+    -o ${sample}_sub_R1_trimmed.fq.gz -p ${sample}_sub_R2_trimmed.fq.gz \
+    ${sample}_sub_R1.fq ${sample}_sub_R2.fq \
+    >> cutadapt_primer_trimming_stats.txt 2>&1
+done
+```
+
+Let's see the output stats
+```bash
+paste samples <(grep "passing" cutadapt_primer_trimming_stats.txt | cut -f3 -d "(" | tr -d ")") <(grep "filtered" cutadapt_primer_trimming_stats.txt | cut -f3 -d "(" | tr -d ")")
+```
+
+>**NOTE:** Great, time to start processing with DADA2!
+# DADA2
+
+### Set our working directory and list our files
+```{r}
+setwd("~/dada2_amplicon_ex_workflow")
+list.files() # make sure what we think is here is actually here
+```
+
+First let's set a few variables that we're going to use in the future. The first with all sample names, by scanning our "samples" file we made earlier.
+
+In bash to get sample names from files in a folder:
+ls > samples.txt
+```{r}
+# samples <- scan("samples", what="character")
+# samples <- scan("qiime_import_16S/samples.txt", what="character") #get our sample names
+# samples <- unique(substr(samples, 1, 11))
+# samples <- head(samples, -1) #remove last element 'samples.txt'
+```
+
+The next two will contain the file names of all the forward and reverse reads
+```{r}
+#forward_reads <- paste0(samples, "_sub_R1_trimmed.fq.gz")
+#reverse_reads <- paste0(samples, "_sub_R2_trimmed.fq.gz")
+
+# forward_reads <- paste0(samples, "_00_L001_R1_001.fastq.qz")
+# reverse_reads <- paste0(samples, "_00_L001_R2_001.fastq.qz")
+```
+
+
+Finally, we'll make variables containing the file names for the filtered forward and reverse reads.
+```{r}
+#filtered_forward_reads <- paste0(samples, "_sub_R1_filtered.fq.gz")
+#filtered_reverse_reads <- paste0(samples, "_sub_R2_filtered.fq.gz")
+```
+
+Okay, now we're ready to begin looking at our data.
+
+### Plotting the quality profiles
+```{r}
+
+names <- list.files() #get file names
+names <- names[7:length(names)] #only keep the names of our sequences
+forward_reads <- grep("_R1_", names, value=TRUE) #assign to forward_reads variable
+reverse_reads <- grep("_R2_", names, value=TRUE) #assign to reverse_reads variable
+filtered_forward_reads <- paste0(substr(forward_reads, 1, 26), "_filtered.fastq.gz") #assign names for output files of filtered reads
+filtered_reverse_reads <- paste0(substr(reverse_reads, 1, 26), "_filtered.fastq.gz") #assign names for output files of filtered reads
+
+plotQualityProfile(forward_reads)
+plotQualityProfile(reverse_reads)
+
+```
+
+Alternatively we can just plot a few of the samples if we'd like
+```{r}
+plotQualityProfile(forward_reads[17:20])
+```
+
+Based on how these look we can determine how much to cut from each side.
+```{r}
+filtered_out <- filterAndTrim(forward_reads, filtered_forward_reads,
+                reverse_reads, filtered_reverse_reads, maxEE=c(2,2),
+                rm.phix=TRUE, minLen=175, truncLen=c(250,200))
+```
+
+Make sure you have the same number of samples you started with before filtering, and then check out the quality profiles again.
+```{r}
+class(filtered_out) # matrix
+dim(filtered_out) # 20 2
+filtered_out
+plotQualityProfile(filtered_forward_reads)
+plotQualityProfile(filtered_reverse_reads)
+plotQualityProfile(filtered_reverse_reads[17:20])
+```
+
+>**NOTE** These numbers are slightly different than Mike's in his original workflow. This could be attributed to a different version of DADA2.
+
+### Error profiling
+```{r}
+#err_forward_reads <- learnErrors(filtered_forward_reads)
+err_forward_reads <- learnErrors(filtered_forward_reads, multithread=TRUE) # Use this if you're running outside of Binder
+#err_reverse_reads <- learnErrors(filtered_reverse_reads)
+err_reverse_reads <- learnErrors(filtered_reverse_reads, multithread=TRUE)
+```
+
+### Plotting the error profiles
+```{r}
+plotErrors(err_forward_reads, nominalQ=TRUE)
+plotErrors(err_reverse_reads, nominalQ=TRUE)
+```
+
+>**NOTE:** As of the newest versions of DADA2 >=1.12 we don't have to do a separate dereplication step! DADA2 can now do this on the fly directly from the trimmed files. You can do it, but [according the the dev, it's not necessary](https://github.com/benjjneb/dada2/issues/752).
+  
+### Sample inference
+```{r}
+#dada_forward <- dada(filtered_forward_reads, err=err_forward_reads, pool="pseudo")
+dada_forward <- dada(filtered_forward_reads, err=err_forward_reads, pool="pseudo", multithread=TRUE) # Use this if not running in Binder
+#dada_reverse <- dada(filtered_reverse_reads, err=err_reverse_reads, pool="pseudo")
+dada_reverse <- dada(filtered_reverse_reads, err=err_reverse_reads, pool="pseudo", multithread=TRUE)
+```
+
+### Merge your sample infered reads
+```{r}
+merged_amplicons <- mergePairs(dada_forward, filtered_forward_reads, dada_reverse, filtered_reverse_reads, trimOverhang=TRUE, minOverlap=170, verbose = TRUE)
+# this object holds a lot of information that may be the first place you'd want to look if you want to start poking under the hood
+class(merged_amplicons) # list
+length(merged_amplicons) # 20 elements in this list, one for each of our samples
+names(merged_amplicons) # the names() function gives us the name of each element of the list 
+class(merged_amplicons$SRR12805327_00_L001_R1_001_filtered.fastq.gz) # each element of the list is a dataframe that can be accessed and manipulated like any ordinary dataframe
+names(merged_amplicons$SRR12805327_00_L001_R1_001_filtered.fastq.gz) # the names() function on a dataframe gives you the column names
+# "sequence"  "abundance" "forward"   "reverse"   "nmatch"    "nmismatch" "nindel"    "prefer"    "accept"
+```
+
+### Creating a sequence table
+```{r}
+seqtab <- makeSequenceTable(merged_amplicons)
+class(seqtab) # matrix
+dim(seqtab) # 41 2526
+```
+
+### Removing chimeras
+```{r}
+seqtab.nochim <- removeBimeraDenovo(seqtab, verbose=TRUE) 
+# Identified 17 bimeras out of 2521 input sequences.
+# though we only lost 17 sequences, we don't know if they held a lot in terms of abundance, this is one quick way to look at that
+sum(seqtab.nochim)/sum(seqtab) 
+# 0.9931372 
+# good, we barely lost any in terms of abundance
+```
+
+# Summary of read counts through the pipeline
+```{r}
+# set a little function
+getN <- function(x) sum(getUniques(x))
+# making a little table
+summary_tab <- data.frame(row.names=unique(substr(names, 1, 11)), dada2_input=filtered_out[,1],
+                          filtered=filtered_out[,2], dada_f=sapply(dada_forward, getN),
+                          dada_r=sapply(dada_reverse, getN), merged=sapply(merged_amplicons, getN),
+                          nonchim=rowSums(seqtab.nochim),
+                          final_perc_reads_retained=round(rowSums(seqtab.nochim)/filtered_out[,1]*100, 1))
+summary_tab
+```
+
+### Assigning taxonomy using DECIPHER
+
+>**Note:** DADA2 typically uses RDP's kmer-based method using SILVA for its classification database. Here we will use idTAXA as part of the DECIPHER package to see how results compare to the base DADA2 workflow.
+Download the DECIPHER training set
+```bash
+curl -o SILVA_SSU_r138_2019.RData http://www2.decipher.codes/Classification/TrainingSets/SILVA_SSU_r138_2019.RData
+```
+
+Now let's assign taxonomy
+```{r}
+dna <- DNAStringSet(getSequences(seqtab.nochim)) # Create a DNAStringSet from the ASVs
+load("SILVA_SSU_r138_2019.RData") # CHANGE TO THE PATH OF YOUR TRAINING SET
+ids <- IdTaxa(dna, trainingSet, strand="top", processors=NULL, verbose=FALSE) # use all processors
+ranks <- c("domain", "phylum", "class", "order", "family", "genus", "species") # ranks of interest
+# Convert the output object of class "Taxa" to a matrix analogous to the output from assignTaxonomy
+taxid <- t(sapply(ids, function(x) {
+        m <- match(ranks, x$rank)
+        taxa <- x$taxon[m]
+        taxa[startsWith(taxa, "unclassified_")] <- NA
+        taxa
+}))
+colnames(taxid) <- ranks; rownames(taxid) <- getSequences(seqtab.nochim)
+```
+
+>**NOTE:** The `taxid` matrix from IdTaxa is synonymous with `taxa` from the base way DADA2 assigns taxonomy.
+
+Quickly check to see how things look
+```{r}
+taxa.print <- taxid # Removing sequence rownames for display only
+rownames(taxa.print) <- NULL
+head(taxa.print)
+```
+
+From here we can export our data to be analyzed outside or R or continue to look at using packages such as `Phyloseq` and `vegan`.
+
+  # giving our seq headers more manageable names (ASV_1, ASV_2...) -->
+```{r}
+asv_seqs <- colnames(seqtab.nochim)
+asv_headers <- vector(dim(seqtab.nochim)[2], mode="character")
+
+for (i in 1:dim(seqtab.nochim)[2]) {
+asv_headers[i] <- paste(">ASV", i, sep="_")
+}
+#So this gives us the actually genetic sequence of our unique ASVs
+# making and writing out a fasta of our final ASV seqs: -->
+asv_fasta <- c(rbind(asv_headers, asv_seqs))
+write(asv_fasta, "ASVs.fa")
+
+# count table: -->
+asv_tab <- t(seqtab.nochim)
+row.names(asv_tab) <- sub(">", "", asv_headers)
+write.table(asv_tab, "ASVs_counts.tsv", sep="\t", quote=F, col.names=NA)
+
+# tax table: -->
+asv_tax <- taxid
+row.names(asv_tax) <- sub(">", "", asv_headers)
+write.table(asv_tax, "ASVs_taxonomy.tsv", sep="\t", quote=F, col.names=NA)
+  
+```

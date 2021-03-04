@@ -1,0 +1,371 @@
+---
+title: "Null Model"
+author: "Amy Solman"
+date: "03/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Ecological null model analysis script developed from Jiao et al., (2020) Balance between community assembly processes mediates species coexistence in agricultural soil microbiomes across eastern China (https://github.com/shuojiao/Community-assembly-processes-and-species-coexistences-of-agricultural-soils-microbiome/blob/master/Null%20analysis.R) and Stegen et al., (2013) https://www.nature.com/articles/ismej201393 Quantifying community assembly processes and identifying features that impose them (https://github.com/stegen/Stegen_etal_ISME_2013) and tutorials from the BVCN (https://github.com/biovcnet/)
+
+Let's start by cleaning the environment, loading our packages and importing our data
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(ggplot2)
+library(phyloseq)
+library(reshape2)
+library(ape)
+library(vegan)
+library(picante)
+library(tidyverse)
+#install.packages("viridis")
+library(viridis)
+install.packages("ecodist")
+library(ecodist) 
+
+#Load data
+load("results/cleaned_files/cleanedfiles.RData")
+sample_info_tab <- read_tsv("results/cleaned_files/SraRunTable-mod.tsv")
+```
+
+Sort out taxonomy data into seperate columns
+
+```{r}
+taxonomy <- taxonomy_no_contam %>%
+  mutate(taxonomy=str_replace_all(string=Taxon, pattern="D_\\d*\\__", replacement="")) %>%
+  mutate(taxonomy=str_replace_all(string=taxonomy, pattern=";$", replacement="")) %>%
+separate(taxonomy, into=c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
+  select(-Taxon, -Confidence) %>%
+  column_to_rownames(var='Feature ID')
+```
+
+Turn our input tables into phyloseq objects
+```{r}
+ASV = otu_table(data.frame(count_table_no_contam), taxa_are_rows = TRUE) #changed this from relative abundance to count data 
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(sample_info_tab, row.names = sample_info_tab$Run))
+
+#Make into one object
+ps <- phyloseq(ASV, TAX, META, tree_no_contam)
+```
+
+Filter out ambiguous Kingdom annotations
+```{r}
+ps <- subset_taxa(ps, !is.na(Kingdom) & !Kingdom %in% c("Unassigned", "Eukaryota"))
+
+table(tax_table(ps)[, "Kingdom"], exclude = NULL)
+```
+
+# filtering phyloseq object (ps) to remove ASVs with zero reads. 
+```{r}
+ps.trim = filter_taxa(ps, function(x) sum(x > 0.5) > (0.0000000000000001*length(x)), prune = TRUE) 
+```
+
+
+```{r}
+#phylo: Phylogenetic tree of each OTU
+#comun: A community table with samples as rows and OTUs as columns. 
+
+phylo <- phy_tree(ps)
+comun <- otu_table(ps)
+
+#Beta_NTI
+Beta_NTI<-function(phylo,comun,beta.reps=999){
+   require(picante)
+
+   comun=t(comun)
+   match.phylo.comun = match.phylo.data(phylo, t(comun))
+   beta.mntd.weighted = as.matrix(comdistnt(t(match.phylo.comun$data),cophenetic(match.phylo.comun$phy),abundance.weighted=T))
+
+   rand.weighted.bMNTD.comp = array(c(-999),dim=c(ncol(match.phylo.comun$data),ncol(match.phylo.comun$data),beta.reps))
+   for (rep in 1:beta.reps) {
+       rand.weighted.bMNTD.comp[,,rep] = as.matrix(comdistnt(t(match.phylo.comun$data),taxaShuffle(cophenetic(match.phylo.comun$phy)),abundance.weighted=T,exclude.conspecifics = F))
+       print(c(date(),rep))
+   }
+
+   weighted.bNTI = matrix(c(NA),nrow=ncol(match.phylo.comun$data),ncol=ncol(match.phylo.comun$data))
+   for(columns in 1:(ncol(match.phylo.comun$data)-1)) {
+          for(rows in (columns+1):ncol(match.phylo.comun$data)) {
+                  rand.vals = rand.weighted.bMNTD.comp[rows,columns,];
+                  weighted.bNTI[rows,columns] = (beta.mntd.weighted[rows,columns] - mean(rand.vals)) / sd(rand.vals)
+                  rm("rand.vals")
+          }
+   }
+   
+  rownames(weighted.bNTI) = colnames(match.phylo.comun$data);
+  colnames(weighted.bNTI) = colnames(match.phylo.comun$data);
+  return(as.dist(weighted.bNTI))
+}
+
+x <- Beta_NTI(phylo,comun,beta.reps=10)
+```
+
+RC_bray
+```{r}
+
+comun <- t(comun)
+
+raup_crick= function(comun, reps){
+  #require(ecodist) 
+   
+  ## count number of sites and total species richness across all plots (gamma)
+  n_sites<-nrow(comun)
+  gamma<-ncol(comun)
+  ##build a site by site matrix for the results, with the names of the sites in the row and col names:
+  results<-matrix(data=NA, nrow=n_sites, ncol=n_sites, dimnames=list(row.names(comun), row.names(comun)))
+  ##make the comun matrix into a new, pres/abs. matrix:
+  ceiling(comun/max(comun))->comun.inc
+  ##create an occurrence vector- used to give more weight to widely distributed species in the null model:
+  occur<-apply(comun.inc, MARGIN=2, FUN=sum)
+  ##create an abundance vector- used to give more weight to abundant species in the second step of the null model:
+  abundance<-apply(comun, MARGIN=2, FUN=sum)
+  ##make_null:
+  ##looping over each pairwise community combination:
+  for(null.one in 1:(nrow(comun)-1)){
+    for(null.two in (null.one+1):nrow(comun)){
+      null_bray_curtis<-NULL
+      for(i in 1:reps){
+        ##two empty null communities of size gamma:
+        com1<-rep(0,gamma)
+        com2<-rep(0,gamma)
+        ##add observed number of species to com1, weighting by species occurrence frequencies:
+        com1[sample(1:gamma, sum(comun.inc[null.one,]), replace=FALSE, prob=occur)]<-1
+        com1.samp.sp = sample(which(com1>0),(sum(comun[null.one,])-sum(com1)),replace=TRUE,prob=abundance[which(com1>0)]);
+        com1.samp.sp = cbind(com1.samp.sp,1); # head(com1.samp.sp);
+        com1.sp.counts = as.data.frame(tapply(com1.samp.sp[,2],com1.samp.sp[,1],FUN=sum)); colnames(com1.sp.counts) = 'counts'; # head(com1.sp.counts);
+        com1.sp.counts$sp = as.numeric(rownames(com1.sp.counts)); # head(com1.sp.counts);
+        com1[com1.sp.counts$sp] = com1[com1.sp.counts$sp] + com1.sp.counts$counts; # com1;
+        #sum(com1) - sum(spXsite[null.one,]); ## this should be zero if everything work properly
+        rm('com1.samp.sp','com1.sp.counts');			
+        ##same for com2:
+        com2[sample(1:gamma, sum(comun.inc[null.two,]), replace=FALSE, prob=occur)]<-1
+        com2.samp.sp = sample(which(com2>0),(sum(comun[null.two,])-sum(com2)),replace=TRUE,prob=abundance[which(com2>0)]);
+        com2.samp.sp = cbind(com2.samp.sp,1); # head(com2.samp.sp);
+        com2.sp.counts = as.data.frame(tapply(com2.samp.sp[,2],com2.samp.sp[,1],FUN=sum)); colnames(com2.sp.counts) = 'counts'; # head(com2.sp.counts);
+        com2.sp.counts$sp = as.numeric(rownames(com2.sp.counts)); # head(com2.sp.counts);
+        com2[com2.sp.counts$sp] = com2[com2.sp.counts$sp] + com2.sp.counts$counts; # com2;
+        # sum(com2) - sum(spXsite[null.two,]); ## this should be zero if everything work properly
+        rm('com2.samp.sp','com2.sp.counts');
+        null.comun = rbind(com1,com2); # null.comun;
+        ##calculate null bray curtis
+        null_bray_curtis[i] = distance(null.comun,method='bray-curtis');
+      }; # end reps loop
+      ## empirically observed bray curtis
+      obs.bray = distance(comun[c(null.one,null.two),],method='bray-curtis');
+      ##how many null observations is the observed value tied with?
+      num_exact_matching_in_null = sum(null_bray_curtis==obs.bray);
+      ##how many null values are smaller than the observed *dissimilarity*?
+      num_less_than_in_null = sum(null_bray_curtis<obs.bray);
+      rc = ((num_less_than_in_null +(num_exact_matching_in_null)/2)/reps)
+      ##modification of raup crick standardizes the metric to range from -1 to 1 instead of 0 to 1
+      rc = (rc-.5)*2
+      results[null.two,null.one] = round(rc,digits=2); ##store the metric in the results matrix
+      print(c(null.one,null.two,date()));
+    }; ## end null.two loop
+  }; ## end null.one loop
+
+  results<-as.dist(results)
+  return(results)
+}
+
+y <- raup_crick(comun, reps=3)
+
+```
+
+This is the code for calculating the BNTI as used by Stegen et al., (2013)
+```{r}
+## change to the directory on your computer that contains the OTU table and phylogeny
+## note that the 'slash' needs to be changed to a forward slash like this /
+setwd("C:/Users/steg815/Desktop/Stegen_PNNL/")
+
+## load this library
+## if not already installed, use install.packages('picante')
+library(picante)
+
+## read in OTU table
+
+otu = read.csv("bacteria-abundance of OTU.csv",header=T,row.names=1);
+dim(otu); # this gives the dimensions
+otu[1:5,1:5]; # this gives a look at the first 5 rows and columns
+
+## read in the phylogeny
+
+phylo = read.tree("bacteria-phylogeny.txt");
+phylo; # a summary of the phylogeny
+plot.phylo(phylo,typ="fan"); # a quick plot
+
+## make sure the names on the phylogeny are ordered the same as the names in otu table
+
+match.phylo.otu = match.phylo.data(phylo, t(otu));
+str(match.phylo.otu);
+
+## calculate empirical betaMNTD
+
+beta.mntd.weighted = as.matrix(comdistnt(t(match.phylo.otu$data),cophenetic(match.phylo.otu$phy),abundance.weighted=T));
+dim(beta.mntd.weighted);
+beta.mntd.weighted[1:5,1:5];
+write.csv(beta.mntd.weighted,'betaMNTD_weighted.csv',quote=F);
+
+identical(colnames(match.phylo.otu$data),colnames(beta.mntd.weighted)); # just a check, should be TRUE
+identical(colnames(match.phylo.otu$data),rownames(beta.mntd.weighted)); # just a check, should be TRUE
+
+# calculate randomized betaMNTD
+
+beta.reps = 999; # number of randomizations
+
+rand.weighted.bMNTD.comp = array(c(-999),dim=c(ncol(match.phylo.otu$data),ncol(match.phylo.otu$data),beta.reps));
+dim(rand.weighted.bMNTD.comp);
+
+for (rep in 1:beta.reps) {
+  
+  rand.weighted.bMNTD.comp[,,rep] = as.matrix(comdistnt(t(match.phylo.otu$data),taxaShuffle(cophenetic(match.phylo.otu$phy)),abundance.weighted=T,exclude.conspecifics = F));
+  
+  print(c(date(),rep));
+  
+}
+
+weighted.bNTI = matrix(c(NA),nrow=ncol(match.phylo.otu$data),ncol=ncol(match.phylo.otu$data));
+dim(weighted.bNTI);
+
+for (columns in 1:(ncol(match.phylo.otu$data)-1)) {
+  for (rows in (columns+1):ncol(match.phylo.otu$data)) {
+    
+    rand.vals = rand.weighted.bMNTD.comp[rows,columns,];
+    weighted.bNTI[rows,columns] = (beta.mntd.weighted[rows,columns] - mean(rand.vals)) / sd(rand.vals);
+    rm("rand.vals");
+    
+  };
+};
+
+rownames(weighted.bNTI) = colnames(match.phylo.otu$data);
+colnames(weighted.bNTI) = colnames(match.phylo.otu$data);
+weighted.bNTI;
+write.csv(weighted.bNTI,"weighted_bNTI.csv",quote=F);
+
+pdf("weighted_bNTI_Histogram.pdf")
+  hist(weighted.bNTI)
+  
+dev.off()
+```
+
+
+This is the code for calculating Raup-Crick as used by Stegen et al., (2013)
+```{r}
+
+raup_crick_abundance = function(spXsite, plot_names_in_col1=TRUE, classic_metric=FALSE, split_ties=TRUE, reps=9999, set_all_species_equal=FALSE, as.distance.matrix=TRUE, report_similarity=FALSE){
+	
+	##expects a species by site matrix for spXsite, with row names for plots, or optionally plots named in column 1.  By default calculates a modification of the Raup-Crick metric (standardizing the metric to range from -1 to 1 instead of 0 to 1). Specifying classic_metric=TRUE instead calculates the original Raup-Crick metric that ranges from 0 to 1. The option split_ties (defaults to TRUE) adds half of the number of null observations that are equal to the observed number of shared species to the calculation- this is highly recommended.  The argument report_similarity defaults to FALSE so the function reports a dissimilarity (which is appropriate as a measure of beta diversity).  Setting report_similarity=TRUE returns a measure of similarity, as Raup and Crick originally specified.  If ties are split (as we recommend) the dissimilarity (default) and similarity (set report_similarity=TRUE) calculations can be flipped by multiplying by -1 (for our modification, which ranges from -1 to 1) or by subtracting the metric from 1 (for the classic metric which ranges from 0 to 1). If ties are not split (and there are ties between the observed and expected shared number of species) this conversion will not work. The argument reps specifies the number of randomizations (a minimum of 999 is recommended- default is 9999).  set_all_species_equal weights all species equally in the null model instead of weighting species by frequency of occupancy.  
+	
+	
+	##Note that the choice of how many plots (rows) to include has a real impact on the metric, as species and their occurrence frequencies across the set of plots is used to determine gamma and the frequency with which each species is drawn from the null model	
+	
+	
+	##this section moves plot names in column 1 (if specified as being present) into the row names of the matrix and drops the column of names
+	if(plot_names_in_col1){
+		row.names(spXsite)<-spXsite[,1]
+		spXsite<-spXsite[,-1]
+		}
+	
+	
+	## count number of sites and total species richness across all plots (gamma)
+	n_sites<-nrow(spXsite)
+	gamma<-ncol(spXsite)
+
+	##build a site by site matrix for the results, with the names of the sites in the row and col names:
+	results<-matrix(data=NA, nrow=n_sites, ncol=n_sites, dimnames=list(row.names(spXsite), row.names(spXsite)))
+	
+	##make the spXsite matrix into a new, pres/abs. matrix:
+	ceiling(spXsite/max(spXsite))->spXsite.inc
+	
+	##create an occurrence vector- used to give more weight to widely distributed species in the null model:
+	occur<-apply(spXsite.inc, MARGIN=2, FUN=sum)
+	
+	##create an abundance vector- used to give more weight to abundant species in the second step of the null model:
+	abundance<-apply(spXsite, MARGIN=2, FUN=sum)
+	
+	##make_null:
+	
+	##looping over each pairwise community combination:
+	
+	for(null.one in 1:(nrow(spXsite)-1)){
+		for(null.two in (null.one+1):nrow(spXsite)){
+			
+			null_bray_curtis<-NULL
+			for(i in 1:reps){
+				
+				##two empty null communities of size gamma:
+				com1<-rep(0,gamma)
+				com2<-rep(0,gamma)
+				
+				##add observed number of species to com1, weighting by species occurrence frequencies:
+				com1[sample(1:gamma, sum(spXsite.inc[null.one,]), replace=FALSE, prob=occur)]<-1
+				com1.samp.sp = sample(which(com1>0),(sum(spXsite[null.one,])-sum(com1)),replace=TRUE,prob=abundance[which(com1>0)]);
+				com1.samp.sp = cbind(com1.samp.sp,1); # head(com1.samp.sp);
+				com1.sp.counts = as.data.frame(tapply(com1.samp.sp[,2],com1.samp.sp[,1],FUN=sum)); colnames(com1.sp.counts) = 'counts'; # head(com1.sp.counts);
+				com1.sp.counts$sp = as.numeric(rownames(com1.sp.counts)); # head(com1.sp.counts);
+				com1[com1.sp.counts$sp] = com1[com1.sp.counts$sp] + com1.sp.counts$counts; # com1;
+				#sum(com1) - sum(spXsite[null.one,]); ## this should be zero if everything work properly
+				rm('com1.samp.sp','com1.sp.counts');			
+				
+				##same for com2:
+				com2[sample(1:gamma, sum(spXsite.inc[null.two,]), replace=FALSE, prob=occur)]<-1
+				com2.samp.sp = sample(which(com2>0),(sum(spXsite[null.two,])-sum(com2)),replace=TRUE,prob=abundance[which(com2>0)]);
+				com2.samp.sp = cbind(com2.samp.sp,1); # head(com2.samp.sp);
+				com2.sp.counts = as.data.frame(tapply(com2.samp.sp[,2],com2.samp.sp[,1],FUN=sum)); colnames(com2.sp.counts) = 'counts'; # head(com2.sp.counts);
+				com2.sp.counts$sp = as.numeric(rownames(com2.sp.counts)); # head(com2.sp.counts);
+				com2[com2.sp.counts$sp] = com2[com2.sp.counts$sp] + com2.sp.counts$counts; # com2;
+				# sum(com2) - sum(spXsite[null.two,]); ## this should be zero if everything work properly
+				rm('com2.samp.sp','com2.sp.counts');
+
+				null.spXsite = rbind(com1,com2); # null.spXsite;
+				
+				##calculate null bray curtis
+				null_bray_curtis[i] = distance(null.spXsite,method='bray-curtis');
+				
+			}; # end reps loop
+
+			## empirically observed bray curtis
+			obs.bray = distance(spXsite[c(null.one,null.two),],method='bray-curtis');
+
+			##how many null observations is the observed value tied with?
+			num_exact_matching_in_null = sum(null_bray_curtis==obs.bray);
+			
+			##how many null values are smaller than the observed *dissimilarity*?
+			num_less_than_in_null = sum(null_bray_curtis<obs.bray);
+			
+			rc = (num_less_than_in_null )/reps; # rc;
+			
+			if(split_ties){
+				
+				rc = ((num_less_than_in_null +(num_exact_matching_in_null)/2)/reps)
+			};
+			
+			
+			if(!classic_metric){
+					
+					##our modification of raup crick standardizes the metric to range from -1 to 1 instead of 0 to 1
+					
+					rc = (rc-.5)*2
+			};
+
+			results[null.two,null.one] = round(rc,digits=2); ##store the metric in the results matrix
+			
+			print(c(null.one,null.two,date()));
+			
+		}; ## end null.two loop
+		
+	}; ## end null.one loop
+	
+	if(as.distance.matrix){ ## return as distance matrix if so desired
+		results<-as.dist(results)
+	}	
+	
+return(results)
+
+}; ## end function
+```
