@@ -1,0 +1,79 @@
+---
+title: "vegan-tutorial"
+author: "Amy Solman"
+date: "05/03/2021"
+output: html_document
+---
+
+This is the follow along and some direct text of the vegan tutorial by Jari Oksanen (2013) Multivariate Analysis of Ecological Communities in R: vegan tutorial + my own notes
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This tutorial demostrates the use of ordination methods in Rpack-agevegan.    The  tutorial  assumes  familiarity  both  withRandwith community ordination.  Packagevegansupports all basic or-dination methods, including non-metric multidimensional scaling.The constrained ordination methods include constrained analysis ofproximities, redundancy analysis and constrained correspondenceanalysis.  Packageveganalso has support functions for fitting en-vironmental variables and for ordination graphics
+
+What is ordination? Google says: "a statistical technique in which data from a large number of sites or populations are represented as points in a multidimensional space."
+
+##Ordination: basic method
+Non-metric Multidimensional scaling (NMDS)
+From Rob K statistics (https://www.youtube.com/watch?v=YS89_2n9Tlw): Ordination techniques allow us to order samples of ecological communities and to make sense of complicated data sets
+NMDS can show us how similar complicated samples are.
+Using shape and colour we can indicate which group samples belong to (e.g. location) or something about their associated environmental variables (e.g. temp, pH)
+NMDS is there to help us produce a low-dimensional representation of our high dimensional space. Plot similar samples close together. Preserve important patterns in the data.
+
+I'm going to start by importing my phyloseq object to be used in this analysis
+
+```{r}
+rm(list=ls())
+library(phyloseq)
+
+physeq <- readRDS("my-phyloseq-object.rds")
+```
+
+
+Let's also import all the packages we will need
+```{r}
+library(vegan)
+library(MASS)
+
+#practise dataset given by vegan
+data("varespec")
+vare.dis <-vegdist(varespec)
+vare.mds0 <- isoMDS(vare.dis)
+
+#Let's do the same for my data
+cryo.dis <- vegdist(t(otu_table(physeq))) #see here I'm transformed the asv count table to we have samples as rows and asvs as columns to replicate the practise dataset
+cryo.mds0 <- isoMDS(cryo.dis)
+```
+LEt's look at the stress plot of this NMDS
+```{r}
+#practise data
+stressplot(vare.mds0,vare.dis)
+
+#my data
+stressplot(cryo.mds0, cryo.dis) #this plot looks good. We can carry out our NMDS in 2D
+```
+
+```{r}
+ordiplot(vare.mds0,type="t")
+
+ordiplot(cryo.mds0, type="t")
+```
+
+```{r}
+vare.mds <- metaMDS(varespec, trace=FALSE)
+vare.mds
+
+plot(vare.mds, type="t")
+
+cryo.mds <- metaMDS(t(otu_table(physeq)), trace=FALSE)
+cryo.mds
+
+plot(cryo.mds,type="t")
+```
+Community dissimilarity 
+```{r}
+dis <- vegdist(decostand(varespec, "norm"), "euclid")
+```
+

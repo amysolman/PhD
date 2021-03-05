@@ -25,6 +25,7 @@ library(vegan)
 ```
 ```{r}
 # Import count table. Skip first row of tsv file, which is just some text
+#Import the count table from QIIME2 step. This has ASVs as rows and samples as columns.
 count_table <- read_tsv(file="export/table/table.tsv", skip=1)
 
 # And specify that the first column of the data are rownames
@@ -170,6 +171,21 @@ count_table_no_contam_phyloseq <- otu_table(count_table_no_contam, taxa_are_rows
 
 # Then filter using filter taxa
 count_table_no_contam_no_singletons_phyloseq <- prune_taxa(taxa_sums(count_table_no_contam_phyloseq) > 1, count_table_no_contam_phyloseq)
+```
+
+We also want to change the taxonomy table to match the new count table
+```{r}
+taxonomy_no_contam_no_singletons <- subset(taxonomy_no_contam, `Feature ID` %in% row.names(count_table_no_contam_no_singletons))
+
+#Now to modify the taxonomic table for my data 
+taxonomy <- taxonomy_no_contam_no_singletons %>%
+  mutate(taxonomy=str_replace_all(string=Taxon, pattern="D_\\d*\\__", replacement="")) %>%
+  mutate(taxonomy=str_replace_all(string=taxonomy, pattern=";$", replacement="")) %>%
+separate(taxonomy, into=c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
+  #select(-Taxon, -Confidence) %>%
+  column_to_rownames(var='Feature ID')
+
+rownames(taxonomy) <- rownames(count_table_no_contam_no_singletons)
 ```
 
 ### Transformation

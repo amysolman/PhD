@@ -1,0 +1,2 @@
+1) Clear workspace
+2) Load R object and phyloseq object

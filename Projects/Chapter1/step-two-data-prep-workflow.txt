@@ -1,0 +1,15 @@
+1) Clear workspace and read in packages (tidyverse, phyloseq, readr, seqinr, decontam, ape)
+2) Load count table, taxonomy file, tree and dna sequences.
+3) Specify the first column of count table is rownames.
+4) Load metadata. Remove unnecessary rows/columns/data (only keep what's necessary for the analysis).
+5) Identify contaminants in the count data by:
+a - making a logical vector for entries in the count table that are controls (TRUE) and genuine samples (FALSE).
+b - turn the count table into a dataframe.
+c - run isContaminant on the transformed count table dataframe.
+d - make a vector holding contaminant IDs and check their taxonomy.
+6) Remove contaminants from the count table, taxonomy file, tree, dna sequences and metadata file.
+7) Make rarefaction curves with line showing lowest number of sequences. Export plot.
+8) Remove singletons from count table, taxonomy file, tree and dna sequences.
+9) Transform count table by calling the Hellinger method to normalise data for downstream multivariate analysis.
+10) Merge count table, taxonomy, tree and metadata as phyloseq object and save.
+11) Save all files as an R object.

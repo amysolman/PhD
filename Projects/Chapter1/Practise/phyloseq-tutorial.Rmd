@@ -1,0 +1,213 @@
+---
+title: "phyloseq-tutorial"
+author: "Amy Solman"
+date: "05/03/2021"
+output: html_document
+---
+
+Beginners tutorial for using phyloseq. Following examples and text taken from the phyloseq website (https://joey711.github.io/phyloseq/import-data.html). 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+First load phyloseq
+```{r}
+library(phyloseq)
+library(readr) #for reading the tsv
+library(tidyverse) #for organising the taxonomy table
+library(ape)#for making a phylogenetic tree
+```
+Importing phyloseq Data
+
+The custom functions that read external data files and return an instance of the phyloseq-class are called importers. Validity and coherency between data components are checked by the phyloseq-class constructor, phyloseq() which is invoked internally by the importers, and is also the recommended function for creating a phyloseq object from manually imported data. The component indices representing OTUs or samples are checked for intersecting indices, and trimmed/reordered such that all available (non-) component data describe exactly the same OTUs and samples, in the same order.
+
+```{r}
+#This gives us an overview of available import functions and documentation links to their specific doc pages
+?import
+```
+
+Loading included data
+The data command in the R language loads pre-imported datasets that are included in packages. For example, the “Global Patterns” dataset can be loaded into the R workspace with the following command.
+```{r}
+data(GlobalPatterns)
+```
+
+phyloseq-ize Data already in R
+
+Any data already in an R session can be annoated/coerced to be recognized by phyloseq’s functions and methods. This is important, because there are lots of ways you might receive data related to a microbiome project, and not all of these will come from a popular server or workflow that is already supported by a phyloseq import function. There are, however, lots of general-purpose tools available for reading any common file format into R. We also want to encourage users to create and share their own import code for special/new data formats as they arive.
+
+For these reasons especially, phyloseq provides tools for constructing phyloseq component data, and the experiment-level multi-component data object, the phyloseq-class. These are the same functions used internally by the currently available importers.
+
+```{r}
+?phyloseq
+?otu_table
+?sample_data
+?tax_table
+```
+
+If you can get the data into R, then you can get it “into” phyloseq.
+
+Constructors:
+    otu_table - Works on any numeric matrix. You must also specify if the species are rows or columns
+    sample_data - Works on any data.frame. The rownames must match the sample names in the otu_table if you plan to combine them as a phyloseq-object
+    tax_table - Works on any character matrix. The rownames must match the OTU names (taxa_names) of the otu_table if you plan to combine it with a phyloseq-object.
+    phyloseq - Takes as argument an otu_table and any unordered list of valid phyloseq components: sample_data, tax_table, phylo, or XStringSet. The tip labels of a phylo-object (tree) must match the OTU names of the otu_table, and similarly, the sequence names of an XStringSet object must match the OTU names of the otu_table.
+    merge_phyloseq - Can take any number of phyloseq objects and/or phyloseq components, and attempts to combine them into one larger phyloseq object. This is most-useful for adding separately-imported components to an already-created phyloseq object.
+    
+Note: OTUs and samples are included in the combined object only if they are present in all components. For instance, extra “leaves” on the tree will be trimmed off when that tree is added to a phyloseq object.
+
+Example - In the following example, we will define random example data tables in R, and then combine these into a phyloseq object. If you are able to get your data tables into R, then you can apply the following method to manually create phyloseq instances of your own data.
+
+We’ll create the example vanilla R tables using base R code. No packages required yet.
+
+```{r}
+#Create a pretend OTU table that you read from a file, called otumat
+otumat = matrix(sample(1:100, 100, replace=TRUE), nrow=10, ncol=10)
+otumat
+
+#Or we can import our own data
+load("../Analyses/results/cleaned_files/cleanedfiles.RData")
+sample_info_tab <- read_tsv("../Analyses/results/cleaned_files/SraRunTable-mod.tsv")
+```
+
+It needs sample names and OTU names, the index names of the your own matrix might already have this.
+
+```{r}
+rownames(otumat) <- paste0("OTU", 1:nrow(otumat))
+colnames(otumat) <- paste0("Sample", 1:ncol(otumat))
+otumat 
+
+#Let's do the same with my data
+rownames(count_table_no_contam) <- paste0("ASV", 1:nrow(count_table_no_contam))
+colnames(count_table_no_contam) <- sample_info_tab$Sample.Name
+count_table_no_contam
+```
+Now we'll make a pretend taxonomy table for otumat and tidy up the REAL taxonomy table for count_table_no_contam
+
+```{r}
+taxmat = matrix(sample(letters,70,replace=TRUE),nrow=nrow(otumat), ncol=7)
+rownames(taxmat) <- rownames(otumat)
+colnames(taxmat) <- c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+taxmat
+
+#Now to modify the taxonomic table for my data 
+taxonomy <- taxonomy_no_contam %>%
+  mutate(taxonomy=str_replace_all(string=Taxon, pattern="D_\\d*\\__", replacement="")) %>%
+  mutate(taxonomy=str_replace_all(string=taxonomy, pattern=";$", replacement="")) %>%
+separate(taxonomy, into=c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
+  select(-Taxon, -Confidence) %>%
+  column_to_rownames(var='Feature ID')
+rownames(taxonomy) <- rownames(count_table_no_contam)
+taxonomy
+```
+
+Let's check the classes of our objects
+```{r}
+class(otumat)
+class(taxmat)
+class(count_table_no_contam) #this is a dataframe so we have to turn it into a matrix
+asv_count <- as.matrix(count_table_no_contam)
+class(asv_count)
+class(taxonomy) #same problem
+taxa <- as.matrix(taxonomy)
+class(taxa)
+```
+
+Now let’s tell phyloseq how to combine them into a phyloseq object. In the previous lines, we didn’t even need to have phyloseq loaded yet. Now we do.
+
+```{r}
+OTU = otu_table(otumat, taxa_are_rows = TRUE)
+TAX1 = tax_table(taxmat)
+OTU
+
+ASV = otu_table(asv_count, taxa_are_rows = TRUE)
+TAX2 = tax_table(taxa)
+ASV
+TAX2
+```
+
+```{r}
+physeq1 = phyloseq(OTU, TAX1)
+physeq1
+
+physeq2 = phyloseq(ASV, TAX2)
+physeq2
+```
+
+Let's plot our data
+```{r}
+plot_bar(physeq1, fill="Family")
+plot_bar(physeq2, fill="Phylum") #changed this to phylum because I have a much larger, more complex dataset
+```
+
+Now we'll add sample data to this. Make sure that the sample names match the sample_names of the otu_table.
+```{r}
+sampledata = sample_data(data.frame(
+  Location = sample(LETTERS[1:4], size=nsamples(physeq1), replace=TRUE),
+  Depth = sample(50:1000, size=nsamples(physeq1), replace=TRUE),
+  row.names=sample_names(physeq1),
+  stringsAsFactors=FALSE
+))
+sampledata
+
+sampledata2 = sample_data(data.frame(
+  Location = sample_info_tab$Glacier,
+  Lat_Long = sample_info_tab$lat_lon,
+  Elevation = sample_info_tab$elev,
+    Diameter1 = sample_info_tab$diameter1,
+  Diameter2 = sample_info_tab$diameter2,
+  Organic_matter = sample_info_tab$org_matter,
+  Water_content = sample_info_tab$water_content,
+  Variable1 = sample_info_tab$undefined,
+  Variable2 = sample_info_tab$undefined.2,
+  Variable3 = sample_info_tab$undefined.3,
+  row.names = sample_info_tab$Sample.Name,
+  stringsAsFactors = FALSE
+))
+sampledata2
+
+```
+
+Now create a random phylogenetic tree with the ape package, and add it to your dataset. Make sure its tip labels match your OTU_table.
+
+```{r}
+random_tree = rtree(ntaxa(physeq1), rooted=TRUE, tip.label=taxa_names(physeq1))
+plot(random_tree)
+
+tree = rtree(ntaxa(physeq2), rooted=TRUE, tip.label=taxa_names(physeq2))
+plot(tree)
+```
+Now let’s combine these altogether. We can do this either by adding the new data components to the phyloseq object we already have by using merge_phyloseq, or we can use a fresh new call to phyloseq to build it again from scratch. The results should be identical, and we can check. You can always do either one with the help from accessor functions, and the choice is stylistic.
+
+Merge new data with current phyloseq object:
+```{r}
+physeq_1 = merge_phyloseq(physeq1, sampledata, random_tree)
+physeq_1
+
+physeq_2 = merge_phyloseq(physeq2, sampledata2, tree)
+physeq_2
+
+#Rebuild phyloseq data from scratch using all the simulated data components we just generated:
+
+#physeq_1 = phyloseq(OTU, TAX, sampledata, random_tree)
+#physeq_1
+
+#I'm going to export my phyloseq object
+saveRDS(physeq_2, "my-phyloseq-object.rds")
+
+```
+
+Let’s build a couple tree plots with the new combined data.
+
+```{r}
+plot_tree(physeq_1, color="Location", label.tips="taxa_names", ladderize="left", plot.margin=0.3)
+
+plot_tree(physeq_1, color="Depth", shape="Location", label.tips = "taxa_names", ladderize="right", plot.margin=0.3)
+
+plot_heatmap(physeq_1)
+
+plot_tree(physeq_2, color="Location", label.tips="taxa_names", ladderize="left", plot.margin = 0.3)
+plot_tree(physeq_2, color="Diameter1", shape="Location", label.tips="taxa_names", ladderize="right", plot.margin=0.3)
+plot_heatmap(physeq_2)
+```
+

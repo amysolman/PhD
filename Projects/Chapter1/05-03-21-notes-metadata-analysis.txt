@@ -1,0 +1,5 @@
+Friday 5th March 2021
+
+MISSION: FOLLOW ALONG WITH PHYLOSEQ TUTORIAL (https://joey711.github.io/phyloseq/import-data.html#import_biom). THIS VEGAN TUTORIAL (file:///Users/amysolman/Downloads/vegantutorial.pdf) AND GO THROUGH ORDINATION PART ONE AND TWO AND MAKE SURE I UNDERSTAND WHAT IS HAPPENING/PACKAGES BEING USED.
+
+8am: Have gone through phyloseq tutorial and now understand the package better. 

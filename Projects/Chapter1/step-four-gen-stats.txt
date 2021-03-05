@@ -1,0 +1,29 @@
+#What is your question?
+#Why is it interesting?
+#What are you expecting?
+#Based on previous data, what would we expect to see?
+Questions:
+Is there a significant difference in the communities between glaciers?
+Can cryoconite hole size explain species richness?
+
+1) Clear workspace
+2) Load R object and phyloseq object
+3) For each glacier find: the mean, median, SD, variance, sample size and standard error of species richness
+4) For each glacier find: the mean, median, SD, variance, sample size and satndard error of hole area.
+5) For each glacier find: the mean, median, SD, variance, sample size and satndard error of number of sequences.
+6) Plot cryoconite hole area by species richness for each glacier
+7) Plot histogram of cryoconite hole area by species richness
+8) Boxplot of species richness by glacier
+9) Boxplot of hole area by glacier
+10) Boxplot of number of sequences by glacier
+11) Use t-test to see if there is a significant difference in species richness of cryoconite holes between glaciers
+12) Use t-test to see if there is a significant difference in area of cryoconite holes between glaciers
+13) Use t-test to see if there is a significant difference in number of sequences from cryoconite holes between glaciers
+14) Linear model: one way ANOVA to see if glacier has an affect on species richness.
+15) Linear model: one way ANOVA to see if glacier has an affect on number of sequences.
+16) Linear model: one way ANOVA to see if glacier has an affect on hole area.
+17) Chi squared test: Is there an association between the Phylum of cryoconite communities and the glacier?
+18) Linear model to see if hole area has an effect on species richness. Plot.
+19) ANCOVA: does glacier AND hole area affect species richness?
+
+

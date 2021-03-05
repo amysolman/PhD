@@ -1,0 +1,15 @@
+1) Clear workspace and read in packages (tidyverse, phyloseq, ape, compositions, vegan, cowplot, plotly, RColorBrewer)
+2) Load R object and phyloseq object
+3) Filter ambiguous Kingdom annotations/NA and low abundance phyla from your phyloseq object
+4) Re-root phylogenetic tree
+5) Plot the distribution of phyla across samples and save plot.
+6) Carry out principal coordinate analysis (PCoA) on dataset, subset by glacier
+7) Carry out a weighted UniFrac PCoA, subset by glacier 
+8) Carry out an NMDS ordination, subset by glacier. Check that the stress of this analysis is <0.2. Otherwise we discard this analysis.
+----------------------------------------
+10) Check for evidence of compositionality to see if we need to transform our data.
+11) Log-Ratio transform data if required
+12) Carry out principal component analysis (PCA) and plot, subset by glacier
+13) Carry out PCoA using Jaccard distance metric and plot
+14) Carry out PCoA using Euclidean distance metric and plot
+15) Carry out NMDS ordinations using Jaccard and Euclidean distance metrics (remember to check the stress!). Plot.

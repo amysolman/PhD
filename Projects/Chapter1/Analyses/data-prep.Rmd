@@ -1,0 +1,211 @@
+---
+title: "data-prep"
+author: "Amy Solman"
+date: "05/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This script will prepare our QIIME2 output for use in downstream analysis.
+
+#Step One: Clear work space and load packages
+
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(tidyverse)
+library(phyloseq)
+library(readr)
+library(seqinr)
+library(decontam)
+library(ape)
+library(vegan)
+```
+
+#Step Two: Load the data from our QIIME2 step +metadata
+
+```{r}
+count_table <- read_tsv(file="export/table/table.tsv", skip=1)
+
+taxonomy <- read_tsv(file="export/taxonomy/taxonomy.tsv")
+
+tree <- read_tree("export/exported-tree/tree.nwk")
+
+fasta <- read.fasta(file="export/rep-seqs.fasta/dna-sequences.fasta")
+
+sample_info_tab <- read_csv(file="export/SraRunTable-wrangle.tsv")
+```
+#Step Three: Specify the first column in our count table is the row names
+```{r}
+count_table <- column_to_rownames(count_table, var = colnames(count_table)[1])
+rownames(count_table) <- paste0("ASV", 1:nrow(count_table))
+```
+
+#Step Four: Load metadata table and remove unnecessary rows/columns/data
+
+```{r}
+#delete unneccessary row and column
+sample_info_tab <- sample_info_tab[-c(1),]
+sample_info_tab <- sample_info_tab[,-c(1)]
+sample_info_tab <- sample_info_tab[!grepl("18S", sample_info_tab$Library.Name),] #only include 16S samples
+sample_info_tab <- sample_info_tab[-c(42:80),] #remove reverse reads so we only have one entry per sample
+
+colnames(count_table) <- unique(sample_info_tab$Sample.Name)
+
+#add a column with glacier name
+Glacier <- NULL
+for (i in 1:nrow(sample_info_tab)){
+  if (startsWith(sample_info_tab$Sample.Name[[i]], "C")){
+    Glacier <- c(Glacier, "Canada")
+  } else {
+    Glacier <- c(Glacier, "Taylor")
+  }
+}
+
+sample_info_tab <- cbind(sample_info_tab, Glacier)
+
+#Keep only the information from the metadata table that will be useful in later analysis
+sampledata = sample_data(data.frame(
+  Sample_name = sample_info_tab$Sample.Name,
+  Location = sample_info_tab$Glacier,
+  Lat_Long = sample_info_tab$lat_lon,
+  Elevation = sample_info_tab$elev,
+    Diameter1 = sample_info_tab$diameter1,
+  Diameter2 = sample_info_tab$diameter2,
+  Organic_matter = sample_info_tab$org_matter,
+  Water_content = sample_info_tab$water_content,
+  Variable1 = sample_info_tab$undefined,
+  Variable2 = sample_info_tab$undefined.2,
+  Variable3 = sample_info_tab$undefined.3,
+  row.names = sample_info_tab$Sample.Name,
+  stringsAsFactors = FALSE
+))
+```
+#Step Five: Modifty taxonomy table
+```{r}
+taxonomy <- taxonomy %>%
+  mutate(taxonomy=str_replace_all(string=Taxon, pattern="D_\\d*\\__", replacement="")) %>%
+  mutate(taxonomy=str_replace_all(string=taxonomy, pattern=";$", replacement="")) %>%
+separate(taxonomy, into=c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
+  select(-Taxon, -Confidence) %>%
+  column_to_rownames(var='Feature ID')
+
+row.names(taxonomy) <- row.names(count_table) #give taxonomy same ASV names as count_table
+```
+
+#Step Six: Identify contaminents in the count data
+```{r}
+# A logical vector showing which entries are 'TRUE' for controls and 'FALSE' for genuine samples
+decontam <- startsWith(sampledata$Sample_name, "NT")
+
+# Run isContaminant (remember to transform the dataframe i.e. t())
+contam <- isContaminant(t(count_table), neg=decontam)
+
+# Look at the results
+table(contam$contaminant) # how many ASVs were identified as contaminants? None. Why?
+
+# Make a vector holding the contaminant IDs
+contam_asvs <- row.names(contam[contam$contaminant == TRUE, ])
+
+# What is the taxonomy of our contaminant ASVs?
+taxonomy[taxonomy$`Feature ID` %in% contam_asvs] #Why don't I have any contaminants?!?
+
+```
+
+#Step Seven: Remove contaminents from count table,taxonomy table, sequence data, metadata and tree
+```{r}
+
+###COUNT TABLE
+x <- rownames(count_table) %in% contam_asvs #which rows are contaminants?
+count_table_clean <- count_table[!x,] #remove those rows
+
+# and remove blank samples from count table
+#what is the index of "TRUE" values in decontam?
+true_index <- NULL
+for (i in 1:length(decontam)){
+  if (decontam[[i]] == "TRUE"){
+    true_index <- c(true_index, i)
+  }
+}
+count_table_clean <- count_table_clean[,-c(true_index)]  #remove those samples
+
+###TAXONOMY TABLE
+z <- taxonomy$`Feature ID` %in% contam_asvs
+taxonomy_clean <- taxonomy[!row.names(taxonomy) %in% z,]#remove contaminating ASVs
+
+###FASTA FILE
+#Remove contaminants from dna sequences file
+fasta_clean <- fasta
+fasta_clean[contam_asvs] <- NULL
+
+###METADATA TABLE
+y <- startsWith(sampledata$Sample_name, "NT")
+true_index <- NULL
+for (i in 1:length(y)){
+  if (y[[i]] == "TRUE"){
+    true_index <- c(true_index, i)
+  }
+}
+sampledata_clean <- sampledata[-c(true_index),]  #remove those samples
+
+###PHYLOGENETIC TREE
+# This is a phyloseq object so we can use a phyloseq command called prune_taxa
+tree_clean <- prune_taxa(count_table_clean$`#OTU ID`, tree)
+```
+
+#Step Eight: Plot rarefaction curves to see how deeply our samples have been sequenced
+```{r}
+#Plot the rarefaction curves, color-coding by sample and tranform using t()
+#Col= option could also be used to look at different sample types/locations?
+pdf("rplot.pdf") 
+rarecurve(t(count_table_clean), step=100, cex=0.5, col=palette(rainbow(nrow(sampledata_clean))), lwd=2, ylab="ASVs", label=T)
+# Add line to indicate the fewest # of sequences from any sample
+abline(v=(min(rowSums(t(count_table_clean)))))
+dev.off()
+```
+
+#Step Nine: Convert data to phyloseq objects and remove singletons
+
+```{r}
+
+###COUNT TABLE
+# Convert count table to phyloseq package
+count_table_phyloseq <- otu_table(as.matrix(count_table_clean), taxa_are_rows = TRUE)
+ASV <- prune_taxa(taxa_sums(count_table_phyloseq) > 1, count_table_phyloseq) # Filter using prune_taxa
+
+###TAXONOMY TABLE
+TAX = tax_table(as.matrix(taxonomy_clean))
+TAX <- prune_taxa(taxa_sums(count_table_phyloseq) > 1, TAX)
+
+###METADATA TABLE 
+META = sample_data(sampledata_clean)
+
+###PHYLOGENETIC TREE
+# This is a phyloseq object so we can use a phyloseq command called prune_taxa
+taxa_names(TREE) = taxa_names(ASV) #Change tree names to match ASVs
+TREE <- prune_taxa(taxa_sums(count_table_phyloseq) > 1, tree_clean)
+
+#Make into one phyloseq object
+my_physeq = phyloseq(ASV, TAX, META, TREE)
+
+#I'm going to export my phyloseq object
+saveRDS(my_physeq, "my-phyloseq-object.rds")
+```
+
+###Step Ten: Perform Hellinger transformation
+
+```{r}
+count_table_hellinger <- decostand(t(count_table_clean), "hellinger")
+# Convert back to a tibble and switch rows for columns again 
+count_table_hellinger <- as_tibble(t(count_table_hellinger), rownames = NA)
+```
+
+###Step Eleven: Export data files 
+```{r}
+#Note singletons have not been removed from these files, only the phyloseq object
+save(count_table_clean, count_table_hellinger, taxonomy_clean, fasta_clean, tree_clean, sampledata_clean, file = "results/cleaned_files/cleanedfiles.RData")
+```
