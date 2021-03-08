@@ -1,0 +1,76 @@
+---
+title: "ordination"
+author: "Amy Solman"
+date: "08/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+This script will perform ordination of the data I prepared in step two.
+#Step One: Clear my working environment, load my packages and my data.
+
+```{r}
+rm(list=ls())
+
+graphics.off()
+library(tidyverse)
+library(phyloseq)
+library(ape)
+
+#Load my data object
+load("results/cleaned_files/cleanedfiles.RData")
+
+#Load my phyloseq object
+my_physeq <- readRDS("results/my-phyloseq-object.rds")
+```
+
+#Step Two: Check the distribution of phyla in my phyloseq object
+
+```{r}
+# Aglomerate the ASVs at the phylum level
+my_physeq_glom = tax_glom(my_physeq, "Phylum")
+# Plot
+plot_bar(my_physeq_glom, x = "Sample", fill = "Phylum") #why does this look different from when I did it in the other ordination script (ordination-1.Rmd)?
+```
+#Step Three: Calculate Bray-Curtis dissimilarity matrix
+
+```{r}
+bray_distance <- distance(my_physeq, method = "bray")
+bray_distance
+```
+
+#Step Four: Carry out bray-curtis and unweighted unifrac PCoA analysis and plot, scaled by the eigenvalues
+```{r}
+#Bray-Curtis
+my_pcoa_bray <- ordinate(my_physeq, method = "PCoA", distance = "bray")
+my_eigenvalues_bray <- my_pcoa_bray$values$Eigenvalues
+pcoa_plot_bray = plot_ordination(my_physeq, my_pcoa_bray, color = "Location") +
+  geom_point(size = 3)+
+  coord_fixed(sqrt(my_eigenvalues_bray[2]/my_eigenvalues_bray[1]))
+pcoa_plot_bray
+```
+
+#Step Five: Carry out unweighted unifrac PCoA analysis and plot, scaled by the eigenvalues
+```{r}
+#Unweighted UniFrac
+my_pcoa_wuni <- ordinate(my_physeq, method = "PCoA", distance = "wunifrac")
+my_eigenvalues_wuni <- my_pcoa_wuni$values$Eigenvalues
+pcoa_plot_wuni = plot_ordination(my_physeq, my_pcoa_wuni, color = "Location") +
+  geom_point(size = 3)+
+  coord_fixed(sqrt(my_eigenvalues_wuni[2]/my_eigenvalues_wuni[1]))
+pcoa_plot_wuni
+```
+
+#Step Six: Create an NMDS plot 
+```{r}
+my_nmds <- ordinate(my_physeq, method = "NMDS", distance = "bray")
+nmds_plot = plot_ordination(my_physeq, my_nmds, color = "Location") +
+  geom_point(size = 3)
+nmds_plot
+```
+
+
