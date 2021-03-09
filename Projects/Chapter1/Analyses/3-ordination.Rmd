@@ -1,7 +1,7 @@
 ---
-title: "ordination"
+title: "ordination-1"
 author: "Amy Solman"
-date: "08/03/2021"
+date: "01/03/2021"
 output: html_document
 ---
 
@@ -9,41 +9,39 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
-This script will perform ordination of the data I prepared in step two.
-#Step One: Clear my working environment, load my packages and my data.
-
+#Step One: Clear workspace and load packages
 ```{r}
+#clean up the workspace
 rm(list=ls())
-
 graphics.off()
 library(tidyverse)
 library(phyloseq)
 library(ape)
-
-#Load my data object
-load("results/cleaned_files/cleanedfiles.RData")
-
-#Load my phyloseq object
-my_physeq <- readRDS("results/my-phyloseq-object.rds")
 ```
 
-#Step Two: Check the distribution of phyla in my phyloseq object
-
+#Step Two: Load R data object and phyloseq object
 ```{r}
-# Aglomerate the ASVs at the phylum level
-my_physeq_glom = tax_glom(my_physeq, "Phylum")
-# Plot
-plot_bar(my_physeq_glom, x = "Sample", fill = "Phylum") #why does this look different from when I did it in the other ordination script (ordination-1.Rmd)?
+load("results/cleaned_files/cleanedfiles_3.RData")
+
+my_phyloseq <- readRDS("results/my-phyloseq-object.rds")
 ```
-#Step Three: Calculate Bray-Curtis dissimilarity matrix
+
+#Step Three: Make a bar chart of the aglomerated phyla
+```{r}
+glom = tax_glom(my_phyloseq, "Phylum")
+# and plot
+pdf("results/glom.pdf") 
+plot_bar(glom, x = "Sample", fill = "Phylum")
+dev.off()
+```
+#Step Four: Calculate Bray-Curtis dissimilarity matrix
 
 ```{r}
 bray_distance <- distance(my_physeq, method = "bray")
 bray_distance
 ```
 
-#Step Four: Carry out bray-curtis and unweighted unifrac PCoA analysis and plot, scaled by the eigenvalues
+#Step Five: Carry out bray-curtis and unweighted unifrac PCoA analysis and plot, scaled by the eigenvalues
 ```{r}
 #Bray-Curtis
 my_pcoa_bray <- ordinate(my_physeq, method = "PCoA", distance = "bray")
@@ -54,7 +52,7 @@ pcoa_plot_bray = plot_ordination(my_physeq, my_pcoa_bray, color = "Location") +
 pcoa_plot_bray
 ```
 
-#Step Five: Carry out unweighted unifrac PCoA analysis and plot, scaled by the eigenvalues
+#Step Six: Carry out unweighted unifrac PCoA analysis and plot, scaled by the eigenvalues
 ```{r}
 #Unweighted UniFrac
 my_pcoa_wuni <- ordinate(my_physeq, method = "PCoA", distance = "wunifrac")
@@ -65,12 +63,10 @@ pcoa_plot_wuni = plot_ordination(my_physeq, my_pcoa_wuni, color = "Location") +
 pcoa_plot_wuni
 ```
 
-#Step Six: Create an NMDS plot 
+#Step Seven: Create an NMDS plot 
 ```{r}
 my_nmds <- ordinate(my_physeq, method = "NMDS", distance = "bray")
 nmds_plot = plot_ordination(my_physeq, my_nmds, color = "Location") +
   geom_point(size = 3)
 nmds_plot
 ```
-
-

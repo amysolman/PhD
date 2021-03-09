@@ -44,7 +44,7 @@ sample_info_tab <- read_csv(file="export/SraRunTable-wrangle.tsv")
 #Step Three: Specify the first column in our count table is the row names
 ```{r}
 count_table <- column_to_rownames(count_table, var = colnames(count_table)[1])
-rownames(count_table) <- paste0("ASV", 1:nrow(count_table))
+#rownames(count_table) <- paste0("ASV", 1:nrow(count_table)) <- removed
 ```
 
 #Step Four: Load metadata table and remove unnecessary rows/columns/data
@@ -69,7 +69,7 @@ sample_info_tab$Chlorophyll <- parse_number(sample_info_tab$Chlorophyll)
 sample_info_tab$org_matter <- parse_number(sample_info_tab$org_matter)
 sample_info_tab$water_content <- parse_number(sample_info_tab$water_content)
 
-colnames(count_table) <- unique(sample_info_tab$Sample.Name)
+#colnames(count_table) <- unique(sample_info_tab$Sample.Name) <- removed
 
 #add a column with glacier name
 Glacier <- NULL
@@ -85,7 +85,7 @@ sample_info_tab <- cbind(sample_info_tab, Glacier)
 
 #Keep only the information from the metadata table that will be useful in later analysis and make into a phyloseq object
 sampledata = sample_data(data.frame(
-  Sample_name = sample_info_tab$Sample.Name,
+  Sample_name = sample_info_tab$Run, #changed this to Run from Sample. <--
   Location = sample_info_tab$Glacier,
   Lat_Long = sample_info_tab$lat_lon,
   Elevation = sample_info_tab$elev,
@@ -98,7 +98,7 @@ sampledata = sample_data(data.frame(
   pH = sample_info_tab$pH,
   Temp = sample_info_tab$Temp,
   DNA_per_g = sample_info_tab$DNA_per_g,
-  row.names = sample_info_tab$Sample.Name,
+  row.names = sample_info_tab$Run, #changed this to Run from Sample.Name <--
   stringsAsFactors = FALSE
 ))
 ```
@@ -117,7 +117,8 @@ row.names(taxonomy) <- row.names(count_table) #give taxonomy same ASV names as c
 #Step Six: Identify contaminents in the count data
 ```{r}
 # A logical vector showing which entries are 'TRUE' for controls and 'FALSE' for genuine samples
-decontam <- startsWith(sampledata$Sample_name, "NT")
+#decontam <- startsWith(sampledata$Sample_name, "NT")
+decontam <- startsWith(sample_info_tab$Sample.Name, "NT")
 
 # Run isContaminant (remember to transform the dataframe i.e. t())
 contam <- isContaminant(t(count_table), neg=decontam)
@@ -160,7 +161,8 @@ fasta_clean <- fasta
 fasta_clean[contam_asvs] <- NULL
 
 ###METADATA TABLE
-y <- startsWith(sampledata$Sample_name, "NT")
+#y <- startsWith(sampledata$Sample_name, "NT")
+y <- startsWith(sample_info_tab$Sample.Name, "NT")
 true_index <- NULL
 for (i in 1:length(y)){
   if (y[[i]] == "TRUE"){
@@ -178,11 +180,11 @@ tree_clean <- prune_taxa(count_table_clean$`#OTU ID`, tree)
 ```{r}
 #Plot the rarefaction curves, color-coding by sample and tranform using t()
 #Col= option could also be used to look at different sample types/locations?
-pdf("results/rplot.pdf") 
+#pdf("results/rplot.pdf") 
 rarecurve(t(count_table_clean), step=100, cex=0.5, col=palette(rainbow(nrow(sampledata_clean))), lwd=2, ylab="ASVs", label=T)
 # Add line to indicate the fewest # of sequences from any sample
 abline(v=(min(rowSums(t(count_table_clean)))))
-dev.off()
+#dev.off()
 ```
 
 #Step Nine: Convert data to phyloseq objects and remove singletons
@@ -203,7 +205,7 @@ META = sample_data(sampledata_clean)
 
 ###PHYLOGENETIC TREE
 # This is a phyloseq object so we can use a phyloseq command called prune_taxa
-taxa_names(tree_clean) = taxa_names(count_table_phyloseq) #Change tree names to match ASVs
+#taxa_names(tree_clean) = taxa_names(count_table_phyloseq) #Change tree names to match ASVs
 TREE <- prune_taxa(taxa_sums(count_table_phyloseq) > 1, tree_clean)
 
 #Make into one phyloseq object
@@ -286,5 +288,5 @@ count_table_hellinger <- as_tibble(t(count_table_hellinger), rownames = NA)
 ###Step Fourteen: Export data files 
 ```{r}
 #Note singletons have not been removed from these files, only the phyloseq object
-save(count_table_clean, count_table_hellinger, taxonomy_clean, fasta_clean, tree_clean, sampledata_clean, file = "results/cleaned_files/cleanedfiles.RData")
+save(count_table_clean, count_table_hellinger, taxonomy_clean, fasta_clean, tree_clean, sampledata_clean, file = "results/cleaned_files/cleanedfiles_1.RData")
 ```

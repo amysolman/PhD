@@ -1,0 +1,72 @@
+---
+title: "ordination-1"
+author: "Amy Solman"
+date: "01/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Step One: Clear workspace and load packages
+```{r}
+#clean up the workspace
+rm(list=ls())
+graphics.off()
+library(tidyverse)
+library(phyloseq)
+library(ape)
+```
+
+#Step Two: Load R data object and phyloseq object
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+
+my_phyloseq <- readRDS("results/my-phyloseq-object.rds")
+```
+
+#Step Three: Make a bar chart of the aglomerated phyla
+```{r}
+glom = tax_glom(my_phyloseq, "Phylum")
+# and plot
+pdf("results/glom.pdf") 
+plot_bar(glom, x = "Sample", fill = "Phylum")
+dev.off()
+```
+#Step Four: Calculate Bray-Curtis dissimilarity matrix
+
+```{r}
+bray_distance <- distance(my_physeq, method = "bray")
+bray_distance
+```
+
+#Step Five: Carry out bray-curtis and unweighted unifrac PCoA analysis and plot, scaled by the eigenvalues
+```{r}
+#Bray-Curtis
+my_pcoa_bray <- ordinate(my_physeq, method = "PCoA", distance = "bray")
+my_eigenvalues_bray <- my_pcoa_bray$values$Eigenvalues
+pcoa_plot_bray = plot_ordination(my_physeq, my_pcoa_bray, color = "Location") +
+  geom_point(size = 3)+
+  coord_fixed(sqrt(my_eigenvalues_bray[2]/my_eigenvalues_bray[1]))
+pcoa_plot_bray
+```
+
+#Step Six: Carry out unweighted unifrac PCoA analysis and plot, scaled by the eigenvalues
+```{r}
+#Unweighted UniFrac
+my_pcoa_wuni <- ordinate(my_physeq, method = "PCoA", distance = "wunifrac")
+my_eigenvalues_wuni <- my_pcoa_wuni$values$Eigenvalues
+pcoa_plot_wuni = plot_ordination(my_physeq, my_pcoa_wuni, color = "Location") +
+  geom_point(size = 3)+
+  coord_fixed(sqrt(my_eigenvalues_wuni[2]/my_eigenvalues_wuni[1]))
+pcoa_plot_wuni
+```
+
+#Step Seven: Create an NMDS plot 
+```{r}
+my_nmds <- ordinate(my_physeq, method = "NMDS", distance = "bray")
+nmds_plot = plot_ordination(my_physeq, my_nmds, color = "Location") +
+  geom_point(size = 3)
+nmds_plot
+```

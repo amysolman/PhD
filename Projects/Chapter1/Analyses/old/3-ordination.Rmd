@@ -1,0 +1,90 @@
+---
+title: "ordination-1"
+author: "Amy Solman"
+date: "01/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Install and load packages
+```{r}
+#clean up the workspace
+rm(list=ls())
+graphics.off()
+library(tidyverse)
+library(phyloseq)
+library(ape)
+```
+
+Import the "cleaned up" R data object from out previous data prep step
+
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+
+my_phyloseq <- readRDS("results/my-phyloseq-object.rds")
+```
+
+
+
+```{r}
+
+# First aglomerate the ASVs at the phylum level using the phyloseq function, tax_glom
+phylumGlommed = tax_glom(ps1, "Phylum")
+# and plot
+plot_bar(phylumGlommed, x = "Sample", fill = "Phylum")
+```
+
+### Finally we are ready to try some ordinations
+
+What is an ordination?
+Ordination is a collective term for multivariate techniques which summarize a multidimensional dataset in such a way that when it is projected into a low dimensional space, an intrinsic pattern the data may possess becomes apparent upon visual inspection (Pielou, 1984)
+
+The first one the try here will be a principal coordinate analysis (PCoA). PCoA tries to represent the distance between objects by projecting their dissimilarity into a 2- or 3-D (Euclidean) space. We will be using the Bray-Curtis method to calculate the dissimilarity matrix. You can build the dissimilarity method directly into the PCoA calculation, but first let's do it in it's own to check what the matrix looks like:
+
+```{r}
+ps_dist <- distance(ps, method = "bray")
+ps_dist
+```
+
+Next plot the PCoA
+```{r}
+out.pcoa <- ordinate(ps, method = "PCoA", distance = "bray")
+pcoa_plot = plot_ordination(ps, out.pcoa, color = "Glacier") +
+  geom_point(size = 3)
+pcoa_plot
+```
+Each PCoA is associated with eigenvectors and eigenvalues. This is the simplified ecologists understanding of this: Each data matrix (like a dissimilarity matrix) has many, many dimensions, which cannot be well represented in a 2D or 3D coordinate system. But we can rotate the coordinates of this data projection into a cnew coordinate system, without changing the positions of the points relative to each other. The PCoS calculation attempts to rotate the new coordinates in a way such that much of the variability can be represented by as few axes as possible. In the new coordinate system, each axis, or eigenvector, is associated with its own eigenvalue. the eigenvalue is a scalar value tjay represents how much variability can be explained by that axis.
+
+Phyloseq alread told us that the two first axes above explain 48.6% of the variability in the entire dataset. The first two axes are plotted with equal lengths but this is not a fair way of representing this, as the first axis has a larger Eigenvalue.  There you can scale the axes according to the size of the eigenvalues (https://bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/Microbiome/MicrobiomeWorkflowII.html)
+
+```{r}
+evals <- out.pcoa$values$Eigenvalues
+pcoa_plot.scaled = plot_ordination(ps, out.pcoa, color="Glacier")+
+  geom_point(size=3)+
+  coord_fixed(sqrt(evals[2]/evals[1]))
+pcoa_plot.scaled
+```
+
+Next we will do a weighted UniFrac PCoA. When caluclating the distance matrix, this takes into account how many related taxaare shared among each pair of samples using the phylogenetic tree (which we embedded in the phyloseq obect). It then performs the PCoA:
+```{r}
+out.pcoa <- ordinate(ps, method = "PCoA", distance = "wunifrac")
+wuf_pcoa_plot = plot_ordination(ps, out.pcoa, color="Glacier")+
+  geom_point(size=3)
+wuf_pcoa_plot
+```
+This shows us that according to Bray-Curtis dissimilarity there are different ASVs in these samples but according to the unifrac matrix there is some phylogenetic relatedness. Thus, the ASVs from the different glaciers are *different* (based on bray-PCoA) but there is some *relatedness* (based on Unifrac-PCoA). We could do some futher analyses to figure out what those ASVs are (such as ANOSIM) if we were interested. The eigenvalues for this analysis are greater than the previous one (the total percentage variability explained is greater than 50%).
+
+Thirdly, we will demonstrate a non-metric dimensional scaling (NMDS) ordination. (Note, PCoA is also known as classical metric dimensional scale, MDS). NMDS also attempts to represent distances in low-dimensional space, but in this case the distances are replaced with ranks, and therefore we won't have an idea of the magnitude of the differences. It also iterately places the data object on the axes (rather than rotating the axes and keeping the dataobjects the same) until it finds the best solution. Therefore it will find a unique solution each time you run it. Because of this we cn also not say anything about the amount of variance explained by the axes. Instead, we report the stress of the analysis, which is like the "disagreement" between the 2D representation and the actual ranked distances. If this stress is more than 0.2, you don't want to use this analysis:
+
+```{r}
+out.nmds <- ordinate(ps, method = "NMDS", distance = "bray")
+nmds_plot = plot_ordination(ps, out.nmds, color="Glacier")+
+  geom_point(size=3)
+nmds_plot
+```
+
+The NMDS also shows a clear separation between glaciers and have a very low stress (0.08) indicating that this would also be a robust way of representing these data.
+

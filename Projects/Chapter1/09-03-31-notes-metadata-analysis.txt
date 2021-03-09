@@ -1,0 +1,18 @@
+Tuesday 9th March 2021
+
+MISSION: COMPLETE ORDINATION AND GENERAL STATISTICS SCRIPTS
+
+1) Ordination script - why do my results look different?
+2) General stats script, what I already have + look at:
+Darcy et al., (2018), 
+Sommers et al., (2020), 
+Jiao et al., (2020), 
+Gu et al., (2020), 
+Le Moigne et al., (2020), 
+Goldford et al., (2018) Emergent simplicity in microbial community assembly
+Allen et al., (2020), 
+Zhang et al., (2021) Habitat heterogeneity induced by pyrogenic organic matter in wildfire-perturbed soils mediates bacterial community assembly processes
+
+List the statistical analyses they used. What are the statistics telling us about the data? Recreate this.
+
+TOMORROW: Look at Matthews et al., (2019) sars: an R package for fitting, evaluating and comparing species–area relationship models and use the package to plot SAR models to the dataset.
