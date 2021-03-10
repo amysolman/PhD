@@ -1,0 +1,102 @@
+Wednesday 10th March 2021
+
+MISSION: READ UP ON METHODS SENT BY ANNE AND KATE. FINISH ORDINATION SCRIPT. WRITE GENERATE STATS SCRIPT. READ THROUGH STUDIES BELOW AND LIST THE STATISTICAL ANALYSES THEY DID, WHAT THEY WERE INVESTIGATING WITH THOSE STATISTICAL ANALYSES AND RECREATE IT FOR MY DATASET.
+
+Studies to look at:
+Darcy et al., (2018), 
+Sommers et al., (2020), 
+Jiao et al., (2020), 
+Gu et al., (2020), 
+Le Moigne et al., (2020), 
+Goldford et al., (2018) Emergent simplicity in microbial community assembly
+Allen et al., (2020), 
+Zhang et al., (2021) Habitat heterogeneity induced by pyrogenic organic matter in wildfire-perturbed soils mediates bacterial community assembly processes
+
+TOMORROW: Look at Matthews et al., (2019) sars: an R package for fitting, evaluating and comparing species–area relationship models and use the package to plot SAR models to the dataset.
+
+6.46am - Chemical analyses of samples
+
+My Plan
+In the field/field laboratory: measure GPS coords, elevation, temperature, pH and conductivity
+With samples returned to QMUL/NHM: analyse anion content using ion chromatography, cation content using an inductively coupled plasma mass spectrometer, DOC content using a total organic carbon analyser and dissolved phosphate using segmented flow injection analysis.
+
+All the papers regarding drivers of diversity have focused on snow communities. Glacier ice papers include:
+Nicholes et al., (2019) Bacterial dynamics in supraglacial habitats of the Greenland ice sheet (does not report chemical properties)
+Yallop et al., (2012) Photophysiology and albedo-changing potential of the ice algal community on the surface of the Greenland ice sheet (does not report chemical composition)
+Lutz et al., (2014) Variations of algal communities cause darkening of a Greenland glacier (this does have chemical analysis)
+In the Lutz et al., (2014) paper they:
+- Analyse ice for anion and cation composition using ion chromatrography (IC)
+- Quantify trace metals using inductive coupled plasma mass spectrometry (ICP-MS)
+- Image microbial and inorganic debris using light, scanning electron and transmission electron microscopy (LM, SEM, TEM)
+- Quantify functional group distribution and minerology using vibrational spectroscopy (Fourier transforme infrared, FTIR, and Raman)
+
+From James: discussion points for today's meeting
+ pH and conductivity
+A question for Kate (and for us to discuss with lab staff) do we have a pH meter (and standards) that Amy can bring to Svalbard? Do we have a conductivity meter Amy can borrow? It needs to be sensitive to v low concentrations (i.e. below 100 µS cm-1) – our concentrations in glacial ice are typically 1 to 5 µS cm-1
+
+dissolved ions
+We can discuss on Wednesday whether you want to run this yourself (e.g. for your own training) or prefer to have more time to focus more on microbial analyses. We have the option to do ICP-MS (for cations) and IC (for anions) elsewhere, but I'll still need you to prepare and bring the plastic tubes. 
+
+DOC
+Previous work I've done in glacial environments has required DOC to be filtered using glass syringes and rinsing with acid, which is a bit of a pain. But that was for DOC characterization using FT-ICR-MS (which we won't do) I'm not sure if we need to use glass for just measuring DOC concentration
+
+dissolved phosphate using FIA
+I'm unfamiliar with this method and our lab capability perhaps Kate can advise on Wednesday > method used by Lutz et al., (2016) The biogeography of red snow microbiomes and their role in melting arctic glaciers as part of their aqueous analysis of snowpack
+
+Anne's reply:
+ I had a quick look for protocols for DOC. My colleagues in Canada use the following protocol which uses glass vials but not glass syringes:
+
+All ponds were located within a 100 m radius. In order to analyze dissolved organic carbon (DOC) concentrations and perform optical analyses of the chromophoric dissolved organic matter (CDOM), water samples were collected from the surface and filtered through prerinsed cellulose acetate filters (0.2 μm). This filter pore size removes small‐size inorganic soil particles common in thaw ponds (Watanabe et al. 2011) and was chosen to be consistent with earlier studies carried out on circumpolar ponds (Roiha et al. 2015; Wauthy et al. 2018). The samples were stored in acid‐washed and combusted glass vials at 4°C in the dark pending carbon characterization.
+
+DOC was measured from filtered water (GF/F glass fiber filter, Whatman, Little Chalfont, UK) using Shimadzu TOC‐V analyzer (Shimadzu Corporation, Kyoto, Japan) and total organic carbon (TOC) from unfiltered water using TOC‐L analyzer (Shimadzu Corporation, Kyoto, Japan).
+
+https://aslopubs.onlinelibrary.wiley.com/doi/full/10.1002/lno.11349
+
+From Kate:
+That looks consistent with the methods we use. 
+
+Amy - see attached paper with some of the methods and indicative 'limits of detection' (LOD) for the techniques in our labs.
+
+You might want to note down some indicative concentration ranges that you might find in your samples for each analyte (our lab methods tend to use mg/L rather than M units but you will need to be able to convert between the two), so that we can compare against the LODs for the techniques we currently run. This will give an idea of whether the techniques are suitable - for example you can use ion chromatography to measure phosphate but the technique won't be sensitive enough to detect phosphate in your samples, hence the need to use the automated colorimetric flow injection analysis method.
+
+Questions:
+How many blanks do I need? Where are blanks collected?
+What additional analysis would be appropriate for snow/ice?
+Aiming for 18 sample points = 18 snow samples and 18 ice samples, too many?
+
+What are indicative concentration ranges for each analysis, in snow?
+
+Field measurements
+- Temperature 0C (Lutz et al., 2016)
+- pH 5.68-8.07 (Lutz et al., 2016)
+- Conductivity
+
+Aqueous analysis
+Anions
+Cations
+- Dissolved organic carbon (uM) 36 +/- 13 (Lutz et al., 2016)
+- Phosphate (PO4) (uM) 0.77 +/- 1.71 (Lutz et al., 2016)
+NO3 (ppm) 
+SO4 (ppm)
+Ca (ppb)
+Fe (ppb)
+K (ppb)
+Mg (ppb)
+Mn (ppb)
+
+Particulate analysis (solids as percent)
+- Total carbon 5.4 +/- 4.4 (Lutz et al., 2016)
+- Total nitrogen 0.3 +/- 0.2 (Lutz et al., 2016)
+- Total sulphur 0.12 +/- 0.03 (Lutz et al., 2016)
+- Total phosphorus 0.07 +/- 0.03 (Lutz et al., 2016)
+Particulate analysis (solids permil)
+- δ15N (delta-15-N/delta-N-15) -4.77 +/- 2.41 (Lutz et al., 2016)
+- δ13C -27.76 +/- 1.52 (Lutz et al., 2016)
+
+Biomass 
+Cell counts (mL-1) 43,558 +/- 50,308 (Lutz et al., 2016)
+Cell volume (um3) 2,044 +/- 1,342 (Lutz et al., 2016)
+Biomass (mm3 L-1) 35 +/- 20 (Lutz et al., 2016)
+
+
+

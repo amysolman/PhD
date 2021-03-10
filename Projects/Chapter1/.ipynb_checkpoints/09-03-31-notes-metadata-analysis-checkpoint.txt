@@ -16,3 +16,7 @@ Zhang et al., (2021) Habitat heterogeneity induced by pyrogenic organic matter i
 List the statistical analyses they used. What are the statistics telling us about the data? Recreate this.
 
 TOMORROW: Look at Matthews et al., (2019) sars: an R package for fitting, evaluating and comparing species–area relationship models and use the package to plot SAR models to the dataset.
+
+MISSION: ALL I MANAGED TO DO TODAY WAS SORT OUT WHAT WAS WRONG WITH PART OF MY ORDINATION SCRIPT. IM STOPPING NOW. OH WELL. AT LEAST I GOT SOMETHING DONE! TRY AGAIN TOMORROW...
+
+Signing off x
