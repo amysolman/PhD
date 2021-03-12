@@ -1,0 +1,40 @@
+Friday 12th March 2021
+
+MISSION: COMPLETE SAMPLING STRATEGY DOCUMENT AND SENT TO SUPERVISORS.
+
+How will I achieve this?
+1) Get indactive DOC ranges for Arctic glaciers - DONE
+2) List methods for measuring DOC on glaciers - DONE
+3) Get indicative anion/cation ranges for Arctic glaciers - DONE
+4) Complete rationale for all analytes.
+5) Look at the questions below. Answer as many as I can. Include the rest as questions in the document.
+6) Email the document to James, Kate and Anne by 1.30pm.
+
+SAMPLING QUESTIONS
+DOC Questions:
+1.	Are there enough glass jars in the lab to melt my samples for DOC?
+2.	Can I get these jars prepped and shipped to Svalbard in time, or alternatively, can I bring them in my luggage? 
+3.	Is it appropriate to use plastic syringes for DOC samples? 
+4.	What other methods are community used for supraglacial DOC analysis, apart from using glass syringes/metal housing/glass fibre filters/HCl?
+5.	If plastic syringes are not appropriate and there are no other alternatives, can I acquire glass syringes/metal housing/glass fibre filters/HCl and get the training to use them safely in the field? 
+
+Cation/Anion Questions:
+1.	Can I use plastic syringes for cation/anion samples?
+2.	What volume will my cation/anion samples be?
+3.	What filers do I need for cation/anion samples?
+4.	Do I need to filter separate samples for cation/anion analysis?
+5.	How can I get the right syringes/filters for my cation/anion samples? What do I need to do to prepare this equipment?
+6.	Can I use ion chromatography (IC) at QMUL for anion analysis?
+7.	Should I use automated colorimetric flow injection analysis for measuring phosphate instead of IC, due to IC limits of detection?
+8.	Can I use inductively coupled plasma mass spectrometry at QMUL for cation analysis?
+9.	Do I have time to do this myself, or is it more practical to have this done elsewhere?
+
+Microbial Questions: 
+1.	Do I have all the equipment I need for collecting microbial samples?
+
+Other Analyses Questions: 
+1.	Is there a pH meter I can use that is sensitive enough?
+2.	Is there a conductivity meter that is sensitive enough?
+3.	Is there a GPS/elevation device I can use to record the location of my samples?
+
+
