@@ -1,0 +1,32 @@
+Monday 15th March 2021
+
+The List: 
+1) Write page on analysis for Jaz and her supervisor - 15/03 - DONE
+2) Write up rationale for all physio-chemical measurements - 15/03
+3) Write full list of questions regarding research trip - 15/03
+4) Write up full sampling method with exact equpiment requirements and rational. 
+5) Complete Ordination script - 16/03
+6) Complete General Stats script - 16/03
+7) Read through studies of interest and list their analysis methods, what questions were they answering with those methods? Recreate them. - 18/03 to 19/03
+8) Look at Matthews et al., (2019) sars: an R package for fitting, evaluating and comparing species–area relationship models and use the package to plot SAR models to the dataset. - 22/03
+9) Complete DDR script - 23/03
+10) Complete SAR script - 24/03
+11) Complete Multivariate analysis script - 25/03 to 26/03
+12) Complete Null script - 29/03
+13) Complete Neutral script - 30/03
+14) Complete co-occurence network script - 31/03
+15) Write up results of first analysis - 01/04
+16) Prep presentation of community assembly methods - 02/04
+17) Learn how to use OceanParcels - 05/04 to 06/04
+18) Get data from Jaz - 07/04
+19) Analysis Jaz data - 08/04 to 09/04
+20) Identify other cryoconite datasets - 12/04
+21) Collect other cryoconite datasets - 13/04
+QUARANTINE WORK
+22) Complete BVCN tutorials
+23) Read all of the papers James has recommeneded
+24) Make plan for spending research grant by July
+25) Prep Microbiology Sciety grant application
+26) Create PhD skill share network/sign up sheet
+27) Join EAG
+28) Join RAS
