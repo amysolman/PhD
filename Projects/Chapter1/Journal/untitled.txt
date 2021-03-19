@@ -1,0 +1,38 @@
+
+Done List:
+Email Shazia about ordering clothes/equipment - DONE
+Show James's email to Michelle - DONE
+
+To Do List:
+2) Get rough numbers for equpiment for analysis to talk through with Michelle on Monday - flow chart?
+3) Is all equpiment available for microbial analysis?
+
+5) Get familiar with the conductivity meter - DONE
+6) Complete Ordination script
+7) Complete General Stats script - 18/03
+8) Read through studies of interest and list their analysis methods, what questions were they answering with those methods? Recreate them. - 18/03 to 19/03
+9) Look at Matthews et al., (2019) sars: an R package for fitting, evaluating and comparing species–area relationship models and use the package to plot SAR models to the dataset. - 22/03
+10) Complete DDR script - 23/03
+8) Complete SAR script - 24/03
+9) Complete Multivariate analysis script - 25/03 to 26/03
+10) Complete Null script - 29/03
+11) Complete Neutral script - 30/03
+12) Complete co-occurence network script - 31/03
+13) Write up results of first analysis - 01/04
+14) Prep presentation of community assembly methods - 02/04
+15) Learn how to use OceanParcels - 05/04 to 06/04
+16) Get data from Jaz - 07/04
+17) Analysis Jaz data - 08/04 to 09/04
+18) Identify other cryoconite datasets - 12/04
+19) Collect other cryoconite datasets - 13/04
+QUARANTINE WORK
+20) Apply to work for ESA
+21) Complete BVCN tutorials
+Read Polar Lakes and Rivers book sent by Anne
+Read Webster-Brown paper sent by Anne
+22) Read all of the papers James has recommeneded
+23) Make plan for spending research grant by July
+24) Prep Microbiology Sciety grant application
+25) Create PhD skill share network/sign up sheet
+26) Join EAG
+27) Join RAS
