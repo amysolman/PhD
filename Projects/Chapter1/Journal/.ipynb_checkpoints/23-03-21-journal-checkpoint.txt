@@ -1,0 +1,30 @@
+Tuesday 23rd March 2021
+
+pH, conductivity, DOC, cation and anion sample collection plan.
+1) Calibrate meters daily before going into the field.
+2) Go to sample zone A (day one), B (day two) or C (day three).
+3) Go to sampling point 1.
+4) Insert the pH meter and conductivity meters into the top 2-3cm of snow and take readings, plus temperature.
+5) Collect snow directly into 250ml glass Duran bottle, filling to top of jar and afix lid. If this is not possible, fill Whirlpak bag with minimum 300ml of snow. Label. *what hand tools do I need to collect the ice*
+6) Remove overlying snow until ice is reached. Take ice core. *exactly how is this core being taken*
+7) Collect ice directly from same ice core segment (e.g. top 5cm), place as much as possible in 100ml Duran bottle and afix lid. If this is not possible, return ice core to field laboratory, remove ice segment and fill Duran bottle. Label.
+8) Collect a few chips of ice into a 50ml centrifuge tube. If this is not possible in the field, return ice core to laboratory and remove ice chips there.
+9) Go to next sampling point and repeat until all four sampling points within that zone have been sampled.
+On return to the field lab fill one 250ml Duran bottle and one 100ml Duran bottle with sterile water. Label as blanks.
+10) Allow snow and ice samples to melt overnight at room temperature.
+11) Use meters to measure pH and conductivity of 50ml melted ice samples.
+12) Filter each snow/ice melt sample through a 0.2um glass fibre filter using a plastic syring and subset into two 12ml glass exetainers and one 50ml plastic centrifuge tube filling each 3/4 of the way. A fix lids. Label.
+13) Freeze exetainers and centrifuge tubes and return to QMUL lab for analysis.
+
+Equipment:
+pH meter
+Conductivity meter
+GPS receiver
+
+Today:
+Have emailed Shazia to order Baxter Sterile Water, H20, 1000ml, Pack of 6
+
+Questions:
+Can I order ~30 glass fibre filters?
+Is the sterile water for my blanks?
+Does James have all the filters I need for microbial analysis?
