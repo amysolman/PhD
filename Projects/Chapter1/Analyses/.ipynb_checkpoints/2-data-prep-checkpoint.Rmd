@@ -200,7 +200,7 @@ META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
 my_phyloseq <- phyloseq(ASV, TAX, META, tree_clean)
 ```
 
-#Step Twelve: remove abiguous annotations and low abundance phyla
+#Step Twelve: remove abiguous annotations and not abundance phyla
 ```{r}
 my_phyloseq <- subset_taxa(my_phyloseq, !is.na(Kingdom) & !Kingdom %in% c("Unassigned", "Eukaryota"))
 

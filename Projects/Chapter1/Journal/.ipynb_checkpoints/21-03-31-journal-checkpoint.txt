@@ -1,0 +1,79 @@
+Wednesday 31st March 2021
+
+Today I am starting by going through the email James sent me regarding the trip (Chapter Two) and making an action plan.
+
+Areas of work to focus on right now are:
+1) Chapter One - Meta data analysis
+2) Chapter Two - Svalbard Trip
+3) General Study
+4) Other Work
+
+***Also Anne recommended the following products: Meindl Walking Boots, Nepal extreme mountain boot, weleda cream***
+
+CHAPTER TWO WORK
+
+- James will send me any additional paper work I need to travel.
+- Flights are not yet booked. Once they are booked I need to book a taxi (www.londonheathrowcars.com). Keep receipts so I can be reimbursed later. These expenses will not be taken from the QMUL Research Grant, these go through James not Shazia.
+- I need to check Norway rules for COVID tests. I will likely need a rapid antigen covid test (www.collinsongroup.com/en/covid-19-testing) at the airport ~4 hours before departure. Keey receipts. The Norweigan quarantine hotel will test me while I'm there. Ask the hotel invoice to be sent to James/call him (GET CONTACT NUMBER FOR JAMES). Otherwise I'll pay this myself. GET CREDIT CARD THAN CAN BE USED ABROAD.
+- Gear at the station I can use: Jacket, fleece, gloves, hat, hood and face cover, 2 outer trousers, 2 under trousers.
+- The list of things I'm bringing looks good. Discuss with Margaret.
+- Margaret is bringing back blue plastic packing crate. Use this for my equipment if Michelle doesn't.
+- Things from the box of things James left: Saniclothes (both bring these), notebook (bring this), nitrite gloves (don't bring these), 15ml falcon tubes (bring 100 acid washed - leave the rest in his office), 50ml falcon tubes (bring 100 acid washed), luer slip syringes (leave these in James' office), whirlpak bags large and small (leave these in James' office), which of the glass duran bottles do I really need to bring? Bring 80x 60ml luer lock syringes - do not need to be acid washed, equipment is primarily for me, don't worry about stuff in the grey box in office. 
+- Microbial analysis: ask Michelle and Kate if it's okay to make up the blanks back in the UK. Don't worry about the ice corer, or filters, or how the filters get back, or BONCAT or anything else really.
+
+List of things I need to do to get ready for Svalbard Trip
+Ask Kate and Michelle about procedural blanks - DONE
+Get blue plastic crate and pack equipment - 6th April
+Acid wash 15ml falcon tubes - 6th April
+Buy shoes - 12th April
+Collect clothing from Maragret - 12th April
+Buy: Cream, thermal underlayers, sunglasses - 12th April
+Make sure I can use my credit card abroad - practise using it before I go - 12th April
+Register debit card for travel 24hrs before departure - TBC
+Get additional paperwork from James - TBC
+Book taxi - TBC
+Check Norweigan COVID rules - TBC
+Book rapid antigen covdi test before flight - TBC
+Get James' contact number - TBC
+
+As far as I can see there isn't anything else I can do for now regarding Chapter Two/Svalbard work. I should focus on developing my Chapter One work.
+
+CHAPTER ONE WORK
+
+Where did I get to? What am I trying to do?
+
+For Chapter One I want to:
+1) Collect raw cryoconite datasets from around the work.
+2) Use QIIME2 and DADA2 to process sequences into ASVs (remove primers, denoise, assign taxonomy, construct phylogenetic tree).
+3) Prepare the sequences for analysis (remove contaminants, construct rarefaction curves, normalize data for downstream analysis, create phyloseq object).
+4) Explore differences in community structure between locations through ordination and general statistics. 
+5) Identify abundant and rare taxa based on relative abundance in local and metacommunities (Li et al., 2021). Repeat analysis for total, abundant and rare taxa. (Stegen et al., 2013).
+6) If cryoconite hole area and/or GPS coordinates are available, use statistical tests and linear/logistic models to explore the relationship between cryoconite hole area and species richness, as well as community dissimilarity and geographic distance. 
+7) Use multivariate analysis to look at relationships between community structure and environmental variables.
+8) Use phylogenetic null models to look at the relative contribution of homogenous/heterogenous selection, dispersal limitation, homogenising dispersal and drift in community assembly (Stegen et al., 2013).
+9) Use neutral models to explore the degree to which the observed relative abundance of taxa can be replicated with stochastic processes (Sloan et al., 2006). 
+10) Construct co-occurrence networks to explore interactions between taxa. 
+11) Use the combined inferences of these statistical tests, multivariate analyses, null models, neutral models and co-occurrence network analyses to identify significant differences in biogeographic patterns and community assembly mechanisms of total, abundant and rare cryoconite communities and their spatial variations.
+
+What do I have done so far?
+
+1) I have successfully downloaded raw sequence data for 16S Sommers 2020 dataset from SRA repository using commandline and SRA tools.
+2) I have activated QIIME2 from the commandline, trimmed the reads, assigned taxonomy using SILVA database, constructed phylogenetic tree and exported data to Data-wrangling/work.
+3) I have written a data prep script (2-data-prep.Rmd) that...
+A - Load the data from out QIIME2 step + metadata (count table, taxonomy, phylogenetic tree, fasta file, metadata) and specified that the first column in our count table is the row names
+B - Removed unneccessary rows/columns from the metadata table, renames columns and adds column with glacier name
+C - Identifies contaminent ASVs (ASVs from blanks)
+D - Removes contaminent ASVs from count table, taxonomy table, sequence data, metadata and phylogenetic tree
+E - Plots and saves rarefaction curves to see how deeply the samples have been sequenced.
+F - Removes ASV singletons
+G - Modifies taxonomic table 
+H - Performs Hellinger transformation
+I - Converts count table, taxonomy table and metadata tavle to phyloseq objects
+J - Merges data into one phyloseq object
+K - Removes abiguous annotations and low abundance phyla
+L - Re-roots phylogenetic tree 
+M - Saves r data object and phyloseq object
+
+
+
+
