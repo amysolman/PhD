@@ -1,4 +1,6 @@
 ##WRANGLING MY METADATA TABLE TO INCLUDE CATEGORIAL AND NUMERIC COLUMN NAMES FOR QIIME2
+rm(list=ls())
+graphics.off()
 
 library(tidyverse)
 
