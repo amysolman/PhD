@@ -47,28 +47,44 @@ bray_distance
 my_pcoa_bray <- ordinate(my_physeq, method = "PCoA", distance = "bray")
 
 my_eigenvalues_bray <- my_pcoa_bray$values$Eigenvalues
-pcoa_plot_bray = plot_ordination(my_physeq, my_pcoa_bray, color = "Location") +
+
+pdf("results/PCoA-bray.pdf") 
+plot_ordination(my_physeq, my_pcoa_bray, color = "Glacier") +
   geom_point(size = 3)+
   coord_fixed(sqrt(my_eigenvalues_bray[2]/my_eigenvalues_bray[1]))
+dev.off()
 
-pcoa_plot_bray
 ```
 
-#Step Six: Carry out unweighted unifrac PCoA analysis and plot, scaled by the eigenvalues
+#Step Six: Carry out unweighted and weighted unifrac PCoA analysis and plot, scaled by the eigenvalues
 ```{r}
 #Unweighted UniFrac
+my_pcoa_uni <- ordinate(my_physeq, method = "PCoA", distance = "unifrac")
+my_eigenvalues_uni <- my_pcoa_uni$values$Eigenvalues
+
+pdf("results/PCoA-unifrac.pdf") 
+plot_ordination(my_physeq, my_pcoa_uni, color = "Glacier") +
+  geom_point(size = 3)+
+  coord_fixed(sqrt(my_eigenvalues_uni[2]/my_eigenvalues_uni[1]))
+dev.off()
+
+#Weighted Unifrac
 my_pcoa_wuni <- ordinate(my_physeq, method = "PCoA", distance = "wunifrac")
 my_eigenvalues_wuni <- my_pcoa_wuni$values$Eigenvalues
-pcoa_plot_wuni = plot_ordination(my_physeq, my_pcoa_wuni, color = "Location") +
+
+pdf("results/PCoA-wunifrac.pdf") 
+plot_ordination(my_physeq, my_pcoa_wuni, color = "Glacier") +
   geom_point(size = 3)+
   coord_fixed(sqrt(my_eigenvalues_wuni[2]/my_eigenvalues_wuni[1]))
-pcoa_plot_wuni
+dev.off()
 ```
 
 #Step Seven: Create an NMDS plot 
 ```{r}
 my_nmds <- ordinate(my_physeq, method = "NMDS", distance = "bray")
-nmds_plot = plot_ordination(my_physeq, my_nmds, color = "Location") +
+
+pdf("results/NMDS-bray.pdf")
+plot_ordination(my_physeq, my_nmds, color = "Glacier") +
   geom_point(size = 3)
-nmds_plot
+dev.off()
 ```

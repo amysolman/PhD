@@ -1,0 +1,291 @@
+---
+title: "3b-ordination-"
+author: "Amy Solman"
+date: "01/04/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Step One: Clear workspace and load packages
+```{r}
+#clean up the workspace
+rm(list=ls())
+graphics.off()
+library(compositions)
+library(tidyverse)
+library(vegan)
+library(ape)
+library(cowplot)
+library(plotly)
+library(RColorBrewer)
+```
+
+#Step Two: Load data.
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+```
+
+#Step Three: Look for evidence of compositionality.
+#By multiplying ASV table by itself we can look for evidence of covariance.
+#We then find the determinant of the covariance matrix and if the answer is 0 we have evidence of compositionality in the data
+```{r}
+covariance_matrix <- as.matrix(count_table_clean) %*% t(count_table_clean)
+
+cov_determinant <- det(covariance_matrix)
+cov_determinant
+```
+
+#Because out data are compositional we then need to transform them for downstream analysis
+#Step Four: Perform a Log-Ratio trasnformation
+#This will normalise the ASV data within each sample
+```{r}
+#irl - isometric log ratio
+# can also use clr for centred log ratio - centered around geometric average 
+count_table_LR <- data.frame(compositions::ilr(t(count_table_clean)))
+
+#compare the spread of 
+hist(count_table_clean$SRR12805327) #here we see that a small number of ASVs had high frequency, while a large number had very low frequency
+hist(count_table_LR$V1) #this normalises the data
+```
+
+#Step Five: Look at the difference the log-ratio transformation has made to the covariance of the data
+```{r}
+transformed_det <- det(as.matrix(count_table_LR) %*% t(count_table_LR))
+cov_determinant #determinant from untransformed count data = 0 
+transformed_det #determinant from transformed count data = !0
+# Because none of the axis are equal to 0 the determinant is !0. The axes for PCoA explain variance.
+```
+
+#Step Six: Perform Principal Component Analysis on Log-Ratio Transformed Data
+```{r}
+my_pca <- prcomp(count_table_LR)
+```
+
+#Step Seven: Create visual representation of PCA
+```{r}
+my_pca_variances <- as.data.frame(my_pca$sdev^2/sum(my_pca$sdev^2)) %>% #Extract axes
+  # Format to plot
+  select(PercVar = 'my_pca$sdev^2/sum(my_pca$sdev^2)') %>% 
+  rownames_to_column(var = "PCaxis") %>% 
+  data.frame
+```
+
+#Step Eight: Plot the visual representation
+```{r}
+pdf("results/pca-screenplot-one.pdf")
+ggplot(my_pca_variances, aes(x = as.numeric(PCaxis), y = PercVar)) + 
+  geom_bar(stat = "identity", fill = "grey", color = "black") +
+  theme_minimal() +
+  theme(axis.title = element_text(color = "black", face = "bold", size = 10),
+        axis.text.y = element_text(color = "black", face = "bold"),
+        axis.text.x = element_blank()) +
+  labs(x = "PC axis", y = "% Variance", title = "Log-Ratio PCA Screeplot")
+dev.off()
+```
+
+#Step Nine: Visualise the PCA
+```{r}
+my_pca_frame <- data.frame(my_pca$x) %>% 
+  rownames_to_column(var = "Glacier") %>% 
+  separate(Glacier, into = c("Glacier", "excess"), sep = "_") %>% 
+  select(-excess) %>% 
+  data.frame
+
+
+my_pca_frame$Glacier <- metadata$Glacier #here we'll change the sample names to the glacier names
+head(my_pca_frame)
+
+```
+
+#Step Ten: Plot the PCA visualisation
+```{r}
+pdf("results/PCA-Log-Ratio.pdf")
+ggplot(my_pca_frame) +
+  geom_point(aes(x = PC1, y = PC2, fill = Glacier), size = 4, shape = 21, color = "black") +
+  ylab(paste0('PC2 ', round(my_pca_variances[2,2]*100,2),'%')) + #Extract y axis value from variance
+  xlab(paste0('PC1 ', round(my_pca_variances[1,2]*100,2),'%')) + #Extract x axis value from variance
+  scale_fill_brewer(palette = 'Dark2', name = 'Glacier') +
+  ggtitle('Log-Ratio PCA Ordination') +
+  coord_fixed(ratio = 1) +
+  theme_bw()
+dev.off()
+```
+
+#Step Eleven: Compute Jaccard distance metric
+```{r}
+jaccard <- vegdist(t(count_table_clean), method="jaccard")
+```
+
+#Step Twelve: Perform PCoA with jaccard distance metric
+```{r}
+my_jaccard_pcoa <- pcoa(jaccard)
+```
+
+#Step Thirteen: Extract the variances from the jaccard PCoA
+```{r}
+my_jaccard_variances <- data.frame(my_jaccard_pcoa$values$Relative_eig) %>%
+  select(PercVar='my_jaccard_pcoa.values.Relative_eig') %>%
+  rownames_to_column(var="PCaxis") %>%
+  data.frame
+```
+
+#Step Fourteen: Use jaccard variances to plot screenplot 
+```{r}
+pdf("results/pcoa-jaccard.pdf")
+ggplot(my_jaccard_variances, aes(x=as.numeric(PCaxis), y=PercVar))+
+  geom_bar(stat="identity", fill="grey", color="black")+
+  theme_minimal()+
+  theme(axis.title=element_text(color="black", face="bold", size=10),
+        axis.text.y=element_text(color="black", face="bold"),
+        axis.text.x=element_blank())+
+  labs(x="PC axis", y= "% Variance", title = "Log-Ratio PCoA Screenplot")
+dev.off()
+```
+
+#Step Fifteen: Plot this jaccard PCoA in 3D with plotly, firstly by putting jaccard pcoa vectors into a dataframe
+```{r}
+my_jaccard_pcoa_df <- data.frame(my_jaccard_pcoa$vectors) %>%
+ rownames_to_column(var = "Glacier") %>% 
+  separate(Glacier, into = c("Glacier", "excess"), sep = "_") %>% 
+  select(-excess) %>% 
+  data.frame
+
+my_jaccard_pcoa_df$Glacier <- metadata$Glacier #here we'll change the sample names to the glacier names
+head(my_jaccard_pcoa_df)
+```
+
+#Step Sixteen: Extract eigenvalues from jaccard pcoa and plot
+```{r}
+jaccard_eigenvalues <- round(my_jaccard_variances[,2], digits=4)*100
+
+#Plotly - 3-D
+plot_ly(my_jaccard_pcoa_df, type='scatter3d', mode='markers',
+        x=~Axis.2, y=~Axis.3,z=~Axis.1,colors=~brewer.pal(6,'Set1'), color=~Glacier) %>%
+  layout(font=list(size=18),
+         title='PCoA Jaccard Distance',
+         scene=list(xaxis=list(title=paste0('Co 2 ', jaccard_eigenvalues[2], '%'),
+                               showticklabels=FALSE, zerolinecolor='black'),
+                               yaxis=list(title=paste0('Co 3 ', jaccard_eigenvalues[3], '%'),
+                                          showticklabels=FALSE,zerolinecolor='black'),
+                    zaxis=list(title=paste0('Co 1 ', jaccard_eigenvalues[1], '%'),
+                               showticklabels=FALSE,zerolinecolor='black')))
+```
+
+#Step Seventeen: Estimate Euclidean distances using irl transformed count data
+```{r}
+my_euclidean_dist <- dist(count_table_LR, method = "euclidean")
+```
+
+#Step Eighteen: Perform PCoA with euclidean distances
+```{r}
+my_euclidean_pcoa <- ape::pcoa(my_euclidean_dist)
+```
+
+#Step Nineteen: Extract the variances from the euclidean PCoA
+```{r}
+my_euclidean_variances <- data.frame(my_euclidean_pcoa$values$Relative_eig) %>%
+  select(PercVar = 'my_euclidean_pcoa.values.Relative_eig') %>%
+  rownames_to_column(var="PCaxis") %>%
+  data.frame
+```
+
+#Step Twenty: Use euclidean variances to plot screenplot 
+```{r}
+pdf("results/pcoa-euclidean.pdf")
+ggplot(my_euclidean_variances, aes(x=as.numeric(PCaxis), y=PercVar))+
+  geom_bar(stat="identity", fill="grey", color="black")+
+  theme_minimal()+
+  theme(axis.title=element_text(color="black", face="bold", size=10),
+        axis.text.y=element_text(color="black", face="bold"),
+        axis.text.x=element_blank())+
+  labs(z="PC axis", y="% Variance", title="Euclidean\nLog-Ratio PCoA Screenplot")
+dev.off()
+```
+
+#Step Twenty One: Plot this euclidean PCoA in 3D with plotly, firstly by putting euclidean pcoa vectors into a dataframe
+```{r}
+my_euclidean_pcoa_df <- data.frame(my_euclidean_pcoa$vectors) %>%
+  rownames_to_column(var="Glacier") %>%
+  separate(Glacier, into =c("Glacier", "excess"), sep="_") %>%
+  select(-excess) %>%
+  data.frame
+
+my_euclidean_pcoa_df$Glacier <- metadata$Glacier #here we'll change the sample names to the glacier names
+head(my_euclidean_pcoa_df)
+```
+
+#Step Twenty Two: Extract eigenvalues from euclidean pcoa and plot
+```{r}
+euclidean_eigenvalues <- round(my_euclidean_variances[,2],digits=4)*100
+
+#Plotly 3-d
+plot_ly(my_euclidean_pcoa_df, type='scatter3d', mode='markers',
+        x=~Axis.2,y=~Axis.3,z=~Axis.1,colors=~brewer.pal(6,'Set1'),color=~Glacier)%>%
+  layout(font=list(size=18),
+         title='PCoA Jaccard Distance',
+         scene=list(xaxis=list(title=paste0('Co 2 ', euclidean_eigenvalues[2], '%'),
+        showticklabels=FALSE, zerolinecolor='black'), yaxis=list(title=paste0('Co 3 ', euclidean_eigenvalues[3], '%'),
+        showticklabels=FALSE, zerolinecolors='black'), zaxis=list(title=paste0('Co 1 ', euclidean_eigenvalues[1], '%'),
+        showticklabels=FALSE,zerolinecolor='black')))
+```
+
+#Step Twenty Three: Set random seed to make sure NMDS plots come out the same each time (because they are iterative)
+```{r}
+set.seed(19614491)
+```
+
+#Step Twenty Four: Perform NMDS on eucidean distance matrix and jacard distance matrix
+```{r}
+NMDS_euclidean <-metaMDS(my_euclidean_dist,k=2,autotransform=FALSE)
+
+NMDS_jaccard <-metaMDS(jaccard,k=2,autotransform=FALSE)
+```
+
+#Step Twenty Five: Look at the stress of each of the NMDS 
+```{r}
+NMDS_euclidean$stress 
+NMDS_jaccard$stress
+```
+
+#Step Twenty Six: Plot the euclidean NMDS
+```{r}
+NMDS_euc_df <- data.frame(NMDS_euclidean$points) %>%
+  rownames_to_column(var="Glacier") %>%
+  separate(Glacier, into=c("Glacier", "excess"), sep="_") %>%
+  select(-excess) %>%
+  data.frame 
+
+NMDS_euc_df$Glacier <- metadata$Glacier #here we'll change the sample names to the glacier names
+head(NMDS_euc_df)
+
+pdf("results/NMDS-euclidean.pdf")
+ggplot(NMDS_euc_df, aes(x=MDS1, y=MDS2, fill=Glacier)) +
+  geom_point(size=4, shape=21, color="black", aes(fill=Glacier)) +
+  scale_fill_brewer(palette="Dark2")+
+  theme_bw()+
+  labs(x="NMDS 1", y="NMDS 2", title="Euclidean Distance NMDS")
+dev.off()
+```
+
+#Step Twenty Seven: Plot the jaccard NMDS
+```{r}
+NMDS_jac_df <- data.frame(NMDS_jaccard$points) %>%
+  rownames_to_column(var="Glacier") %>%
+  separate(Glacier, into=c("Glacier", "excess"), sep="_") %>%
+  select(-excess) %>%
+  data.frame 
+
+NMDS_jac_df$Glacier <- metadata$Glacier #here we'll change the sample names to the glacier names
+head(NMDS_jac_df)
+
+pdf("results/NMDS-jaccard.pdf")
+ggplot(NMDS_jac_df, aes(x=MDS1, y=MDS2, fill=Glacier)) +
+  geom_point(size=4, shape=21, color="black", aes(fill=Glacier)) +
+  scale_fill_brewer(palette="Dark2")+
+  theme_bw()+
+  labs(x="NMDS 1", y="NMDS 2", title="Jaccard Distance NMDS")
+dev.off()
+```

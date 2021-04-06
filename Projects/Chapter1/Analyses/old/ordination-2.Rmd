@@ -81,7 +81,7 @@ This bit isn't essential for this analysis but could be useful at some point
 ```
 
 ASV data are compositional
-Compositional data does not represent absolute abundances. The total number of sequences in your data is arbitrary. Meaning, with an increase in the relative abundance of an ASV this necessarily decrease the relative abundance of all other members. Because these data are compositional, theyare on a simplex.The data being on a simplex means, if we know the abundance of all of the ASVs except for one, we still have the same amount of information as if we knew all of the ASVs. This is important to acknowledge when you approach data analysis and interpretation.
+Compositional data does not represent absolute abundances. The total number of sequences in your data is arbitrary. Meaning, with an increase in the relative abundance of an ASV this necessarily decrease the relative abundance of all other members. Because these data are compositional, they are on a simplex.The data being on a simplex means, if we know the abundance of all of the ASVs except for one, we still have the same amount of information as if we knew all of the ASVs. This is important to acknowledge when you approach data analysis and interpretation.
 
 ## References / recommended reading:
 # (1) THIS TUTORIAL: Coenen AR, Hu SK, Luo E, Muratore D, Weitz JS. A Primer for Microbiome Time-Series Analysis. Front Genet. 2020 Apr 21;11:310.
@@ -227,7 +227,7 @@ head(pcoa_jac_df)
 ```
 
 Select eigen values from dataframe, round to 4 places. These will be the axes for the 3-D plot
-Extractvariancesfrom previously generated dataframe, round and multiply by 100 for plotting
+Extract variances from previously generated dataframe, round and multiply by 100 for plotting
 ```{r}
 eigenvalues <- round(jac_variances[,2], digits=4)*100
 
@@ -258,7 +258,7 @@ Conduct ordination with distance matrix = PCoA
 pcoa_euc <- ape::pcoa(euc_dmat)
 ```
 
-Extract variances from pcoa, from jaccard calculated distance metric
+Extract variances from pcoa, from euclidean calculated distance metric
 ```{r}
 euc_variances <- data.frame(pcoa_euc$values$Relative_eig) %>%
   select(PercVar = 'pcoa_euc.values.Relative_eig') %>%

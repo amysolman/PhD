@@ -143,7 +143,7 @@ tree_clean <- prune_taxa(count_table_clean$`#OTU ID`, tree)
 ```{r}
 #Plot the rarefaction curves, color-coding by sample and tranform using t()
 #Col= option could also be used to look at different sample types/locations?
-pdf("results/rplot.pdf") 
+pdf("results/rarefaction-plot.pdf") 
 rarecurve(t(count_table_clean), step=100, cex=0.5, col=palette(rainbow(nrow(metadata))), lwd=2, ylab="ASVs", label=T)
 # Add line to indicate the fewest # of sequences
 abline(v=(min(rowSums(t(count_table_clean)))))

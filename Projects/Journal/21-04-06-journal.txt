@@ -1,0 +1,3 @@
+Tuesday 6th April 2021
+
+Today I will be: writing my general statistics script using 'The New Statistics with R' by Andy Hector (4-general-statistics.Rmd).

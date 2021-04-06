@@ -1,0 +1,251 @@
+---
+title: "4-general-statistics"
+author: "Amy Solman"
+date: "01/04/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#This script contains non-ordination exploratory statistics, including:
+#Faith's phylogenetic diversity metric (Darcy et al., 2018)
+#Linear regression of log-10 transformed cryoconite hole area and log-10 transformed faith's phylogenetic diversity (Darcy et al., 2018)
+#Unweighted unifrac distances (Darcy et al., 2018)
+#Mantel tests (vegan package) to look at relationship between geographic distance and unweighted unifrac distances (Darcy et al., 2018)
+#Fit logistic model to log-10 transformed geographic distances and unweighted unifrac distances using downhill simplex optimization as implemented in R’s optim function (Darcy et al., 2018)
+#Fit linear model to log-10 transformed geographic distances and unweighted unifrac distances (Darcy et al., 2018)
+#Use log10 power law model to estimate c and z for data (Sommers et al., 2020)
+#Analysis of Covariance (ANCOVA) with ASVs as proxy for unique species (Sommers et al., 2020)
+#Use R package 'car' to calculate Type III errors, in which the variation assigned to each factor is not conditional on the order of terms in the model. Then estimate the values and standard errors of model parameters from fitting linear models seperately to the data from each domain of life on each glacier (Sommers et al., 2020)
+#Add chlorophyl concentration as a covariate to the linear regression between log10S and log10A after accounting for glacier. Use Type I errors to evaluate the factors in these models sequentially - so what is the additional explainatory power of chlorophyl after accounting for hole area and glacier (Sommers et al., 2020)
+#Inverse Simpson index using ‘hillR’ package as a measure of community evenness. Use sequential partitioning of variance (Type I errors) to test whether adding the evenness metric to the linear regression of log10 S against log10A was significantly related to additional variation after accounting for glacier (Sommers et al., 2020)
+#ANCOVA on evenness with log10A to determine whether it co-varied with area and if eveness differed between glaciers when accounting for area (Sommers et al., 2020).
+#Test whether the mass of sample or number of sequences in sample explain ISAR. 
+#Linear model to explore whether total sediment mass collected varies with area of hole
+#ANCOVA to ask if mass collected varied between glaciers while accounting for hole area.
+#ANCOVA on whether sediment mass contributes to variation in the relationship between richness and area, use Type I errors to evaluate significance.
+#Check normality of residuals using Shapiro–Wilk test
+#Check for variance using Levene’s test for uneven variances
+#Linear model of log10 S explained by glacier and log10A
+#Linear model of log10 S explained by glacier and log10 sediment mass
+#Remove sediment mass as a confounding covariate in log10A explaining log10S
+#Is there collinearly between sediment mass and area?
+#Does sediment mass differ between glaciers (use ANOVA)?
+#Include sediment mass as covariate in richness-area ANCOVA to test whteer it is significantly related to additional variation in that model.
+#Is there collinearity between number of sample reads and area?
+#Does the number of sample reads differ between glaciers (use ANOVA)?
+#Include number of sample reads as covariate in richness-area ANCOVA to test whether it is significantly related to additional variation in that model.
+
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library("phyloseq") #for working with phyloseq object
+library("ggplot2") #for making our plots
+#install.packages("arm") #use this if you've never installed the package before
+library("arm") #use this to extract the key features of my linear models
+```
+
+#Step Two: Load data files and phyloseq object (I'm not sure which I'm going to work with at this stage!)
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+```
+
+#Step Three: Let's pull out all the data we need to perform our analyses and put it into it's own dataframe.
+```{r}
+#I could start by making a dataframe with sample name, glacier and number of unique ASVs
+sample_name <- colnames(count_table_clean) #sample name
+glacier <- metadata$Glacier #glacier
+chlorophyll <- metadata$Chlorophyll #chlorophyll 
+hole_depth <- metadata$Depth
+DNA_g <- metadata$DNA_per_g
+
+#calculate hole area 
+#Method as per Darcy et al (2018)
+hole_area_cm2 <- (pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2))*10000
+
+#number of unique ASVs per sample
+num_ASVs <- NULL
+for (i in 1:ncol(count_table_clean)){
+  num_ASVs <- c(num_ASVs, colSums(count_table_clean[i] > 0))
+}
+
+#now bind these into a dataframe
+DF <- data.frame(sample_name, glacier, num_ASVs, hole_depth, hole_area_cm2, chlorophyll, DNA_g)
+
+#remove any samples that have NA results
+DF <- na.omit(DF)
+
+```
+
+#Step Four: Get our really basic statistics (mean, median, SD, variance, sample size, SE) See 'The new statistics with R' by Andy Hector for more detail on these statistics
+```{r}
+#ASVs
+ASV_stats <- aggregate(num_ASVs ~ glacier, DF, function(x) c(mean = mean(x), median = median(x), sd = sd(x), variance = var(x), sample_size = length(x), se = sd(x)/sqrt(length(x))))
+
+#hole depth
+depth_stats <- aggregate(as.numeric(hole_depth) ~ glacier, DF, function(x) c(mean = mean(x), median = median(x), sd = sd(x), variance = var(x), sample_size = length(x), se = sd(x)/sqrt(length(x))))
+
+#hole area
+area_stats <- aggregate(hole_area_cm2 ~ glacier, DF, function(x) c(mean = mean(x), median = median(x), sd = sd(x), variance = var(x), sample_size = length(x), se = sd(x)/sqrt(length(x))))
+
+#chlorophyll
+chlorophyll_stats <- aggregate(chlorophyll ~ glacier, DF, function(x) c(mean = mean(x), median = median(x), sd = sd(x), variance = var(x), sample_size = length(x), se = sd(x)/sqrt(length(x))))
+
+#DNA_g
+DNA_stats <- aggregate(as.numeric(DNA_g) ~ glacier, DF, function(x) c(mean = mean(x), median = median(x), sd = sd(x), variance = var(x), sample_size = length(x), se = sd(x)/sqrt(length(x))))
+```
+
+#Step Five: Let's plot our data to visually assess any differences between our glaciers 
+```{r}
+# Create the loop.vector (all the columns)
+loop.vector <- 3:7
+
+for (i in loop.vector) { # Loop over loop.vector
+
+  # store data in column.i as x
+  x <- as.numeric(DF[,i])
+  
+qplot(glacier, x, data = DF, shape = glacier, colour = glacier)+
+  theme_bw()
+
+ggsave(file=paste0("../Outputs/Sommers2020/graphs/Sommers2020-glacier-", colnames(DF)[i], "-dotplots.pdf"))
+}
+```
+
+#Step Six:  Let's create box and whisker plots for our data. These plots give the medians, 25th and 75th percentiles and highlight outlying data points.
+```{r}
+# # Create the loop.vector (all the columns)
+# loop.vector <- 3:7
+
+for (i in loop.vector) { # Loop over loop.vector
+
+  # store data in column.i as x
+  x <- as.numeric(DF[,i])
+  
+    qplot(glacier, x, data = DF, geom = "boxplot",
+      main = "ASV Richness by Glacier: Box-&-Whisker Plot",
+      xlab = "Glacier",
+      ylab = colnames(DF)[i])+
+  theme_bw()
+ggsave(file=paste0("../Outputs/Sommers2020/graphs/Sommers2020-glacier-", colnames(DF)[i], "-boxplot.pdf"))
+}
+```
+
+#Step: Analysis of Variance (ANOVA), a linear model analysis. We want to ask: is the ASV richness/chlorophyll/hole size/hole depth/DNA per gram between glaciers significantly different? Plot the data divided into glacier groups
+#ANOVA quantifies the signal to noise ratio. How different are our groups in ratio to how spread out the data are? ANOVA will tell us how confident we can be that we are not being fooled by a type I error (a false positive difference between the groups)
+#ANOVA will: 1) quantify the overall variability of the dataset. 2) Divide that variability into the variability between and within groups. More signal = more condifent. More noise = less confident.
+```{r}
+#Least squares model 0
+ls0 <- lm(num_ASVs ~ 1, data = DF) # here I have used '1' because I don't want to look at num_ASVs as a result of the explanatory variable 'glacier', I just want to estimate the grand mean of num_ASVs
+display(ls0) #this uses the 'arm' package
+#This gives us estimates of the model coefficients and their standard errors
+#n = the number of data points 
+#k = the number of parameters
+#residual sd is the square root of the variance so it should equal var(DF$num_ASVs) which it more or less does (this may not be TOTALLY accurate due to rounding errors)
+#basically, this linear model gives us the mean number of ASVs for all samples, the standard error of asvs across all samples, the standard deviation of asvs across all samples, the sample size and the number of parameters - so we get a lot of the statistics that we did earlier but in one easy step!
+
+#But let's use ANOVA to look at the response variable (ASV) as a result of categorical explanatory variable (glacier)
+ls1 <- lm(num_ASVs ~ glacier, data=DF)
+#Remember the ANOVA analysis makes a few assumptions about the data. If these assumptions are badly contravened then our results may not be trustworthy! 
+display(ls1) #this gives us the mean asvs of each glacier where intecept coefficient = Canada and glacier taylor coefficient = canada - 82.49. it also gives us the standard error of each glacier which is similar to the results we got previously. 
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
+#Step: 
+```{r}
+
+```
+
