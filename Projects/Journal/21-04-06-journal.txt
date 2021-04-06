@@ -1,3 +1,5 @@
 Tuesday 6th April 2021
 
 Today I will be: writing my general statistics script using 'The New Statistics with R' by Andy Hector (4-general-statistics.Rmd).
+
+This website is super super cool and I need to work through it next time: https://mibwurrepo.github.io/Microbial-bioinformatics-introductory-course-Material-2018/alpha-diversities.html 

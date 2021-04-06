@@ -47,11 +47,48 @@ library("phyloseq") #for working with phyloseq object
 library("ggplot2") #for making our plots
 #install.packages("arm") #use this if you've never installed the package before
 library("arm") #use this to extract the key features of my linear models
+library("picante") #for calculating faith's phylogenetic diversity 
+library("vegan") #for caluclating our other diversity indices
+install.packages("DT")
+library("DT") # interactive tables in html and markdown, for making a datatable with faiths diversity results
 ```
 
 #Step Two: Load data files and phyloseq object (I'm not sure which I'm going to work with at this stage!)
 ```{r}
 load("results/cleaned_files/cleanedfiles_3.RData")
+my_physeq <- readRDS("results/my-phyloseq-object.rds") #This is for caluclating phylogenetic diversity metrics
+```
+
+#Step: Calculate Faith's phylogenetic diversity 
+```{r}
+#How many unique ASVs do we have in each sample
+S <- apply(t(count_table_clean) > 0, 1, sum)
+
+#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+div_shan <- diversity(t(count_table_clean), index = "shannon")
+
+#Use vegan package to get simpson diversity index of each sample
+div_simp <- diversity(t(count_table_clean), index = "simpson")
+
+#Use vegan package to get inverted simpson diversity index of each sample
+div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
+
+#Calculate Pilou evenness
+div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(S) #Here we use the species count we got earlier
+
+#Faith's phylogenetic diversity 
+asv_tab <- as.data.frame(my_physeq@otu_table) #Hellinger transformed asv table
+
+my_tree <- my_physeq@phy_tree #get my phylogenetic tree
+
+#Check if the tree is rooted
+my_physeq@phy_tree #Rooted, includes branch lengths
+
+#It is a rooted tree so...
+df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE)
+
+datatable(df.pd) #use DT package for this
+
 ```
 
 #Step Three: Let's pull out all the data we need to perform our analyses and put it into it's own dataframe.
@@ -135,7 +172,9 @@ ggsave(file=paste0("../Outputs/Sommers2020/graphs/Sommers2020-glacier-", colname
 }
 ```
 
-#Step: Analysis of Variance (ANOVA), a linear model analysis. We want to ask: is the ASV richness/chlorophyll/hole size/hole depth/DNA per gram between glaciers significantly different? Plot the data divided into glacier groups
+#Step Seven: Create linear models of our explanatory variable (glacier) and dependent variables (asv number, depth, area, chlorophyll, dna)
+
+#Analysis of Variance (ANOVA), a linear model analysis. We want to ask: is the ASV richness/chlorophyll/hole size/hole depth/DNA per gram between glaciers significantly different? Plot the data divided into glacier groups
 #ANOVA quantifies the signal to noise ratio. How different are our groups in ratio to how spread out the data are? ANOVA will tell us how confident we can be that we are not being fooled by a type I error (a false positive difference between the groups)
 #ANOVA will: 1) quantify the overall variability of the dataset. 2) Divide that variability into the variability between and within groups. More signal = more condifent. More noise = less confident.
 ```{r}
@@ -149,28 +188,98 @@ display(ls0) #this uses the 'arm' package
 #basically, this linear model gives us the mean number of ASVs for all samples, the standard error of asvs across all samples, the standard deviation of asvs across all samples, the sample size and the number of parameters - so we get a lot of the statistics that we did earlier but in one easy step!
 
 #But let's use ANOVA to look at the response variable (ASV) as a result of categorical explanatory variable (glacier)
-ls1 <- lm(num_ASVs ~ glacier, data=DF)
+lm_asv <- lm(num_ASVs ~ glacier, data=DF)
 #Remember the ANOVA analysis makes a few assumptions about the data. If these assumptions are badly contravened then our results may not be trustworthy! 
-display(ls1) #this gives us the mean asvs of each glacier where intecept coefficient = Canada and glacier taylor coefficient = canada - 82.49. it also gives us the standard error of each glacier which is similar to the results we got previously. 
+display(lm_asv) #this gives us the mean asvs of each glacier where intercept coefficient = Canada mean. And glacier taylor coefficient (taylor mean) = Canada coefficient - 82.49. it also gives us the standard error of the mean and the standard error of the difference between the means.
+summary(lm_asv) #R= 0.17 to 17% of the variation in number of ASV is explained by glacier as quantified by the total sum of squares. Adjusted R = 0.13 and this takes into account the complexity of the model
+
+lm_depth <- lm(hole_depth ~ glacier, data=DF)
+display(lm_depth)
+summary(lm_depth) #summary gives a little more detail
+
+lm_area <- lm(hole_area_cm2 ~ glacier, data=DF)
+display(lm_area)
+summary(lm_area)
+
+lm_chlo <- lm(chlorophyll ~ glacier, data=DF)
+display(lm_chlo)
+summary(lm_chlo)
+
+lm_dna <- lm(DNA_g ~ glacier, data=DF)
+display(lm_dna)
+summary(lm_dna)
+
+#If samples were paired we could do a paired t test like so:
+# anova(lm(num_ASVs ~ pair + glacier, data = DF))
 ```
 
-#Step: 
+#Step Eight: View ANOVA tables for each of the linear models. One-way ANOVA!
 ```{r}
+anova(lm_asv) #significant relationship F = 5.68 so the signal is 5.68 times larger than the noise
+anova(lm_depth) #significant relationship
+anova(lm_area) #no significant relationship F = 0.06 so the signal is 0.06 times larger than the noise
+anova(lm_chlo) #no significant relationship
+anova(lm_dna) #significant relationship
 
+#Here the first column gives the source of the variation (the glacier and the leftover variation = the residual)
+#The F values gives us our signal-to-noise ratio. 
+
+#Of the asv ~ glacier ANOVA we could say: The Canada glacier cryoconite holes had an average of 392 unique ASVs while Taylor glacier cryoconite samples had an average of 309 unique ASVs - a difference of 83 unique ASVs which was statistically significant (F 1,28 = 5.7, p = 0.02)
 ```
 
-#Step: 
+#Step Nine: Look at the confidence intervals of the data 
 ```{r}
-
+confint(lm(num_ASVs ~ glacier, data = DF)) #Confidence intervals 
+coefplot(lm(num_ASVs ~ glacier, data = DF)) #This plot shows us that the Taylor glacier has almost 80 less unique ASVs than Canada. This shows the difference in mean ASVs (solid dot) with approximate 68% (thicker shorter bars) and 95% (thinner longer bars) confidence intervals
 ```
 
-#Step: 
+#Step Ten: Look at the residuals of our linear models (one-way ANOVA)
 ```{r}
-
+par(mfrow=c(2,2))
+plot(lm_asv) #Note that on our Normal Q-Q plot our residual differences fall approximately on a straight line 
 ```
 
-#Step: 
+#Step Eleven: Linear Regression Analysis
+#We use linear regression analysis if our explanatory variable is continuous 
+#For example, what if we want to see if hole area explains ASV richness?
+#Linear regression analysis is not for hypothesis testing (like ANOVA and t-tests) but for estimating a relationship that can be used for prediction
+#Can we use hole area to predict ASV number?
 ```{r}
+area_asv_lm <- lm(num_ASVs ~ hole_area_cm2, data = DF)
+
+# for (i in loop.vector) { # Loop over loop.vector
+# 
+#   # store data in column.i as x
+#   z <- as.numeric(DF[,i])
+#   
+# #Let's create a graph of the linear model between ASV richness and our other continuous variables
+# xla <- colnames(DF)[i]
+# yla <- "ASV Richness"
+# (qplot(x=z, y = num_ASVs, data = DF,
+#        geom=c("point", "smooth"), method="lm")+
+#     theme_bw()+
+#     xlab(xla)+ylab(yla))
+# ggsave(file=paste0("../Outputs/Sommers2020/graphs/Sommers2020-asv-", colnames(DF)[i], "-linear-regression.pdf"))
+# }
+
+#plot linear regressions of all variables will all variables
+for (i in loop.vector) {
+for (j in loop.vector) { # Loop over loop.vector
+
+  # store data in column.i as x
+  a <- as.numeric(DF[,i])
+  b <- as.numeric(DF[,j])
+  
+#Let's create a graph of the linear model between ASV richness and our other continuous variables
+xla <- colnames(DF)[i]
+yla <- colnames(DF)[j]
+(qplot(x=a, y = b, data = DF,
+       geom=c("point", "smooth"), method="lm")+
+    theme_bw()+
+    xlab(xla)+ylab(yla))
+ggsave(file=paste0("../Outputs/Sommers2020/graphs/Sommers2020", colnames(DF)[i], "-", colnames(DF)[j], "-linear-regression.pdf"))
+}
+}
 
 ```
 
