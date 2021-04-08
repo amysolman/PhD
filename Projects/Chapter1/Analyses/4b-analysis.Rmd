@@ -1,0 +1,627 @@
+---
+title: "analysis"
+author: "Amy Solman"
+date: "07/04/2021"
+output: html_document
+---
+
+#This document will follow the method set out by the Microbial Bioinformatics Course (https://mibwurrepo.github.io/Microbial-bioinformatics-introductory-course-Material-2018/alpha-diversities.html)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Step One: Clear workspace 
+```{r}
+rm(list=ls())
+graphics.off()
+```
+
+#Step Two: Load packages 
+```{r}
+library(phyloseq)
+library(DT) #interactive tables in html and markdown
+library(microbiome) #useful phyloseq commands e.g. summarize_phyloseq()
+
+# library(RColorBRewer)
+# install.packages("ggpubr")
+library(ggpubr) #used for ggboxplot() function
+library(data.table) #used for function data.table
+# library(dplyr)
+
+# Install microbiomeutilities
+# install.packages("devtools")
+# devtools::install_github("microsud/microbiomeutilities")
+library(microbiomeutilities) #gives us the read_phyloseq function
+
+library(picante) #for faith's phylogenetic diversity
+library(vegan) #for our PERMANOVA (permutational multivariate analysis of variance)
+
+```
+
+#Step Three: Load data and phyloseq objects  
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+#my_physeq <- readRDS("results/my-phyloseq-object.rds")
+```
+
+#Step Four: Create new phyloseq object using count_table instead of hellinger transformed table: 
+```{r}
+# my.ps <- read_phyloseq(otu.file = "../Data-wrangling/work/export/table/feature-table.biom",
+#                        taxonomy.file = taxonomy,
+#                        metadata.file = metadata,
+#                        type = "biom")
+```
+
+```{r}
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+```
+
+#Step Five: Check for features of the phyloseq object 
+```{r}
+print(my.ps) #shows how many taxa and samples are in asv table, how many samples and variables are in metadata table, how many taxa and taxonomic ranks are in the taxonomy table and how many tips and nodes are in the phylogenetic tree
+rank_names(my.ps) #shows the taxonomic rank names in the taxonomy table 
+datatable(tax_table(my.ps)) #shows the ASV IDs and their taxonomic classifications
+summarize_phyloseq(my.ps) #uses microbiome package
+```
+
+#Step Six: Check the spread of variation of the taxa.
+#The coefficient of variation = sd(x)/mean(x) - widely used for quantifying heterogeneity in ASV abundance data
+```{r}
+p1 <- plot_taxa_cv(my.ps, plot.type = "scatter") #this function will convert the counts to relative abundances then calculate the coefficient of vairation
+p1 + scale_x_log10()
+```
+
+#Step Seven: Check the distribution of number of sequences
+```{r}
+seqdepth.ps <- plot_read_distribution(my.ps, "Glacier", "density") #density here is the type of plot. Function from microbiomeutilities.
+print(seqdepth.ps) 
+```
+
+#Step Eight: Plot a histogram of count abundance against frequency of ASVs
+```{r}
+# We make a data table with information on the OTUs
+my.ps.table <- data.table(tax_table(my.ps),
+                          ASVabundance = taxa_sums(my.ps),
+                          ASV = taxa_names(my.ps))
+
+my.ps.plot <- ggplot(my.ps.table, aes(ASVabundance)) +
+  geom_histogram() + ggtitle("Histogram of ASVs (unique sequence) counts") +
+  theme_bw() + scale_x_log10() + ylab("Frequency of ASVs") + xlab("Abundance (raw counts)")
+
+print(my.ps.plot)
+
+#The ASVs distribution is close to normal distribution and this has implications for downstream analysis (e.g. differential abundance testing)
+```
+
+#Step : Check for the prevalance abundance distribution of ASVs
+```{r}
+p <- plot_taxa_prevalence(my.ps, "Phylum")
+p
+
+#Here we see that taxa at low prevalence (y axis) are represented by high abundance in the sequencing data, suggesting that these are REAL observations and spurious ASVs.
+
+#total number of reads in the dataset
+tot_reads <- taxa_sums(my.ps)
+print(sum(tot_reads))
+
+#how many ASVs are less than 10 reads and how many reads do they contain?
+print(length(tot_reads[tot_reads < 10]))
+print(sum(tot_reads[tot_reads < 10]))
+
+#how many singletons are there?
+length(which(taxa_sums(my.ps) <= 1))
+
+#how many doubletons are there?
+length(which(taxa_sums(my.ps) == 2))
+
+#how many singletons and doubletons are there?
+length(which(taxa_sums(my.ps) <= 2))
+
+round((127/2149)*100, digits = 2) #6% of ASVs are doubletons or singletons
+
+sessionInfo()
+```
+
+#Step : Calculate alpha diversities 
+```{r}
+print(my.ps)
+summary(sample_sums(my.ps)) #this shows us the number of reads where the minimum is 13401 and the max is 35129
+
+#plot rarefaction curves for the observed ASVs so we can look at how richness is captured in the sequencing effort
+
+asv_tab <- t(abundances(my.ps))
+p <- vegan::rarecurve(asv_tab,
+                      step=50, label = FALSE,
+                      sample = min(rowSums(asv_tab),
+                                   col = "blue", cex = 0.6))
+```
+
+#Step : Rarefy the samples to equal sampling depth
+```{r}
+set.seed(1961) #This will ensure the results of our normalisation step remain the same when repeated
+
+ps.rar <- rarefy_even_depth(my.ps, sample.size = 13401)
+
+print(ps.rar) #Let's so how our data have changed
+
+barplot(sample_sums(ps.rar), las=2) #We can see all of our samples now have the same number of reads
+
+#Check taxa prevelance in the rarefied data
+p.ps.rar <- plot_taxa_prevalence(ps.rar, "Phylum")
+p.ps.rar #We can see how the taxa prevalence plot had changed in comparison to before the reads were rarefied
+```
+
+#Step : Calculate non-phylogenetic diversities
+```{r}
+ps.div <- alpha(ps.rar, index="all")
+datatable(ps.div) #So this gives us lots of diversity indices in one go!
+```
+
+#Step : Plot the diversity data 
+```{r}
+#get the metadata as a seperate object
+ps.rar.meta <- meta(ps.rar)
+
+#add row names as new column for easy integration later
+ps.rar.meta$sam_name <- rownames(ps.rar.meta)
+
+#add the row names to the diversity table
+ps.div$sam_name <- rownames(ps.div)
+
+#merge the dataframes
+my.div.df <- merge(ps.div, ps.rar.meta, by = "sam_name")
+
+colnames(my.div.df)
+
+#now we can use the combined diversity and metadata to plot
+
+p <- ggboxplot(my.div.df,
+               x="Glacier",
+               y="diversity_shannon",
+               fill="Glacier",
+               palette="jco") #this uses the ggpubr package
+
+p
+
+#Alternatively we could do this
+#convert phyloseq object into long data format
+my.div.df2 <- my.div.df[, c("Glacier", "diversity_inverse_simpson", "diversity_gini_simpson", "diversity_shannon", "diversity_fisher", "diversity_coverage")]
+
+#Replace with better names
+colnames(my.div.df2) <- c("Glacier", "Inverse Simpson", "Gini-Simpson", "Shannon", "Fisher", "Coverage")
+
+#Check the col names
+colnames(my.div.df2) 
+
+melt.my.div.df <- reshape2::melt(my.div.df2)
+
+head(melt.my.div.df)
+
+#Now we'll plot using this dataframe
+
+p <- ggboxplot(melt.my.div.df, x = "Glacier", y = "value", fill = "Glacier", palette = "jco", legend = "right", facet.by = "variable", scales = "free")
+p <- p + rotate_x_text() 
+p <- p + rremove("x.text")
+p
+
+#save 
+ggsave("../Outputs/Sommers2020/graphs/Diversities.pdf", height=4, width =10)
+
+lev <- levels(as.factor(melt.my.div.df$Glacier)) #get the glacier names
+
+#make a pairwise list that we want to compare
+lev.pairs <- combn(seq_along(lev), 2, simplify = FALSE, FUN = function(i) lev[i])
+
+pval <- list(
+  cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 0.1, 1),
+  symbols = c("****", "***", "**", "*", "n.s")
+) #set our p-values
+
+p2 <- p + stat_compare_means(
+  comparisons = lev.pairs,
+  label = "p.signif",
+  symnum.args = list(
+    cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 0.1, 1),
+  symbols = c("****", "***", "**", "*", "n.s")
+  )
+)
+
+print(p2)
+```
+
+#Step : Phylogenetic diversity
+```{r}
+ps.rar.asv.tab <- as.data.frame(ps.rar@otu_table)
+
+ps.rar.tree <- ps.rar@phy_tree
+
+#check if the tree is rooted
+
+ps.rar@phy_tree #it is rooted
+
+ps.df <- pd(t(ps.rar.asv.tab), ps.rar.tree, include.root = T) #transpose the asv table and find phylogetetic diversity
+
+datatable(ps.df)
+
+#now we plot the pd
+#add the results of the pd to our metadata file
+
+ps.rar.meta$Phylogenetic_Diversity <- ps.df$PD
+
+#plot
+pd.plot <- ggboxplot(ps.rar.meta,
+                     x = "Glacier",
+                     y = "Phylogenetic_Diversity",
+                     fill = "Glacier",
+                     palette = "jco",
+                     ylab = "Phylogenetic Diversity",
+                     xlab = "Glacier",
+                     legend = "right")
+
+pd.plot <- pd.plot + rotate_x_text()
+
+pd.plot + stat_compare_means(
+  comparisons = lev.pairs,
+  label = "p.signif",
+  symnum.args = list(
+    cutpoints = c(0, 0.00001, 0.0001, 0.001, 0.01, 0.05, 0.1, 1),
+    symbols = c("****", "***", "**", "*", "n.s")
+  )
+)
+
+
+
+```
+
+#Step : Find diversities for non-rarefied data
+```{r}
+#Note from the bioinformatics guide: There are arguments both for and against the use of rarefying to equal library size.
+#The application of normalization method will depend on the type of research question. 
+#It is always good to check if there is a correlation between increasing library sizes and richness.
+#Observed ASVs and Phylogenetic diversity can be affected by sibrary sizes. It is always good to check this before making a choice.
+
+tot.div <- alpha(my.ps, index = "all")
+tot.div2 <- richness(my.ps)
+
+#add total number of reads/samples
+tot.div$ReadsPerSample <- sample_sums(my.ps)
+tot.div$Observed <- tot.div2$observed
+colnames(tot.div)
+```
+
+#Step : Visualise shannon diversity, inverse simpson index and observed ASVs of non-rarefied data
+```{r}
+p1 <- ggscatter(tot.div, "diversity_shannon", "ReadsPerSample")+
+  stat_cor(method="pearson")
+
+p2 <- ggscatter(tot.div, "diversity_inverse_simpson", "ReadsPerSample", add="loess")+
+  stat_cor(method="pearson")
+
+p3 <- ggscatter(tot.div, "Observed", "ReadsPerSample", add = "loess")+
+  stat_cor(
+    method = "pearson",
+    label.x = 100,
+    label.y = 35000
+  )
+
+ggarrange(p1, p2, p3, ncol = 2, nrow = 2)
+```
+
+#Step : Composition Plots
+```{r}
+print(my.ps)
+
+#Barplot counts
+my.ps.com <- my.ps
+taxa_names(my.ps.com) <- paste0("ASV_", rownames(tax_table(my.ps.com)))
+
+#Set Palette
+taxic <- as.data.frame(my.ps.com@tax_table) #help for setting colour options
+
+taxic$ASV <- rownames(taxic)
+
+#convert to matrix
+taxmat <- as.matrix(taxic)
+#convert to phyloseq compatible file
+new.tax <- tax_table(taxmat)
+#add to phyloseq object
+tax_table(my.ps.com) <- new.tax
+
+#Edit unclassified taxa
+tax_table(my.ps.com)[tax_table(my.ps.com)[, "Family"] == "", "Family"] <- "Unclassified family"
+
+#Put the taxa names in italics
+guide_italics <- guides(fill = guide_legend(label.theme = element_text(
+  size=15,
+  face="italic", colour="Black", angle =0
+)))
+
+#plot counts at family level
+#first remove the phylogenetic tree
+my.ps.com@phy_tree <- NULL
+
+#merge at the family level
+my.ps.com.fam <- microbiome::aggregate_top_taxa(my.ps.com, "Family", top=10)
+
+#merge at the class level
+my.ps.com.class <- microbiome::aggregate_top_taxa(my.ps.com, "Class", top=10) #what does it mean if a function is deprecated
+
+plot.composition.Count.Abun <- plot_composition(my.ps.com.fam) +
+  theme(legend.position = "bottom")+
+  scale_fill_brewer("Family", palette = "Paired")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=90))+
+  ggtitle("Count Abundance") +
+  guide_italics + theme(legend.title = element_text(size=18))
+
+plot.composition.Count.Abun
+
+ggsave("../Outputs/Sommers2020/graphs/count-abundance-barplot.pdf", width = 10, height = 5)
+
+plot.composition.Count.Abun <- plot_composition(my.ps.com.class) +
+  theme(legend.position = "bottom")+
+  scale_fill_brewer("Family", palette = "Paired")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=90))+
+  ggtitle("Count Abundance") +
+  guide_italics + theme(legend.title = element_text(size=18))
+
+plot.composition.Count.Abun
+
+ggsave("../Outputs/Sommers2020/graphs/count-abundance-barplot.pdf", width = 10, height = 5)
+```
+
+#Step : Barplot of relative abundance
+```{r}
+#Let's convert our family merged count data to relative abundance data using the transform function of microbiome
+ps1.com.fam.rel <- microbiome::transform(my.ps.com.fam, "compositional")
+
+plot.composition.relAbun <- plot_composition(ps1.com.fam.rel, sample.sort = "Glacier", x.label = "Library.Name") 
+plot.composition.relAbun <- plot.composition.relAbun + theme(legend.position = "bottom") 
+plot.composition.relAbun <- plot.composition.relAbun + scale_fill_brewer("Family", palette = "Paired") + theme_bw() 
+plot.composition.relAbun <- plot.composition.relAbun + theme(axis.text.x = element_text(angle = 90)) 
+plot.composition.relAbun <- plot.composition.relAbun + ggtitle("Relative abundance") + guide_italics + theme(legend.title = element_text(size = 18))
+
+plot.composition.relAbun
+
+ps1.com.class.rel <- microbiome::transform(my.ps.com.class, "compositional")
+
+plot.composition.relAbun <- plot_composition(ps1.com.class.rel, sample.sort = "Glacier", x.label = "Glacier") 
+plot.composition.relAbun <- plot.composition.relAbun + theme(legend.position = "bottom") 
+plot.composition.relAbun <- plot.composition.relAbun + scale_fill_brewer("Family", palette = "Paired") + theme_bw() 
+plot.composition.relAbun <- plot.composition.relAbun + theme(axis.text.x = element_text(angle = 90)) 
+plot.composition.relAbun <- plot.composition.relAbun + ggtitle("Relative abundance") + guide_italics + theme(legend.title = element_text(size = 18))
+
+plot.composition.relAbun
+```
+
+#Step : Customize the barplot
+```{r}
+data.com <- plot.composition.relAbun$data
+colnames(data.com)
+
+p.com <- ggplot(data.com, aes(x=Sample, y=Abundance, fill=Tax))
+p.com <- p.com + geom_bar(position="stack", stat = "identity")
+p.com <- p.com + scale_x_discrete(labels = data.com$xlabels, breaks=data.com$Sample)
+p.com <- p.com + scale_fill_brewer("Class", palette = "Paired") + theme_bw()
+p.com <- p.com + facet_grid(~xlabel, scales = "free")
+p.com <- p.com + rremove("x.text")
+
+print(p.com)
+```
+
+#Step : Heat maps!
+```{r}
+#base plot
+ps.heat <- ggplot(data.com, aes(x=Sample, y=Tax))+
+  geom_tile(aes(fill=Abundance))
+
+#change colour
+ps.heat <- ps.heat + scale_fill_distiller("Abundace", palette = "RdYlBu")+
+  theme_bw()
+
+#Make bacterial names italics
+ps.heat <- ps.heat + theme(axis.text.y = element_text(colour='black', size=10, face='italic'))
+
+#Make separate samples based on main variable
+ps.heat <- ps.heat + facet_grid(~xlabel, scales = "free")+ rremove("x.text")
+
+ps.heat <- ps.heat + ylab("Class")
+
+#Clean the axis
+ps.heat <- ps.heat + theme(axis.title.x=element_blank(),
+                           axis.text.x = element_blank(),
+                           axis.ticks.x = element_blank())
+
+#Clean the facet
+ps.heat <- ps.heat + theme(legend.key = element_blank(),
+                           strip.background = element_rect(colour="black", fill="white"))
+
+print(ps.heat)
+
+ggsave("../Outputs/Sommers2020/graphs/heatmap.pdf", height=4, width=6)
+```
+
+#Step : Let's try another plot
+```{r}
+ps.df <- microbiomeutilities::phy_to_ldf(my.ps.com.class,
+                                         transform.counts = "compositional")
+
+colnames(ps.df)
+
+#this data frame can now be used to customize several plots
+p.box <- ggstripchart(ps.df, "Glacier", "Abundance",
+                      facet.by = "Class", color="Glacier", 
+                      palette = "jco")
+p.box + rremove("x.text")
+
+ggsave("../Outputs/Sommers2020/graphs/strip-chart.pdf", height = 4, width = 6)
+```
+
+#Step : Beta diversity metrics - unweighted unifrac
+```{r}
+my.ps #non-rarefied data
+ps.rar #rarefied data
+
+#Unweighted unifrac is based on presence/absence not abundance - but it is sensitive to sequencing depth. So if a sample is of greater depth than other reads it may have more low abundance taxa and therefore effect the unifrac metric
+
+#So we'll use our rarefied data for this.
+#remove ASVs that are detected at least 10 times in 5% of samples
+ps.rar.filter <- core(ps.rar, detection = 10, prevalence = 0.05)
+summarize_phyloseq(ps.rar.filter) #look at the sparcity of the data, we want to reduce it. Sparcity = 0.5899
+summarize_phyloseq(ps.rar) #sparcity = 0.8275
+
+#do the unweighted unifrac with filtered phyloseq object
+unw.uni.filter <- ordinate(ps.rar.filter, "PCoA", "unifrac", weighted=F)
+
+#check for eigen values
+barplot(unw.uni.filter$values$Eigenvalues[1:10])
+
+unw.uni.filter.plot <- plot_ordination(ps.rar.filter, unw.uni.filter, color="Glacier")
+
+unw.uni.filter.plot <- unw.uni.filter.plot + ggtitle("Unweighted UniFrac") + geom_point(size=2)
+unw.uni.filter.plot <- unw.uni.filter.plot + theme_classic() + scale_color_brewer("Glacier", palette = "Set2")
+print(unw.uni.filter.plot)
+
+#do the unweighted unifrac with unfiltered phyloseq object
+unw.uni <- ordinate(ps.rar, "PCoA", "unifrac", weighted=F)
+
+#check for eigen values
+barplot(unw.uni$values$Eigenvalues[1:10])
+
+unw.uni.plot <- plot_ordination(ps.rar, unw.uni, color="Glacier")
+
+unw.uni.plot <- unw.uni.plot + ggtitle("Unweighted UniFrac") + geom_point(size=2)
+unw.uni.plot <- unw.uni.plot + theme_classic() + scale_color_brewer("Glacier", palette = "Set2")
+print(unw.uni.plot)
+```
+
+#Step : Weighted Unifrac - considers abundances of taxa
+```{r}
+my.ps.rel <- microbiome::transform(my.ps, "compositional")
+
+wt.uni <- ordinate(my.ps.rel, "PCoA", "unifrac", weighted=T)
+
+#Check for eigen values
+barplot(wt.uni$values$Eigenvalues[1:10])
+
+wt.uni.plot <- plot_ordination(my.ps.rel, wt.uni, color="Glacier")
+wt.uni.plot <- wt.uni.plot + ggtitle("Weighted UniFrac")+geom_point(size=2)
+wt.uni.plot <- wt.uni.plot + theme_classic() + scale_color_brewer("Glacier", palette = "Set2")
+print(wt.uni.plot)
+print(wt.uni.plot + stat_ellipse())
+```
+
+#Step : Population-level Density landscapes
+```{r}
+p <- plot_landscape(my.ps.rel,
+                    "NMDS",
+                    "bray",
+                    col = "Glacier") +
+  labs(title=paste("NMDS / Bray-Curtis"))
+
+p <- p + scale_color_brewer(palette="Dark2") + scale_fill_gradient(low="#e0ecf4", high = "#6e016b")
+
+p
+```
+
+#Step : PERMANOVA
+```{r}
+meta.df <- data.frame(sample_data(my.ps.rel))
+
+unifrac.dist <- UniFrac(my.ps.rel,
+                        weighted=TRUE,
+                        normalized=TRUE,
+                        parallel=FALSE,
+                        fast=TRUE)
+
+permanova <- adonis(unifrac.dist ~ Glacier, data = meta.df)
+permanova
+
+```
+
+#Step : Checking the homogeneity condition
+```{r}
+
+ps.disper <- betadisper(unifrac.dist, meta.df$Glacier)
+permutest(ps.disper, pairwise = TRUE)
+```
+
+#Step : Core microbiota
+```{r}
+#non-rarefied data
+my.ps
+
+#subset data to keep only samples from Canada glacier
+ps.Canada <- subset_samples(my.ps, Glacier == "Canada")
+
+#convert to relative abundance
+ps.Canada.rel <- microbiome::transform(ps.Canada, "compositional")
+
+print(ps.Canada.rel)
+
+ps.Canada.rel2 <- prune_taxa(taxa_sums(ps.Canada.rel) > 0, ps.Canada.rel)
+print(ps.Canada.rel2) #keep only taxa with more than 0 occurrences
+
+#Check for core ASVs
+core.taxa.Canada <- core_members(ps.Canada.rel2, detection = 0.001, prevalence = 50/100)
+
+print(core.taxa.Canada) #This gives us the core 137 taxa IDs
+
+#Let's get their classification
+#Extract the taxonomy table
+taxa.tab <- as.data.frame(tax_table(ps.Canada.rel2))
+#Subset this taxonomy table to include only core ASVs
+core_taxa_id <- subset(taxa.tab, rownames(taxa.tab) %in% core.taxa.Canada)
+DT::datatable(core_taxa_id) #let's look at our core taxa classifications in an interactive table
+```
+
+#Step : Let's find the core abundance and diversity
+```{r}
+core.abundance <- sample_sums(core(ps.Canada.rel2, detection=0.001, prevalence = 50/100))
+DT::datatable(as.data.frame(core.abundance)) #how abundant are the core taxa in each sample
+```
+
+#Step : Core visualization
+```{r}
+#Core heatmaps
+#Core with compositionals
+prevelances <- seq(.05, 1, .05)
+detections <- 10^seq(log10(1e-3), log10(.2), length=10)
+
+#Also define gray color palette
+gray <- gray(seq(0,1,length=5))
+p.core <- plot_core(ps.Canada.rel2,
+                    plot.type = "heatmap",
+                    colours=gray,
+                    prevalences = prevalences,
+                    detections = detections,
+                    min.prevalence = .5) + 
+  xlab("detection Threshold (Relative Abundance (%)")
+print(p.core)
+
+```
+
+#Step :
+```{r}
+
+```
+
+#Step :
+```{r}
+
+```
+
+#Step :
+```{r}
+
+```
+
+#Step :
+```{r}
+
+```

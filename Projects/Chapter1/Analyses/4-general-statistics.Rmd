@@ -85,7 +85,7 @@ my_tree <- my_physeq@phy_tree #get my phylogenetic tree
 my_physeq@phy_tree #Rooted, includes branch lengths
 
 #It is a rooted tree so...
-df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE)
+df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
 
 datatable(df.pd) #use DT package for this
 
