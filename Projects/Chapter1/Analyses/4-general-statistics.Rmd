@@ -4,7 +4,7 @@ author: "Amy Solman"
 date: "01/04/2021"
 output: html_document
 ---
-
+#The below code and notes is taken directly in parts from 'The New Statistics with R: An Introduction for Biologists' by Andy Hector. These are not entirely MY notes, they are predominately ANDY HECTORS and I do not take credit.
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -49,8 +49,10 @@ library("ggplot2") #for making our plots
 library("arm") #use this to extract the key features of my linear models
 library("picante") #for calculating faith's phylogenetic diversity 
 library("vegan") #for caluclating our other diversity indices
-install.packages("DT")
+#install.packages("DT")
 library("DT") # interactive tables in html and markdown, for making a datatable with faiths diversity results
+library(microbiome) #useful phyloseq commands e.g. summarize_phyloseq()
+
 ```
 
 #Step Two: Load data files and phyloseq object (I'm not sure which I'm going to work with at this stage!)
@@ -247,21 +249,34 @@ plot(lm_asv) #Note that on our Normal Q-Q plot our residual differences fall app
 ```{r}
 area_asv_lm <- lm(num_ASVs ~ hole_area_cm2, data = DF)
 
-# for (i in loop.vector) { # Loop over loop.vector
-# 
-#   # store data in column.i as x
-#   z <- as.numeric(DF[,i])
-#   
-# #Let's create a graph of the linear model between ASV richness and our other continuous variables
-# xla <- colnames(DF)[i]
-# yla <- "ASV Richness"
-# (qplot(x=z, y = num_ASVs, data = DF,
-#        geom=c("point", "smooth"), method="lm")+
-#     theme_bw()+
-#     xlab(xla)+ylab(yla))
-# ggsave(file=paste0("../Outputs/Sommers2020/graphs/Sommers2020-asv-", colnames(DF)[i], "-linear-regression.pdf"))
-# }
+#Let's create a graph of the linear model between ASV richness and hole area
+xla <- expression(paste("Cryoconite hole area (", cm^2,")"))
+yla <- "ASV abundance"
+(qplot(x=hole_area_cm2, y = num_ASVs, data = DF,
+       geom=c("point", "smooth"), method="lm")+
+    theme_bw()+
+    xlab(xla)+ylab(yla))
+ggsave(file=paste0("../Outputs/Sommers2020/graphs/Sommers2020-asv-area-linear-regression.pdf"))
 
+#Extract the point estimates from the linear regression
+coef(area_asv_lm) #These results tell us that is we had a hole of area 0cm2 we would have 315 asvs
+#so of the power law model y = a + b*x a = intercept (the number of asvs if our hole area was 0cm2), b = slope (change in asv number with each unit change in hole area)
+
+#we can look at the model matrix 
+model.matrix(area_asv_lm) #This contains a column of ones that indicate the intercept and a column of area values. 
+
+#we can use the linear regression equation to predict the value of ASVs with y = (ax1) + (b*x)
+coef(area_asv_lm)[1]*1 + coef(area_asv_lm)[2]*1000
+
+#The fitted function extracts the fitted values for each observed value of the explanatory variable, this is the predicted value of y for each observed value of x
+fitted(area_asv_lm) #these are the points the line is fitted on
+
+#The residuals are the difference between the observed and fitted values and can be extracted with a function of the same name
+residuals(area_asv_lm)
+```
+
+#Step:plot linear regressions of all variables will all variables
+```{r}
 #plot linear regressions of all variables will all variables
 for (i in loop.vector) {
 for (j in loop.vector) { # Loop over loop.vector
@@ -280,40 +295,150 @@ yla <- colnames(DF)[j]
 ggsave(file=paste0("../Outputs/Sommers2020/graphs/Sommers2020", colnames(DF)[i], "-", colnames(DF)[j], "-linear-regression.pdf"))
 }
 }
+```
+
+#Step: Confidence intervals and prediction intervals
+```{r}
+#95% confidence intervals reflect our confidence only in the average relationship - the regression line itself. 
+#In this case we want to use this regression relationship to predict the asv abundance of new cryoconite holes based on their area. We want to accompany our prediction with an interval that converys our confidence in it and the 95% CI does not do that. Instead we need a prediction interval (PI). The 95% CI can be said to convey our inferential uncertainty, since it conveys our confidence in our restimate of the regression relationship.
+#However there is scatter around this line and because the PI applies to a prediction around a new point the 95% PI needs to include the predictive uncertainty. 
+
+#Let's get hole areas with which to predict ASV abundance
+plot.holes <- seq(min(DF$hole_area_cm2), max(DF$hole_area_cm2), length = 100)
+
+#We can that substitute this sequence for the observed areas in the predict function
+(predictions <- predict(area_asv_lm, list(hole_area_cm2 = plot.holes), se=TRUE)) #This gives us the predicted ASV abundance for 100 regular hole areas together with the standard error at each point. We also get the total DF 30 - 2 = 28 and the residual SD from the display() and summary() output, which is the square root of the residual vairance from the ANOVA table
+
+anova(area_asv_lm) #$residual.scale = 72.01614
+sqrt(5186) #72.01389
+
+#Now we can plot the predicted ASV values to produce our regression line and use the standard error to caluclate 95% CI. 
+t.value <- qt(0.975, 28) #The Student t Distribution = 2.05 (close enough to 2)
+
+up.ci <- predictions$fit + t.value*predictions$se.fit
+lo.ci <- predictions$fit - t.value*predictions$se.fit #This is showing what is going on behind the scenes but predict() can be used do it for you
+
+(predictions <- predict(area_asv_lm, list(hole_area_cm2=plot.holes),
+                        interval="confidence", se=TRUE)) #"confidence" = CI, replace with "predictions" for PI bounds
+plot(DF$hole_area_cm2, DF$num_ASVs, xlab="Hole Area cm2", ylab = "ASV Abundance")+
+lines(predictions$fit[,1]~plot.holes)+  #regression line
+lines(predictions$fit[,2]~plot.holes, lty = 2)+ #upper CI
+lines(predictions$fit[,3]~plot.holes, lty = 2) #lower CI
+
+#PI is wider than CI due to the inclusion of predictive uncertainty 
+
 
 ```
 
-#Step: 
+#Step: Checking assumptions
+```{r}
+#The lm() function performs a normal least squares analysis which assumes that the residuals are approximately normally distributed. 
+#The variance or SD should also be approximately constant in different treatments or across the range of response variables.
+#Model checing is usually done by eyeballing the data! 
+
+par(mfrow=c(1,2)) #divide page into 1x2 frames
+plot(area_asv_lm, which = c(1:2)) #here we get the residual vs fitted and the normal Q-Q plot < these are made automatically when plot is applied to a linear model object.
+#The Residual vs Fitted plot shows that the variability is not constant but increases a little at lower fitted values before decreasing at higher fitted values
+#The Normal Q-Q plot the residuals are plotted against the normal distribution and the points mostly follow the line. So the data points are mostly
+#normally distributed with a couple of outlying values numbered on the graph.
+
+#With this info we can A) accept the shortcomings of the analysis and the uncertainty this brings to the results or 
+# B) transform the data so they more closely follow the assumption that the residuals follow a normal distribution.
+
+#Transformations may include: square-root transformation and log transformation.
+area.asv.sqrt <- lm(sqrt(num_ASVs) ~ hole_area_cm2, data=DF)
+area.asv.log <- lm(log(num_ASVs) ~ hole_area_cm2, data=DF)
+
+(area.asv.sqrt.plot <- qplot(hole_area_cm2, sqrt(num_ASVs), data = DF,
+                             geom = c("point", "smooth"), method="lm", formula= y~x,
+                             main="Linear regression, square-rooted data")+theme_bw())
+
+(area.asv.sqrt.res <- qplot(fitted(area.asv.sqrt), resid(area.asv.sqrt),
+                            ylab="Residuals", xlab="Predicted values",
+                            main = "Variance decreases with mean")+theme_bw()+
+    geom_hline(yintercept = 0, colour="grey50"))
+
+par(mfrow=c(1,2)) #divide page into 1x2 frames
+plot(area.asv.sqrt, which = c(1:2))
+
+(area.asv.log.plot <- qplot(hole_area_cm2, log(num_ASVs), data = DF,
+                             geom = c("point", "smooth"), method="lm", formula= y~x,
+                             main="Linear regression, log data")+theme_bw())
+
+(area.asv.log.res <- qplot(fitted(area.asv.log), resid(area.asv.log),
+                            ylab="Residuals", xlab="Predicted values",
+                            main = "Variance decreases with mean")+theme_bw()+
+    geom_hline(yintercept = 0, colour="grey50"))
+
+par(mfrow=c(1,2)) #divide page into 1x2 frames
+plot(area.asv.log, which = c(1:2))
+
+```
+
+#Step: Faith's phylogenetic diversity metric (Darcy et al., 2018)
 ```{r}
 
+#To plot Faith's phylogenetic diversity metric we need:
+#1) The rarefied count table data from a phyloseq object
+
+#STEP ONE: GET OUR PHYLOSEQ OBJECT
+#I can't use the my_physeq object because that contains Hellinger transformed data and I just want the count data
+#So we'll make the phyloseq object from our imported data objects
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+
+#STEP TWO: RAREFY THE DATA TO THE SMALLEST NUMBER OF READS
+#What is the smallest number of reads for a sample?
+how.many.reads <- t(abundances(my.ps)) #need microbiome package for this
+min.reads <- min(rowSums(how.many.reads)) #what is our least amount of reads in any of our samples? This is what we will rarefy to.
+
+set.seed(1961) #This will ensure the results of our normalisation step remain the same when repeated
+#because this is going to randomly choose min.reads number of reads per sample
+
+ps.rar <- rarefy_even_depth(my.ps, sample.size = 13401)
+
+#compare rarefied phyloseq object to non-rarefied phyloseq objecy
+my.ps
+ps.rar
+
+#STEP THREE: CHECK THAT THE PHYLOGENETIC TREE IS STILL ROOTED AFTER RAREFYING
+ps.rar@phy_tree #it is rooted
+
+#STEP FOUR: COMPUTE FAITHS PHYLOGENETIC DIVERSITY 
+ps.pd <- pd(t(ps.rar@otu_table), ps.rar@phy_tree, include.root = T) #transpose the asv table and find phylogetetic diversity
+
+datatable(ps.pd) #we can look at the results here
 ```
 
-#Step: 
+#Step: Linear regression of log-10 transformed cryoconite hole area and log-10 transformed faith's phylogenetic diversity (Darcy et al., 2018)
 ```{r}
 
+#STEP ONE: MAKE A DATAFRAME WITH SAMPLE, HOLE AREA AND FAITHS PHYLOGENETIC DIVERSITY
+PD <- ps.pd$PD
+Area <- hole_area_cm2
+Samples <- rownames(ps.pd)
+# df1 <- cbind(rownames(ps.pd), as.numeric(hole_area_cm2), as.numeric(ps.pd$PD))
+# colnames(df1) <- c("Sample", "Area", "PD")
+df1 <- data.frame(Samples, Area, PD)
+area.pd.lm <- lm(log(PD) ~ log(Area), data = df1)
+area.pd.lm
+summary(area.pd.lm)
+
 ```
 
-#Step: 
+#Step: Unweighted unifrac distances (Darcy et al., 2018)
 ```{r}
+#We can do this with out rarefied data
+unw.uni.rar <- ordinate(ps.rar, "PCoA", "unifrac", weighted=F)
+
+#And non-rarefied data
+unw.uni.non.rar <- ordinate(my.ps, "PCoA", "unifrac", weighted=F)
 
 ```
 
-#Step: 
-```{r}
-
-```
-
-#Step: 
-```{r}
-
-```
-
-#Step: 
-```{r}
-
-```
-
-#Step: 
+#Step: Mantel tests (vegan package) to look at relationship between geographic distance and unweighted unifrac distances (Darcy et al., 2018)
 ```{r}
 
 ```

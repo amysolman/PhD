@@ -23,7 +23,7 @@ library(phyloseq)
 library(DT) #interactive tables in html and markdown
 library(microbiome) #useful phyloseq commands e.g. summarize_phyloseq()
 
-# library(RColorBRewer)
+library(RColorBrewer) #use for function brewer_pal() in core abundance heatmap
 # install.packages("ggpubr")
 library(ggpubr) #used for ggboxplot() function
 library(data.table) #used for function data.table
@@ -36,6 +36,14 @@ library(microbiomeutilities) #gives us the read_phyloseq function
 
 library(picante) #for faith's phylogenetic diversity
 library(vegan) #for our PERMANOVA (permutational multivariate analysis of variance)
+library(viridis) #good colour palette, used for core microbiota heatmaps
+
+library(devtools)
+install_github("zdk123/SpiecEasi")
+library(SpiecEasi)
+
+install.packages("remotes")
+remotes::install_github("zdk123/SpiecEasi")
 
 ```
 
@@ -568,9 +576,9 @@ ps.Canada.rel2 <- prune_taxa(taxa_sums(ps.Canada.rel) > 0, ps.Canada.rel)
 print(ps.Canada.rel2) #keep only taxa with more than 0 occurrences
 
 #Check for core ASVs
-core.taxa.Canada <- core_members(ps.Canada.rel2, detection = 0.001, prevalence = 50/100)
+core.taxa.Canada <- core_members(ps.Canada.rel2, detection = 0.001, prevalence = 90/100) #changed this from 50/100 to 90/100
 
-print(core.taxa.Canada) #This gives us the core 137 taxa IDs
+print(core.taxa.Canada) #This gives us the core 64 taxa IDs
 
 #Let's get their classification
 #Extract the taxonomy table
@@ -582,7 +590,7 @@ DT::datatable(core_taxa_id) #let's look at our core taxa classifications in an i
 
 #Step : Let's find the core abundance and diversity
 ```{r}
-core.abundance <- sample_sums(core(ps.Canada.rel2, detection=0.001, prevalence = 50/100))
+core.abundance <- sample_sums(core(ps.Canada.rel2, detection=0.001, prevalence = 90/100)) #changed this from 50/100 to 90/100
 DT::datatable(as.data.frame(core.abundance)) #how abundant are the core taxa in each sample
 ```
 
@@ -606,7 +614,99 @@ print(p.core)
 
 ```
 
-#Step :
+#Step : Let's use some better colour palettes
+```{r}
+print(p.core + scale_fill_viridis())
+
+prevalences <- seq(.05, 1, .05)
+detections <- 10^seq(log10(1e-03), log10(.2), length=10)
+
+p.core <- plot_core(ps.Canada.rel2, 
+                    plot.type = "heatmap", 
+                    colours = rev(brewer.pal(5, "Spectral")),
+                    prevalences = prevalences, 
+                    detections = detections, 
+                    min.prevalence = .5) + 
+  xlab("Detection Threshold (Relative Abundance (%))")
+
+print(p.core)
+
+#Let's add our classificaition to our plot
+ps.Canada.rel2.f <- microbiomeutilities::format_to_besthit(ps.Canada.rel2) #basically our ASV IDs are so long they make this plot look mad
+
+p.core <- plot_core(ps.Canada.rel2.f, 
+                    plot.type = "heatmap", 
+                    colours = rev(brewer.pal(5, "Spectral")),
+                    prevalences = prevalences, 
+                    detections = detections, 
+                    min.prevalence = .5) + 
+  xlab("Detection Threshold (Relative Abundance (%))")
+
+p.core + theme(axis.text.y = element_text(face="italic"))
+
+# ggsave("../Outputs/Sommers2020/graphs/core-heatmap-Canada.pdf", width = 20, height = 5)
+
+```
+
+#Step : Inference of Microbial Ecological Networks
+#Here I will be used SPIEC-EASI (SParse InversE Covariance Estimation for Ecological Association Inference), a statistical method for the inference of microbial ecological networks
+```{r}
+#The input for SPIEC-EASI is a counts table. The normalization and transformation is done by the function.
+
+#let's get the Taylor Glacier data 
+ps.Taylor <- subset_samples(my.ps, Glacier == "Taylor")
+
+#for testing let's reduce the number of ASVs
+ps.Taylor.small <- prune_taxa(taxa_sums(ps.Taylor) > 100, ps.Taylor)
+
+#Add taxonomic classifications to ASV ID
+ps.Taylor.small.tax <- microbiomeutilities::format_to_besthit(ps.Taylor.small)
+
+head(tax_table(ps.Taylor.small.tax))
+head(tax_table(ps.Taylor.small))
+```
+
+#Step : Prep data from SpiecEasi
+```{r}
+asv.c <- t(otu_table(ps.Taylor.small.tax)@.Data) #extract the asv table from the phyloseq object
+
+tax.c <- as.data.frame(tax_table(ps.Taylor.small.tax)@.Data) #extract the taxonomy info
+
+head(tax.c)
+```
+
+#Step : SPIEC-EASI network reconstruction
+```{r}
+#The input for SPIEC-EASI is a counts table. The normalization and transformation is done by the function. This process is very slow.
+
+set.seed(1961)
+
+net.c <- spiec.easi(asv.c, method='md', icov.select.params=list(rep.num=10)) #need more reps than this but using 10 as a starting point. Would usually use 99 or 999 reps for this.
+
+#saveRDS(net.c, "../Outputs/Sommers2020/net.c.rds")
+
+class(net.c)
+
+#load custom function to get weights
+source("scripts/symBeta.R")
+
+n.c <- symBeta(getOptBeta(net.c))
+
+#Add names to IDs
+colnames(n.c) <- row.names(n.c) <- colnames(asv.c)
+
+
+#add abundance values to vertex (nodes)
+vsize <- log2(apply(asv.c, 2, mean)) #add log abundance as properties of vertex/nodes
+
+```
+
+#Step : Prepare data for plotting
+```{r}
+
+```
+
+#Step : 
 ```{r}
 
 ```
@@ -616,7 +716,37 @@ print(p.core)
 
 ```
 
+#Step : 
+```{r}
+
+```
+
 #Step :
+```{r}
+
+```
+
+#Step : 
+```{r}
+
+```
+
+#Step :
+```{r}
+
+```
+
+#Step : 
+```{r}
+
+```
+
+#Step :
+```{r}
+
+```
+
+#Step : 
 ```{r}
 
 ```
