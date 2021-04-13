@@ -52,6 +52,8 @@ library("vegan") #for caluclating our other diversity indices
 #install.packages("DT")
 library("DT") # interactive tables in html and markdown, for making a datatable with faiths diversity results
 library(microbiome) #useful phyloseq commands e.g. summarize_phyloseq()
+install.packages("geosphere")
+library(geosphere) #for working with our geographic distances
 
 ```
 
@@ -440,6 +442,42 @@ unw.uni.non.rar <- ordinate(my.ps, "PCoA", "unifrac", weighted=F)
 
 #Step: Mantel tests (vegan package) to look at relationship between geographic distance and unweighted unifrac distances (Darcy et al., 2018)
 ```{r}
+#Let's get our geographic distances from our phyloseq object
+latitude <- as.numeric(substr(my.ps@sam_data$lat_lon, 1, 8))
+longitude <- as.numeric(substr(my.ps@sam_data$lat_lon, 12, 21))
+
+#Find index of NA result
+my.na <- which(is.na(my.ps@sam_data$lat_lon))
+#Which sample ID does that equate to 
+my.ID <- my.ps@sam_data$Run[my.na]
+#remove from phyloseq object
+#my.ps.prune = subset_samples(my.ps, sampleID != my.ID)
+physeq.p2 = subset_samples(my.ps, sample_names(my.ps) != my.ID)
+
+#let's get out geographic distances again
+latitude <- as.numeric(substr(physeq.p2@sam_data$lat_lon, 1, 8))
+longitude <- as.numeric(substr(physeq.p2@sam_data$lat_lon, 12, 21))
+
+#put into a dataframe
+geo = data.frame(longitude, latitude)
+
+#convert into a distance matrix
+d.geo = distm(geo, fun = distHaversine) #This function uses the geosphere package
+dist.geo = as.dist(d.geo)
+
+#And re-do the unweighted unifrac distances 
+
+#We can do this with out rarefied data
+unw.uni.rar <- ordinate(physeq.p2, "PCoA", "unifrac", weighted=F)
+
+#And non-rarefied data
+unw.uni.non.rar <- ordinate(physeq.p2, "PCoA", "unifrac", weighted=F)
+
+#Now we can run our Mantel test
+
+#abundance vs geographic 
+abund_geo  = mantel(unw.uni.non.rar, dist.geo, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_geo
 
 ```
 
