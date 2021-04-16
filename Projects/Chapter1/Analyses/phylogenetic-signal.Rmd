@@ -82,19 +82,26 @@ samples.to.remove <- META$Run[my.NA]
 
 #Remove those samples
 for (i in 1:length(samples.to.remove)){
-  my.ps.rar.rel = subset_samples(my.ps.rar.rel, Run != samples.to.remove[i])
+  my.ps.rar <- subset_samples(my.ps.rar, Run != samples.to.remove[i])
 }
 
 ```
 
 #Step Six: Get phylogenetic distances
 ```{r}
-#Remove ASVs not found in at least 3 samples
-asv.tab <- otu_table(my.ps.rar.rel)
+# #Remove ASVs not found in at least 3 samples
+# asv.tab <- otu_table(my.ps.rar.rel)
+# asv.tab[asv.tab > 0] = 1
+# asv.frq <- rowSums(asv.tab)
+# asv.frq <- asv.frq[asv.frq > 2]
+# my.ps.edit <- prune_taxa(names(asv.frq), my.ps.rar.rel)
+
+#Remove ASVs not found in at least 15 samples (this will reduce the size of the dataset)
+asv.tab <- otu_table(my.ps.rar)
 asv.tab[asv.tab > 0] = 1
 asv.frq <- rowSums(asv.tab)
-asv.frq <- asv.frq[asv.frq > 2]
-my.ps.edit <- prune_taxa(names(asv.frq), my.ps.rar.rel)
+asv.frq <- asv.frq[asv.frq > 20]
+my.ps.edit <- prune_taxa(names(asv.frq), my.ps.rar)
 
 #Get phylogenetic distances
 my.tree <- phy_tree(my.ps.edit)
@@ -126,13 +133,13 @@ names(best.chlorophyll) <- rownames(asv.niche.df)
 dist.chlorophyll <- as.matrix(dist(best.chlorophyll), labels=TRUE)
 x <- dist.chlorophyll[my.asvs, my.asvs]
 x[upper.tri(x, diag = TRUE)] = NA
-new.x <- x[,1:450]
-new.x <- new.x[1:450,]
-new.my.phylo.dists <- my.phylo.dists[,1:450]
-new.my.phylo.dists <- new.my.phylo.dists[1:450,]
+# new.x <- x[,1:450]
+# new.x <- new.x[1:450,]
+# new.my.phylo.dists <- my.phylo.dists[,1:450]
+# new.my.phylo.dists <- new.my.phylo.dists[1:450,]
 
-# chlor.corlg <- mantel.correlog(x, my.phylo.dists)
-chlor.corlg <- mantel.correlog(new.x, new.my.phylo.dists)
+chlor.corlg <- mantel.correlog(x, my.phylo.dists)
+#chlor.corlg <- mantel.correlog(new.x, new.my.phylo.dists)
 filename = ("chlorophyll-crlg.rds")
 saveRDS(chlor.corlg, file=filename)
 
@@ -141,11 +148,11 @@ names(best.depth) <- rownames(asv.niche.df)
 dist.depth <- as.matrix(dist(best.depth), labels=TRUE)
 x <- dist.depth[my.asvs, my.asvs]
 x[upper.tri(x, diag = TRUE)] = NA
-new.x <- x[,1:450]
-new.x <- new.x[1:450,]
+# new.x <- x[,1:450]
+# new.x <- new.x[1:450,]
 
-# depth.corlg <- mantel.correlog(x, my.phylo.dists)
-depth.corlg <- mantel.correlog(new.x, new.my.phylo.dists)
+depth.corlg <- mantel.correlog(x, my.phylo.dists)
+#depth.corlg <- mantel.correlog(new.x, new.my.phylo.dists)
 filename = ("depth-crlg.rds")
 saveRDS(depth.corlg, file=filename)
 
@@ -154,11 +161,11 @@ names(best.pH) <- rownames(asv.niche.df)
 dist.pH <- as.matrix(dist(best.pH), labels=TRUE)
 x <- dist.pH[my.asvs, my.asvs]
 x[upper.tri(x, diag = TRUE)] = NA
-new.x <- x[,1:450]
-new.x <- new.x[1:450,]
+# new.x <- x[,1:450]
+# new.x <- new.x[1:450,]
 
-# pH.corlg <- mantel.correlog(x, my.phylo.dists)
-pH.corlg <- mantel.correlog(new.x, new.my.phylo.dists)
+pH.corlg <- mantel.correlog(x, my.phylo.dists)
+#pH.corlg <- mantel.correlog(new.x, new.my.phylo.dists)
 filename = ("pH-crlg.rds")
 saveRDS(pH.corlg, file=filename)
 
@@ -167,11 +174,11 @@ names(best.water) <- rownames(asv.niche.df)
 dist.water <- as.matrix(dist(best.water), labels=TRUE)
 x <- dist.water[my.asvs, my.asvs]
 x[upper.tri(x, diag = TRUE)] = NA
-new.x <- x[,1:450]
-new.x <- new.x[1:450,]
+# new.x <- x[,1:450]
+# new.x <- new.x[1:450,] #this took 11 hours to run
 
-# water.corlg <- mantel.correlog(x, my.phylo.dists)
-water.corlg <- mantel.correlog(new.x, new.my.phylo.dists)
+water.corlg <- mantel.correlog(x, my.phylo.dists)
+#water.corlg <- mantel.correlog(new.x, new.my.phylo.dists)
 filename = ("water-crlg.rds")
 saveRDS(water.corlg, file=filename)
 
@@ -209,5 +216,5 @@ ggplot(data=crlg, aes(x=class.index, y=Mantel.cor)) +
         axis.text.x = element_text(angle=45, hjust=1),
         axis.title = element_text(size=14),
         strip.text.x = element_text(size = 14))
-ggsave(file="../Outputs/Sommers2020/graphs/mantel-crlg.pdf")
+ggsave(file="../Outputs/Sommers2020/graphs/mantel-crlg.pdf", width=10, height=6)
 ```

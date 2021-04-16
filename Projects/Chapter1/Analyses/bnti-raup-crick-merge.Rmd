@@ -1,0 +1,78 @@
+---
+title: "BNTI and Raup-Crick Merge"
+author: "Amy Solman"
+date: "14/04/2021"
+output: html_document
+---
+#BNTI and Raup-Crick merge code developed from Barrnet et al., (2020) (https://github.com/seb369/landuse_comm_assembly/blob/master/Comm_assembly_processes.md)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+rm(list=ls())
+# Import bulk soil phyloseq data
+#bulk.physeq = readRDS("/home/sam/data/fullCyc2_data/bulk_soil_physeq.RDS")
+load("results/cleaned_files/cleanedfiles_3.RData")
+
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+
+#check number of reads in each sample
+read.num <- data.frame("count" = colSums(otu_table(my.ps))) %>%
+  rownames_to_column(var="Run") %>%
+  inner_join(data.frame(sample_data(my.ps)), by="Run") %>%
+  arrange(-count) %>%
+  mutate(X.Sample=factor(Run, levels=Run))
+
+#Check to make sure all of our samples are at or above 10000 reads
+ggplot(data=read.num, aes(x=Run, y=log10(count), fill = Glacier)) +
+  geom_bar(stat="identity")+
+  labs(x="Sample", y="Log10(Read count)")+
+  geom_hline(yintercept=log10(10000))+
+  theme(text=element_text(size=16),
+       axis.text.x=element_blank())
+
+```
+
+
+Now we need to rarefy the data to normalize the sequencing depth. We should also get a normalized dataset which gives relative abundance rather than readcounts.
+
+```{r}
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+
+```
+
+
+```{r}
+# bNTI data
+# Import bNTI data
+bNTI.df = read.table("../Outputs/Sommers2020/full_bNTI.txt")
+
+# RCbray data
+RCb.df = read.table(file="../Outputs/Sommers2020/RCb_df.txt") %>%
+  mutate(Sample_1 = Site2, Sample_2 = Site1)
+
+# Get habitat metadata and add it to the βNTI then merge with the RCbray dataset
+eco.meta1=data.frame(sample_data(my.ps.rar)) %>%
+  select(Run, ecosystem) %>%
+  rename(Sample_1 = Run, ecosystem_1 = ecosystem)
+eco.meta2=data.frame(sample_data(my.ps.rar)) %>%
+  select(Run, ecosystem) %>%
+  rename(Sample_2 = Run, ecosystem_2 = ecosystem)
+
+bNTI.df = inner_join(bNTI.df, eco.meta1) %>%
+  inner_join(eco.meta2)
+  
+
+# Merge both datasets
+turnover.df = inner_join(bNTI.df, RCb.df)
+head(turnover.df)
+```

@@ -1,0 +1,275 @@
+---
+title: "BNTI"
+author: "Amy Solman"
+date: "14/04/2021"
+output: html_document
+---
+
+#The following script is developed from Barrnet et al., (2020) (https://github.com/seb369/landuse_comm_assembly/blob/master/bNTI_calculation.Rmd) who developed their script from from Stegen et al., (2013) (https://github.com/stegen/Stegen_etal_ISME_2013/blob/master/bNTI_Local_Machine.r)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# ## change to the directory on your computer that contains the OTU table and phylogeny
+# ## note that the 'slash' needs to be changed to a forward slash like this /
+# #setwd("C:/Users/steg815/Desktop/Stegen_PNNL/")
+# 
+# ## load this library
+# ## if not already installed, use install.packages('picante')
+# library(picante)
+# 
+# #Read in our data 
+# 
+# load("Analyses/results/cleaned_files/cleanedfiles_3.RData")
+# 
+# ## read in OTU table
+# 
+# #otu = read.csv("Analyses/results/cleaned_files/cleanedfiles_3.RData", header=T,row.names=1);
+# otu <- count_table_clean
+# #otu <- taxonomy
+# dim(otu); # this gives the dimensions
+# otu[1:5,1:5]; # this gives a look at the first 5 rows and columns
+```
+
+
+```{r}
+# ## read in the phylogeny
+# 
+# #phylo = read.tree("bacteria-phylogeny.txt");
+# phylo <- tree_clean
+# phylo; # a summary of the phylogeny
+# plot.phylo(phylo,typ="fan"); # a quick plot
+# 
+# ## make sure the names on the phylogeny are ordered the same as the names in otu table
+# 
+# match.phylo.otu = match.phylo.data(phylo, t(otu));
+# str(match.phylo.otu);
+```
+
+```{r}
+# ## calculate empirical betaMNTD
+# 
+# beta.mntd.weighted = as.matrix(comdistnt(t(match.phylo.otu$data),cophenetic(match.phylo.otu$phy),abundance.weighted=T));
+# dim(beta.mntd.weighted);
+# beta.mntd.weighted[1:5,1:5];
+# write.csv(beta.mntd.weighted,'betaMNTD_weighted.csv',quote=F);
+# 
+# identical(colnames(match.phylo.otu$data),colnames(beta.mntd.weighted)); # just a check, should be TRUE
+# identical(colnames(match.phylo.otu$data),rownames(beta.mntd.weighted)); # just a check, should be TRUE
+# ```
+# 
+# ```{r}
+# # calculate randomized betaMNTD
+# 
+# beta.reps = 999; # number of randomizations
+# 
+# rand.weighted.bMNTD.comp = array(c(-999),dim=c(ncol(match.phylo.otu$data),ncol(match.phylo.otu$data),beta.reps));
+# dim(rand.weighted.bMNTD.comp);
+# 
+# for (rep in 1:beta.reps) {
+#   
+#   rand.weighted.bMNTD.comp[,,rep] = as.matrix(comdistnt(t(match.phylo.otu$data),taxaShuffle(cophenetic(match.phylo.otu$phy)),abundance.weighted=T,exclude.conspecifics = F));
+#   
+#   print(c(date(),rep));
+#   
+# }
+# 
+# weighted.bNTI = matrix(c(NA),nrow=ncol(match.phylo.otu$data),ncol=ncol(match.phylo.otu$data));
+# dim(weighted.bNTI);
+# 
+# for (columns in 1:(ncol(match.phylo.otu$data)-1)) {
+#   for (rows in (columns+1):ncol(match.phylo.otu$data)) {
+#     
+#     rand.vals = rand.weighted.bMNTD.comp[rows,columns,];
+#     weighted.bNTI[rows,columns] = (beta.mntd.weighted[rows,columns] - mean(rand.vals)) / sd(rand.vals);
+#     rm("rand.vals");
+#     
+#   };
+# };
+# 
+# rownames(weighted.bNTI) = colnames(match.phylo.otu$data);
+# colnames(weighted.bNTI) = colnames(match.phylo.otu$data);
+# weighted.bNTI;
+# write.csv(weighted.bNTI,"weighted_bNTI.csv",quote=F);
+# 
+# pdf("weighted_bNTI_Histogram.pdf")
+#   hist(weighted.bNTI)
+# dev.off()
+```
+
+## Introduction
+
+In this notebook we are calculating the βNTI across samples to examine soil bacterial community assembly in a finger lakes region. The data generated here will be used in other notebooks for analysis.
+
+This analysis uses the same (-2, 2) range for significance testing as in Stegen et al. 2012. This means that the following conclusison can be drawn from this data:
+  βNTI > 2: Community assembly driven by variable selection
+  βNTI < -2: Community assembly driven by homgenizing selection
+  |βNTI| < 2: Community assembly is stochastic
+
+Please note that some of these cell have eval=FALSE in the rmarkdown version so that they wont run when knitted. This was done because they take a really long time and are better run in terminal.
+
+### Initiate libraries
+```{r}
+rm(list=ls())
+# Packages needed for analysis
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(phyloseq)
+library(picante)
+library(parallel)
+# Packages needed for plotting
+library(ggplot2)
+```
+
+### Import data
+
+```{r}
+
+
+# Import bulk soil phyloseq data
+#bulk.physeq = readRDS("/home/sam/data/fullCyc2_data/bulk_soil_physeq.RDS")
+load("results/cleaned_files/cleanedfiles_3.RData")
+
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+
+#check number of reads in each sample
+read.num <- data.frame("count" = colSums(otu_table(my.ps))) %>%
+  rownames_to_column(var="Run") %>%
+  inner_join(data.frame(sample_data(my.ps)), by="Run") %>%
+  arrange(-count) %>%
+  mutate(X.Sample=factor(Run, levels=Run))
+
+#Check to make sure all of our samples are at or above 10000 reads
+ggplot(data=read.num, aes(x=Run, y=log10(count), fill = Glacier)) +
+  geom_bar(stat="identity")+
+  labs(x="Sample", y="Log10(Read count)")+
+  geom_hline(yintercept=log10(10000))+
+  theme(text=element_text(size=16),
+       axis.text.x=element_blank())
+
+
+
+## Check how many reads you have in each of the samples. This will tell you if you need to re-do anything
+# Get read counts and make a new dataframe with this data
+# read_count = data.frame("count" = colSums(otu_table(bulk.physeq))) %>%
+#   rownames_to_column(var="X.Sample") %>%
+#   inner_join(data.frame(sample_data(bulk.physeq)), by="X.Sample") %>%
+#   arrange(-count) %>%
+#   mutate(X.Sample=factor(X.Sample, levels=X.Sample))
+# # Now plot read count for each sample. The horizontal line represents a 2000 read threshold
+# ggplot(data=read_count, aes(x=X.Sample, y=log10(count), fill=ecosystem)) +
+#   geom_bar(stat="identity") +
+#   labs(x="Sample", y="Log10(Read count)") +
+#   geom_hline(yintercept=log10(10000)) +
+#   theme(text = element_text(size=16),
+#         axis.text.x = element_blank())
+# # Everything seems to be at or above 10000 total reads
+# bulk.physeq
+```
+
+
+Now we need to rarefy the data to normalize the sequencing depth. We should also get a normalized dataset which gives relative abundance rather than readcounts.
+
+```{r}
+# # Rarefy to an even depth
+# set.seed(72)  # setting seed for reproducibility
+# bulk.physeq.rare = rarefy_even_depth(bulk.physeq)
+# # Normalize read counts (this gives relative abundance)
+# bulk.physeq.norm = transform_sample_counts(bulk.physeq.rare, function(x) x/sum(x))
+
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+
+#subset to reduce size of dataset
+#my.ps.sub <- subset_samples(my.ps.rar, Glacier == "Taylor")
+#Remove ASVs not found in at least 3 samples
+asv.tab <- otu_table(my.ps.rar)
+asv.tab[asv.tab > 0] = 1
+asv.frq <- rowSums(asv.tab)
+asv.frq <- asv.frq[asv.frq > 20]
+my.ps.edit <- prune_taxa(names(asv.frq), my.ps.rar)
+
+```
+
+## Calculating βNTI
+
+### The function
+This will the the function used to calculate the βNTI for samples from a phyloseq.
+
+```{r}
+# Function for calculating the βMNTD for each random null community
+bMNTD_null_func <- function(i, OTU.table, tree){
+  tree$tip.label = sample(tree$tip.label)
+  bMNTD_s = comdistnt(OTU.table, cophenetic(tree), abundance.weighted = TRUE)
+  A <- attr(bMNTD_s, "Size")
+  B <- if (is.null(attr(bMNTD_s, "Labels"))) sequence(A) else attr(bMNTD_s, "Labels")
+  if (isTRUE(attr(bMNTD_s, "Diag"))) attr(bMNTD_s, "Diag") <- FALSE
+  if (isTRUE(attr(bMNTD_s, "Upper"))) attr(bMNTD_s, "Upper") <- FALSE
+  bMNTD_s.df = data.frame(Sample_1 = B[unlist(lapply(sequence(A)[-1], function(x) x:A))],
+                          Sample_2 = rep(B[-length(B)], (length(B)-1):1),
+                          bMNTD = as.vector(bMNTD_s),
+                          rep=i)
+  return(bMNTD_s.df)
+}
+# The main function for calculating βNTI
+Phylo_turnover <- function(physeq, reps, nproc){
+  # Extract OTU table
+  OTU.table = t(otu_table(physeq))
+  # Extract phylogenetic tree
+  tree = phy_tree(physeq)
+  # Get βMNTD between all communities
+  bMNTD_o = comdistnt(OTU.table, cophenetic(tree), abundance.weighted = TRUE)
+  A <- attr(bMNTD_o, "Size")
+  B <- if (is.null(attr(bMNTD_o, "Labels"))) sequence(A) else attr(bMNTD_o, "Labels")
+  if (isTRUE(attr(bMNTD_o, "Diag"))) attr(bMNTD_o, "Diag") <- FALSE
+  if (isTRUE(attr(bMNTD_o, "Upper"))) attr(bMNTD_o, "Upper") <- FALSE
+  bMNTD_o.df = data.frame(Sample_1 = B[unlist(lapply(sequence(A)[-1], function(x) x:A))],
+                          Sample_2 = rep(B[-length(B)], (length(B)-1):1),
+                          bMNTD = as.vector(bMNTD_o))
+  
+  # Get βMNTD for randomized null communities
+  rep.list = seq(1, reps)
+  bMNTD_s.df.list = mclapply(rep.list, bMNTD_null_func, OTU.table=OTU.table, tree=tree, mc.cores=nproc)
+  
+  # Combine all data together and calculate βNTI for each sample pair
+  bMNTD_s.df <- do.call("rbind", bMNTD_s.df.list)
+  bMNTD_s.means.df = bMNTD_s.df %>%
+    group_by(Sample_1, Sample_2) %>%
+    dplyr::summarize(mean_bMNTD = mean(bMNTD),
+                     sd_bMNTD = sd(bMNTD))
+  
+  bMNTD_o.df = inner_join(bMNTD_o.df, bMNTD_s.means.df, by=c("Sample_1", "Sample_2")) %>%
+    mutate(bNTI = (bMNTD - mean_bMNTD)/sd_bMNTD)
+  return(bMNTD_o.df)
+}
+```
+
+
+### Running function to get βNTI
+
+Only run this cell once (eval=FALSE) because it take a really long time. Also best to do this in terminal not in RStudio
+
+```{r}
+# Get permutation beta null deviations
+full.bNTI.df = Phylo_turnover(my.ps.edit, 1000, 10)
+# Save bNTI table
+write.table(full.bNTI.df, "../Outputs/Sommers2020/full_bNTI.txt")
+```
+
+What does this table look like?
+
+```{r}
+#head(read.table("/home/sam/data/fullCyc2_data/Final_data/community_assembly/full_bNTI.txt"))
+```
+
+```

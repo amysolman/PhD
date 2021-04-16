@@ -1,0 +1,17 @@
+---
+title: "Raup-Crick"
+author: "Amy Solman"
+date: "14/04/2021"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+test <- "hello"
+write.csv(test, "test.csv")
+
+```

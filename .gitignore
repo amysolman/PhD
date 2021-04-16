@@ -2,3 +2,4 @@
 *.qza
 *.mp4
 *.RData
+.Rproj.user
