@@ -358,7 +358,7 @@ lo.ci <- predictions$fit - t.value*predictions$se.fit #This is showing what is g
 
 (predictions <- predict(area_asv_lm, list(hole_area_cm2=plot.holes),
                         interval="confidence", se=TRUE)) #"confidence" = CI, replace with "predictions" for PI bounds
-plot(DF$hole_area_cm2, DF$num_ASVs, xlab="Hole Area cm2", ylab = "ASV Abundance")+
+plot(DF$hole_area_cm2, DF$num_ASVs, xlab="Hole Area cm2", ylab = "ASV Richness")+
 lines(predictions$fit[,1]~plot.holes)+  #regression line
 lines(predictions$fit[,2]~plot.holes, lty = 2)+ #upper CI
 lines(predictions$fit[,3]~plot.holes, lty = 2) #lower CI

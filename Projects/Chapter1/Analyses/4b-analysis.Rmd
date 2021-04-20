@@ -21,29 +21,35 @@ graphics.off()
 ```{r}
 library(phyloseq)
 library(DT) #interactive tables in html and markdown
+
+
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# BiocManager::install("microbiome")
 library(microbiome) #useful phyloseq commands e.g. summarize_phyloseq()
 
 library(RColorBrewer) #use for function brewer_pal() in core abundance heatmap
-# install.packages("ggpubr")
+#install.packages("ggpubr")
 library(ggpubr) #used for ggboxplot() function
 library(data.table) #used for function data.table
 # library(dplyr)
 
-# Install microbiomeutilities
-# install.packages("devtools")
-# devtools::install_github("microsud/microbiomeutilities")
+#Install microbiomeutilities
+#install.packages("devtools")
+#devtools::install_github("microsud/microbiomeutilities")
 library(microbiomeutilities) #gives us the read_phyloseq function
 
 library(picante) #for faith's phylogenetic diversity
 library(vegan) #for our PERMANOVA (permutational multivariate analysis of variance)
 library(viridis) #good colour palette, used for core microbiota heatmaps
 
-library(devtools)
-install_github("zdk123/SpiecEasi")
-library(SpiecEasi)
+#library(devtools)
+#install_github("zdk123/SpiecEasi")
 
-install.packages("remotes")
+
+#install.packages("remotes")
 remotes::install_github("zdk123/SpiecEasi")
+library(SpiecEasi)
 
 ```
 
@@ -167,6 +173,7 @@ p.ps.rar #We can see how the taxa prevalence plot had changed in comparison to b
 ```{r}
 ps.div <- alpha(ps.rar, index="all")
 datatable(ps.div) #So this gives us lots of diversity indices in one go!
+write.csv(ps.div, "../Outputs/Sommers2020/diversities.csv")
 ```
 
 #Step : Plot the diversity data 
@@ -281,6 +288,8 @@ pd.plot + stat_compare_means(
   )
 )
 
+#save 
+ggsave("../Outputs/Sommers2020/graphs/PD-Diversity.pdf", height=4, width =10)
 
 
 ```
@@ -358,7 +367,7 @@ my.ps.com.fam <- microbiome::aggregate_top_taxa(my.ps.com, "Family", top=10)
 #merge at the class level
 my.ps.com.class <- microbiome::aggregate_top_taxa(my.ps.com, "Class", top=10) #what does it mean if a function is deprecated
 
-plot.composition.Count.Abun <- plot_composition(my.ps.com.fam) +
+plot.composition.Count.Abun.Fam <- plot_composition(my.ps.com.fam) +
   theme(legend.position = "bottom")+
   scale_fill_brewer("Family", palette = "Paired")+
   theme_bw()+
@@ -366,21 +375,21 @@ plot.composition.Count.Abun <- plot_composition(my.ps.com.fam) +
   ggtitle("Count Abundance") +
   guide_italics + theme(legend.title = element_text(size=18))
 
-plot.composition.Count.Abun
+plot.composition.Count.Abun.Fam
 
-ggsave("../Outputs/Sommers2020/graphs/count-abundance-barplot.pdf", width = 10, height = 5)
+ggsave("../Outputs/Sommers2020/graphs/count-abundance-family-barplot.pdf", width = 10, height = 5)
 
-plot.composition.Count.Abun <- plot_composition(my.ps.com.class) +
+plot.composition.Count.Abun.Class <- plot_composition(my.ps.com.class) +
   theme(legend.position = "bottom")+
-  scale_fill_brewer("Family", palette = "Paired")+
+  scale_fill_brewer("Class", palette = "Paired")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=90))+
   ggtitle("Count Abundance") +
   guide_italics + theme(legend.title = element_text(size=18))
 
-plot.composition.Count.Abun
+plot.composition.Count.Abun.Class
 
-ggsave("../Outputs/Sommers2020/graphs/count-abundance-barplot.pdf", width = 10, height = 5)
+ggsave("../Outputs/Sommers2020/graphs/count-abundance-class-barplot.pdf", width = 10, height = 5)
 ```
 
 #Step : Barplot of relative abundance
@@ -388,28 +397,30 @@ ggsave("../Outputs/Sommers2020/graphs/count-abundance-barplot.pdf", width = 10, 
 #Let's convert our family merged count data to relative abundance data using the transform function of microbiome
 ps1.com.fam.rel <- microbiome::transform(my.ps.com.fam, "compositional")
 
-plot.composition.relAbun <- plot_composition(ps1.com.fam.rel, sample.sort = "Glacier", x.label = "Library.Name") 
-plot.composition.relAbun <- plot.composition.relAbun + theme(legend.position = "bottom") 
-plot.composition.relAbun <- plot.composition.relAbun + scale_fill_brewer("Family", palette = "Paired") + theme_bw() 
-plot.composition.relAbun <- plot.composition.relAbun + theme(axis.text.x = element_text(angle = 90)) 
-plot.composition.relAbun <- plot.composition.relAbun + ggtitle("Relative abundance") + guide_italics + theme(legend.title = element_text(size = 18))
+plot.composition.relAbun.Fam <- plot_composition(ps1.com.fam.rel, sample.sort = "Glacier", x.label = "Library.Name") 
+plot.composition.relAbun.Fam <- plot.composition.relAbun.Fam + theme(legend.position = "bottom") 
+plot.composition.relAbun.Fam <- plot.composition.relAbun.Fam + scale_fill_brewer("Family", palette = "Paired") + theme_bw() 
+plot.composition.relAbun.Fam <- plot.composition.relAbun.Fam + theme(axis.text.x = element_text(angle = 90)) 
+plot.composition.relAbun.Fam <- plot.composition.relAbun.Fam + ggtitle("Relative abundance") + guide_italics + theme(legend.title = element_text(size = 18))
 
-plot.composition.relAbun
+plot.composition.relAbun.Fam
+ggsave("../Outputs/Sommers2020/graphs/relative-abundance-plot-family.pdf", width=14, height=4)
 
 ps1.com.class.rel <- microbiome::transform(my.ps.com.class, "compositional")
 
-plot.composition.relAbun <- plot_composition(ps1.com.class.rel, sample.sort = "Glacier", x.label = "Glacier") 
-plot.composition.relAbun <- plot.composition.relAbun + theme(legend.position = "bottom") 
-plot.composition.relAbun <- plot.composition.relAbun + scale_fill_brewer("Family", palette = "Paired") + theme_bw() 
-plot.composition.relAbun <- plot.composition.relAbun + theme(axis.text.x = element_text(angle = 90)) 
-plot.composition.relAbun <- plot.composition.relAbun + ggtitle("Relative abundance") + guide_italics + theme(legend.title = element_text(size = 18))
+plot.composition.relAbun.Cla <- plot_composition(ps1.com.class.rel, sample.sort = "Glacier", x.label = "Glacier") 
+plot.composition.relAbun.Cla <- plot.composition.relAbun.Cla + theme(legend.position = "bottom") 
+plot.composition.relAbun.Cla <- plot.composition.relAbun.Cla + scale_fill_brewer("Class", palette = "Paired") + theme_bw() 
+plot.composition.relAbun.Cla <- plot.composition.relAbun.Cla + theme(axis.text.x = element_text(angle = 90)) 
+plot.composition.relAbun.Cla <- plot.composition.relAbun.Cla + ggtitle("Relative abundance") + guide_italics + theme(legend.title = element_text(size = 18))
 
-plot.composition.relAbun
+plot.composition.relAbun.Cla
+ggsave("../Outputs/Sommers2020/graphs/relative-abundance-plot-class.pdf", width=14, height=4)
 ```
 
 #Step : Customize the barplot
 ```{r}
-data.com <- plot.composition.relAbun$data
+data.com <- plot.composition.relAbun.Cla$data
 colnames(data.com)
 
 p.com <- ggplot(data.com, aes(x=Sample, y=Abundance, fill=Tax))
@@ -420,6 +431,7 @@ p.com <- p.com + facet_grid(~xlabel, scales = "free")
 p.com <- p.com + rremove("x.text")
 
 print(p.com)
+ggsave("../Outputs/Sommers2020/graphs/relative-abundance-bar-plot-by-glacier.pdf", width=6, height=4)
 ```
 
 #Step : Heat maps!
@@ -494,6 +506,7 @@ unw.uni.filter.plot <- plot_ordination(ps.rar.filter, unw.uni.filter, color="Gla
 unw.uni.filter.plot <- unw.uni.filter.plot + ggtitle("Unweighted UniFrac") + geom_point(size=2)
 unw.uni.filter.plot <- unw.uni.filter.plot + theme_classic() + scale_color_brewer("Glacier", palette = "Set2")
 print(unw.uni.filter.plot)
+ggsave("../Outputs/Sommers2020/graphs/unweighted-unifrac-pcoa-filterd.pdf", width=6, height=4)
 
 #do the unweighted unifrac with unfiltered phyloseq object
 unw.uni <- ordinate(ps.rar, "PCoA", "unifrac", weighted=F)
@@ -506,6 +519,7 @@ unw.uni.plot <- plot_ordination(ps.rar, unw.uni, color="Glacier")
 unw.uni.plot <- unw.uni.plot + ggtitle("Unweighted UniFrac") + geom_point(size=2)
 unw.uni.plot <- unw.uni.plot + theme_classic() + scale_color_brewer("Glacier", palette = "Set2")
 print(unw.uni.plot)
+ggsave("../Outputs/Sommers2020/graphs/unweighted-unifrac-pcoa-unfilterd.pdf", width=6, height=4)
 ```
 
 #Step : Weighted Unifrac - considers abundances of taxa
@@ -522,6 +536,7 @@ wt.uni.plot <- wt.uni.plot + ggtitle("Weighted UniFrac")+geom_point(size=2)
 wt.uni.plot <- wt.uni.plot + theme_classic() + scale_color_brewer("Glacier", palette = "Set2")
 print(wt.uni.plot)
 print(wt.uni.plot + stat_ellipse())
+ggsave("../Outputs/Sommers2020/graphs/weighted-unifrac-unfiltered-ellipse.pdf", width=8, height=4)
 ```
 
 #Step : Population-level Density landscapes
@@ -535,6 +550,7 @@ p <- plot_landscape(my.ps.rel,
 p <- p + scale_color_brewer(palette="Dark2") + scale_fill_gradient(low="#e0ecf4", high = "#6e016b")
 
 p
+ggsave("../Outputs/Sommers2020/graphs/NMDS-Bray-Curtis.pdf", width=8, height=4)
 ```
 
 #Step : PERMANOVA

@@ -31,18 +31,18 @@ What I need first of all is a matrix with OTUs as columns and samples as rows wi
 ```{r}
 #generate generic ASV names
 name_my_rows <- NULL
-for (i in 1:nrow(count_table_no_contam)){
+for (i in 1:nrow(count_table_clean)){
   name_my_rows <- c(name_my_rows, paste0("ASV_", i))
 }
 
 #Apply to count_table_no_contam row names
-row.names(count_table_no_contam) <- name_my_rows
+row.names(count_table_clean) <- name_my_rows
 
 #Change sample names to something more useful
-colnames(count_table_no_contam) <- sample_info_tab$Sample.Name
+colnames(count_table_clean) <- sample_info_tab$Sample.Name
 
 #Transpose the data 
-cryo = t(count_table_no_contam)
+cryo = t(count_table_clean)
 ```
 
 Remove any samples that don't have corresponding coordinates for this analysis
@@ -69,15 +69,15 @@ I will finish writing the script anyway for use with the next dataset/total data
 
 #First pull the latitude and longitude coordinates from the strong data in env_info
 #I put a minus at the front of the latitude because it's in the southern hemisphere
-# latitude <- -(as.numeric(substr(env_info$lat_lon, 1, 8)))
-# longitude <- as.numeric(substr(env_info$lat_lon, 12, 21))
-# long.lat <- as.matrix(cbind(longitude, latitude))
+latitude <- -(as.numeric(substr(env_info$lat_lon, 1, 8)))
+longitude <- as.numeric(substr(env_info$lat_lon, 12, 21))
+long.lat <- as.matrix(cbind(longitude, latitude))
 
 #Let's alter the long.lat  distances for the purposes of this analysis 
-num <- seq(from=1, to=33)/100
-new_latitude <- -(as.numeric(substr(env_info$lat_lon, 1, 8)))+num
-new_longitude <- as.numeric(substr(env_info$lat_lon, 12, 21))+num
-long.lat <- as.matrix(cbind(new_longitude, new_latitude))
+# num <- seq(from=1, to=33)/100
+# new_latitude <- -(as.numeric(substr(env_info$lat_lon, 1, 8)))+num
+# new_longitude <- as.numeric(substr(env_info$lat_lon, 12, 21))+num
+# long.lat <- as.matrix(cbind(new_longitude, new_latitude))
 
 #Create a distance matrix between a list of points, how far is each point from every other point
 geo.dist <- earth.dist(long.lat, dist = TRUE) 

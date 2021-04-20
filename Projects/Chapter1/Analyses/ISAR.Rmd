@@ -31,7 +31,8 @@ sample_info_tab <- read_tsv("results/cleaned_files/SraRunTable-mod.tsv")
 I'm going to get my data into an appropriate format
 ```{r}
 sample_names <- sample_info_tab$Sample.Name
-ASV_num <- apply(count_table_no_contam,2,function(x) sum(x > 0))
+#ASV_num <- apply(count_table_no_contam,2,function(x) sum(x > 0))
+ASV_num <- apply(count_table_clean,2,function(x) sum(x > 0))
 glacier <- sample_info_tab$Glacier
 
 #calculate hole area 
@@ -97,6 +98,7 @@ ggplot(data, aes(x=Area_cm2, y=ASVs, color=Glacier))+
   geom_line(data = df2, aes(x = Area_cm2, y = ASVs, color=Glacier), size = 1) +
   xlab(expression(~Area(cm^2)))+
   ylab("ASVs")
+ggsave("../Outputs/Sommers2020/graphs/Area-ASV.pdf", width=5, height=4)
 ```
 
 REPEAT THE POWER LAW MODEL FIT USING LOGARITHM OF THE DATA
@@ -138,7 +140,7 @@ ggplot(data, aes(x=logarea, y=logasv, color=Glacier))+
     xlab("Log10 Area (cm2)")+
   xlab(expression(~log[10]~(Area(cm^2))))+
   ylab(expression(~log[10]~(ASVs)))
-
+ggsave("../Outputs/Sommers2020/graphs/logArea-logASVs.pdf", width=5, height=4)
 ```
 
 
