@@ -157,4 +157,6 @@ fulldata.model.plot = ggplot(data=obs.df) +
 
 fulldata.model.plot
 
+ggsave(file= "../Outputs/Sommers2020/graphs/neutral-model.pdf", width=6, height=4)
+
 ```
