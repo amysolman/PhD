@@ -75,7 +75,7 @@ my_pca_variances <- as.data.frame(my_pca$sdev^2/sum(my_pca$sdev^2)) %>% #Extract
 
 #Step Eight: Plot the visual representation
 ```{r}
-pdf("results/pca-screenplot-one.pdf")
+pdf("../Outputs/Sommers2020/graphs/pca-screenplot-one.pdf")
 ggplot(my_pca_variances, aes(x = as.numeric(PCaxis), y = PercVar)) + 
   geom_bar(stat = "identity", fill = "grey", color = "black") +
   theme_minimal() +
@@ -102,7 +102,7 @@ head(my_pca_frame)
 
 #Step Ten: Plot the PCA visualisation
 ```{r}
-pdf("results/PCA-Log-Ratio.pdf")
+pdf("../Outputs/Sommers2020/graphs/PCA-Log-Ratio.pdf")
 ggplot(my_pca_frame) +
   geom_point(aes(x = PC1, y = PC2, fill = Glacier), size = 4, shape = 21, color = "black") +
   ylab(paste0('PC2 ', round(my_pca_variances[2,2]*100,2),'%')) + #Extract y axis value from variance
@@ -134,7 +134,7 @@ my_jaccard_variances <- data.frame(my_jaccard_pcoa$values$Relative_eig) %>%
 
 #Step Fourteen: Use jaccard variances to plot screenplot 
 ```{r}
-pdf("results/pcoa-jaccard.pdf")
+pdf("../Outputs/Sommers2020/graphs/pcoa-jaccard.pdf")
 ggplot(my_jaccard_variances, aes(x=as.numeric(PCaxis), y=PercVar))+
   geom_bar(stat="identity", fill="grey", color="black")+
   theme_minimal()+
@@ -194,7 +194,7 @@ my_euclidean_variances <- data.frame(my_euclidean_pcoa$values$Relative_eig) %>%
 
 #Step Twenty: Use euclidean variances to plot screenplot 
 ```{r}
-pdf("results/pcoa-euclidean.pdf")
+pdf("../Outputs/Sommers2020/graphs/pcoa-euclidean.pdf")
 ggplot(my_euclidean_variances, aes(x=as.numeric(PCaxis), y=PercVar))+
   geom_bar(stat="identity", fill="grey", color="black")+
   theme_minimal()+
@@ -261,7 +261,7 @@ NMDS_euc_df <- data.frame(NMDS_euclidean$points) %>%
 NMDS_euc_df$Glacier <- metadata$Glacier #here we'll change the sample names to the glacier names
 head(NMDS_euc_df)
 
-pdf("results/NMDS-euclidean.pdf")
+pdf("../Outputs/Sommers2020/graphs/NMDS-euclidean.pdf")
 ggplot(NMDS_euc_df, aes(x=MDS1, y=MDS2, fill=Glacier)) +
   geom_point(size=4, shape=21, color="black", aes(fill=Glacier)) +
   scale_fill_brewer(palette="Dark2")+
@@ -281,7 +281,7 @@ NMDS_jac_df <- data.frame(NMDS_jaccard$points) %>%
 NMDS_jac_df$Glacier <- metadata$Glacier #here we'll change the sample names to the glacier names
 head(NMDS_jac_df)
 
-pdf("results/NMDS-jaccard.pdf")
+pdf("../Outputs/Sommers2020/graphs/NMDS-jaccard.pdf")
 ggplot(NMDS_jac_df, aes(x=MDS1, y=MDS2, fill=Glacier)) +
   geom_point(size=4, shape=21, color="black", aes(fill=Glacier)) +
   scale_fill_brewer(palette="Dark2")+

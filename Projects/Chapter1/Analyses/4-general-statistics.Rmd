@@ -51,8 +51,9 @@ library("picante") #for calculating faith's phylogenetic diversity
 library("vegan") #for caluclating our other diversity indices
 #install.packages("DT")
 library("DT") # interactive tables in html and markdown, for making a datatable with faiths diversity results
-library(microbiome) #useful phyloseq commands e.g. summarize_phyloseq()
-install.packages("geosphere")
+#install.packages("microbiome") #doesn't work
+#library(microbiome) #useful phyloseq commands e.g. summarize_phyloseq()
+#install.packages("geosphere")
 library(geosphere) #for working with our geographic distances
 
 ```
@@ -117,6 +118,9 @@ for (i in 1:ncol(count_table_clean)){
 #now bind these into a dataframe
 DF <- data.frame(sample_name, glacier, num_ASVs, hole_depth, hole_area_cm2, chlorophyll, DNA_g)
 
+#Add alpha diversity indexes to dataframe
+DF <- cbind(DF, div_shan, div_simp, div_inv_simp, div_pilou, df.pd$PD)
+
 #remove any samples that have NA results
 DF <- na.omit(DF)
 
@@ -143,7 +147,7 @@ DNA_stats <- aggregate(as.numeric(DNA_g) ~ glacier, DF, function(x) c(mean = mea
 #Step Five: Let's plot our data to visually assess any differences between our glaciers 
 ```{r}
 # Create the loop.vector (all the columns)
-loop.vector <- 3:7
+loop.vector <- 3:12
 
 for (i in loop.vector) { # Loop over loop.vector
 
@@ -168,7 +172,7 @@ for (i in loop.vector) { # Loop over loop.vector
   x <- as.numeric(DF[,i])
   
     qplot(glacier, x, data = DF, geom = "boxplot",
-      main = "ASV Richness by Glacier: Box-&-Whisker Plot",
+      main = paste(colnames(DF)[i], " by Glacier: Box-&-Whisker Plot"),
       xlab = "Glacier",
       ylab = colnames(DF)[i])+
   theme_bw()
@@ -215,6 +219,34 @@ summary(lm_dna)
 
 #If samples were paired we could do a paired t test like so:
 # anova(lm(num_ASVs ~ pair + glacier, data = DF))
+
+# A Linear Model (linear regression analysis) to test for relationship between the categorical predictor variable (glacier) and the simpsons index
+lm_div_simp <- lm(div_simp ~ glacier, data=DF)
+display(lm_div_simp)
+summary(lm_div_simp)
+
+# A Linear Model (linear regression analysis) to test for relationship between the categorical predictor variable (glacier) and the inverse simpsons index
+lm_div_inv_simp <- lm(div_inv_simp ~ glacier, data=DF)
+display(lm_div_inv_simp)
+summary(lm_div_inv_simp)
+
+# A Linear Model (linear regression analysis) to test for relationship between the categorical predictor variable (glacier) and the shannons index
+lm_div_shan <- lm(div_shan ~ glacier, data=DF)
+display(lm_div_shan)
+summary(lm_div_shan)
+
+# A Linear Model (linear regression analysis) to test for relationship between the categorical predictor variable (glacier) and the pilou evenness
+lm_div_pilou <- lm(div_pilou ~ glacier, data=DF)
+display(lm_div_pilou)
+summary(lm_div_pilou)
+
+# A Linear Model (linear regression analysis) to test for relationship between the categorical predictor variable (glacier) and faith's pd
+#rename the PD column from the DF dataframe other wise this won't work
+names(DF)[12] <- "PD"
+
+lm_pd <- lm(PD ~ glacier, data=DF)
+display(lm_pd)
+summary(lm_pd)
 ```
 
 #Step Eight: View ANOVA tables for each of the linear models. One-way ANOVA!
@@ -224,6 +256,10 @@ anova(lm_depth) #significant relationship
 anova(lm_area) #no significant relationship F = 0.06 so the signal is 0.06 times larger than the noise
 anova(lm_chlo) #no significant relationship
 anova(lm_dna) #significant relationship
+anova(lm_div_shan) #no significant relationship
+anova(lm_div_simp) #no significant relationship
+anova(lm_div_inv_simp) #no significant relationship
+anova(lm_pd) #significant relationship
 
 #Here the first column gives the source of the variation (the glacier and the leftover variation = the residual)
 #The F values gives us our signal-to-noise ratio. 
