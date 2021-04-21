@@ -1,0 +1,52 @@
+---
+title: "MVA Analysis - Alpha"
+author: "Amy Solman"
+date: "21/04/2021"
+output: html_document
+---
+
+#Script developed from that of BArnett et al., (2020) code available at https://github.com/seb369/landuse_comm_assembly/blob/master/Diversity_measures.md 
+#This script will calculate alpha diversities 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+library(vegan)
+library(FSA)
+```
+
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+```
+
+#Step Three: Rarefy data and get relative abundances
+```{r}
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Calculate alpha diversity of each sample by OTU richness
+```{r}
+my.metadata <- data.frame(sample_data())
+```
+
+#Calculate alpha diversity of each sample by Shannon Diversity index
+
+#Compare alpha diversity metrics between glaciers ysing Kruskal Wallis
+
+#If there is significant vairation between habitats, run post-hoc pairwise comparisons using the Dunn test (FSA package)
