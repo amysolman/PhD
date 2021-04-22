@@ -5,26 +5,45 @@ date: "21/04/2021"
 output: html_document
 ---
 
+#This script will use linear models to explore the drivers of community assembly
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+# library(dplyr)
+# library(tibble)
+# library(ggpubr)
+# library(phyloseq)
+# library(ape)
+# library(vegan)
+# library(ggrepel)
 ```
 
-## Including Plots
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+#hole area - calculate and add to dataframe
+#Method as per Darcy et al (2018)
+metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+metadata$area <- metadata$area*10000
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#Step Three: Rarefy data and get relative abundances
+```{r}
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
