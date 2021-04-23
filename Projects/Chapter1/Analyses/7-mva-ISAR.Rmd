@@ -76,6 +76,11 @@ coef(PowFit_Taylor)["z"]
 #we can look at the model summary 
 summary(PowFit_Canada)
 summary(PowFit_Taylor)
+
+#get R2 of the model - BE WARNED THIS IS UNRELIABLE WITH NLLS FITTING
+RSS_Pow <- sum(residuals(PowFit_Canada)^2) # Residual sum of squares
+TSS_Pow <- sum((data$ASVs - mean(data$ASVs))^2) # Total sum of squares
+RSq_Pow <- 1 - (RSS_Pow/TSS_Pow) # R-squared value
 ```
 Now let's get ready to plot our power law model fit!
 ```{r}
