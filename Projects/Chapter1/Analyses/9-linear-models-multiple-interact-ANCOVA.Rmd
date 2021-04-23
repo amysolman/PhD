@@ -140,18 +140,70 @@ Substrate <- c(Substrate, rep("Cryoconite", 1))
 my.data.sub$Substrate <- as.factor(Substrate)
 ```
 
-#Step :
+#Step Eight: We're going to re-fit the model from the previous step but changing the '+' symbol to '*' to show that we want to look at INTERACTIONS betweent he predictor variables as well as their MAIN EFFECTS
 ```{r}
+model <- lm(Richness ~ Glacier * Substrate, data = my.data.sub)
 
+#diagnostic plots
+par(mfrow=c(2,2), mar=c(3,3,1,1), mgp=c(2,0.8,0))
+plot(model)
+
+#ANOVA
+anova(model) #glacier as a main effect seems like the only singificant predictor - glacier:Substrate explains about half as much variation as glacier alone)
+
+#SUMMARY
+summary(model)
+#Intercept = the reference level for cryoconite on Canada glacier
 ```
 
-#Step :
+#Step Nine: ANCOVA - a linear model with one categorical and one or more continuous predictor variables
 ```{r}
+my.data.sub$logRich <- log(my.data.sub$Richness)
+my.data.sub$logArea <- log(my.data.sub$area)
 
+#fit a model of log Richness as a function of both hole area and glacier
+model_1 <- lm(logRich ~ logArea * Glacier, data = my.data.sub)
+
+anova(model_1) # There is a significant main effect of area and glacier but there is no strong interaction between area and glacier.
+
+summary(model_1) #r2 value is high - the model explains three quaters of the variation in Richness
+#The intercept is for the first level of Glacier (Canada)
+#the next line for logArea is the slope for Canada
+#Then we have the difference in the intercept for Taylor
+#The last line is the interaction between Glacier and hole area, this shows how the slope for Canada differes from the slope for Taylor
 ```
 
-#Step :
+#Step 10: Get predicted lines from the model!
 ```{r}
+#get the range of the data
+rng <- range(my.data.sub$logArea)
+#get a sequence from the min to the max with 100 equally spaced values:
+LogAreaForFitting <- seq(rng[1], rng[2], length = 100)
+print(LogAreaForFitting)
+
+#we're going to use these with the model to predict values of richness at each of those hole areas for each of our glaciers
+#get a data frame of new data for the order
+CanVals <- data.frame(logArea = LogAreaForFitting, Glacier = "Canada")
+#get the predictions and standard error
+CanPred <- predict(model_1, newdata = CanVals, se.fit = TRUE)
+
+#get a data frame of new data for the order
+TayVals <- data.frame(logArea = LogAreaForFitting, Glacier = "Taylor")
+#get the predictions and standard error
+TayPred <- predict(model_1, newdata = TayVals, se.fit = TRUE)
+
+# plot the scatterplot of the data
+plot(logRich ~ logArea, data = my.data.sub, col=as.factor(Glacier))
+# add the predicted lines
+lines(CanPred$fit ~ LogAreaForFitting, col = "black")
+lines(CanPred$fit + CanPred$se.fit ~ LogAreaForFitting, col = "black", lty = 2)
+lines(CanPred$fit - CanPred$se.fit ~ LogAreaForFitting, col = "black", lty = 2)
+lines(TayPred$fit ~ LogAreaForFitting, col = "red")
+lines(TayPred$fit + TayPred$se.fit ~ LogAreaForFitting, col = "red", lty = 2)
+lines(TayPred$fit - TayPred$se.fit ~ LogAreaForFitting, col = "red", lty = 2)
+
+
+
 
 ```
 
