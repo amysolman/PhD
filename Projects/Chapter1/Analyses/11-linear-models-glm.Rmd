@@ -5,26 +5,264 @@ date: "23/04/2021"
 output: html_document
 ---
 
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
+(https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/19-glm.ipynb) 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+######I WILL BE USING FAKE DATA FOR THIS ANALYSIS FOR DEMONSTRATION PURPOSES#####
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+#This script will look at GENERALIZED LINEAR MODELS
+#So far we have assumed that the response variable follows a normal (Gaussian) distribution. We sometimes transformed the data by taking a log so that it would approximate a normal distribution. However, sometimes this is not appropriate.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#Generalized linear model analysis accomodates response variables that have non-normal error distributions. 
 
-```{r cars}
-summary(cars)
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+# library(dplyr)
+# library(tibble)
+# library(ggpubr)
+# library(phyloseq)
+# library(ape)
+library(vegan)
+# library(ggrepel)
+# install.packages("repr")
+# library(repr) #for plotting our pairs of data
+library(picante)
+#library(gplots)
+library(lattice)
 ```
 
-## Including Plots
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+#hole area - calculate and add to dataframe
+#Method as per Darcy et al (2018)
+metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+metadata$area <- metadata$area*10000
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#Step Three: Rarefy data and get relative abundances
+```{r}
+# #set a seed so we get the same results each time we run this
+# set.seed(1961)
+# #rarefy the data to equal sampling depths
+# my.ps.rar <- rarefy_even_depth(my.ps)
+# #get relative abundances
+# my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Step Four: Calculate alpha diversity indices
+```{r}
+#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+div_shan <- diversity(t(count_table_clean), index = "shannon")
+
+#Use vegan package to get simpson diversity index of each sample
+div_simp <- diversity(t(count_table_clean), index = "simpson")
+
+#Use vegan package to get inverted simpson diversity index of each sample
+div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
+
+#Faith's phylogenetic diversity 
+asv_tab <- as.data.frame(my.ps@otu_table) #Hellinger transformed asv table
+
+my_tree <- my.ps@phy_tree #get my phylogenetic tree
+
+#Check if the tree is rooted
+my.ps@phy_tree #Rooted, includes branch lengths
+
+#It is a rooted tree so...
+df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+
+#Calculate Pilou evenness
+div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(df.pd$SR) #Here we use the species count we got earlier
+
+#bind alpha diversity indices into a dataframe
+diversity <- cbind(df.pd, div_shan, div_simp, div_inv_simp, div_pilou)
+colnames(diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+```
+
+#Step Five: Bind alpha diversity indices with metadata 
+```{r}
+my.data <- cbind(metadata, diversity)
+
+#remove columns with data we're not interested in
+my.data.sub <- subset(my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+rownames(my.data.sub) <- my.data.sub$Run
+my.data.sub <- subset(my.data.sub, select = -c(1))
+my.data.sub <- as.data.frame(lapply(my.data.sub, function(x) as.numeric(as.character(x))))
+my.data.sub$Glacier <- metadata$Glacier
+my.data.sub <- my.data.sub[complete.cases(my.data.sub), ]
+
+```
+
+#Step Six: Prepare our data
+```{r}
+#get logs of the continuous variables we are interested in
+my.data.sub$logChlo <- log(my.data.sub$Chlorophyll)
+my.data.sub$logDepth <- log(my.data.sub$Depth)
+my.data.sub$logDNA <- log(my.data.sub$DNA_per_g)
+my.data.sub$logOrg <- log(my.data.sub$org_matter)
+my.data.sub$logpH <- log(my.data.sub$pH)
+my.data.sub$logArea <- log(my.data.sub$area)
+my.data.sub$logRich <- log(my.data.sub$Richness)
+my.data.sub$logWat <- log(my.data.sub$water_content)
+```
+
+#Step Seven: Add an addition factor for us to play with
+```{r}
+Substrate <- rep(c("Ice", "Snow"), 6) 
+Substrate <- c(Substrate, rep("Cryoconite", 16))
+my.data.sub$Substrate <- as.factor(Substrate)
+```
+
+#Step Seven: Let's start by looking at statistical distributions - Poisson Distribution
+#Statistical distributions are important becuase when analysing data using GLMs we need to decide which statistical distribution best represents our dataset. 
+#continuous numeric data (like bodyweight) are usually normally distributed
+#count data (like number of species on an island) may be distributed according to the Poisson distribution
+#The statistical distributions that GLM in R supports include: Binomial, Gaussian, Gamma, Inverse Gaussian, Poisson, Quasi, Quasi-Binomial and Quasi-Poisson
+```{r}
+#The Poisson Distribution
+#This is appropriate for discrete, integer data
+#We can generate data that follow this distribution using the below code...
+par(mfrow=c(1,2)) 
+hist(rpois(1000, lambda = 1),xlab = "Value", main="")
+hist(rpois(1000, lambda = 100),xlab = "Value", main="")
+#So this is appropriate for response data that only uses integer values (e.g. counts)
+#This distribution can be right-skewedor bell shaped
+```
+
+#Step Eight: Bionomial Distribution
+```{r}
+#Bionomial distribution is appropriate for continuous data from repeated bionary (yes/no) outcomes
+#rbinom(n, size, prob)
+par(mfrow=c(1,2)) 
+hist(rbinom(1000, 1, 0.5),xlab = "Value", main="") #single try of a 50/50 outcome, regenerated 1000 times (1000 flips of a coin) - each flip is a Bernoulli trial/experiment
+hist(rbinom(1000, 100, 0.5),xlab = "Value", main="") #plots the number of successes if you tried something 100 times with a probability of 50, so the values hover around 50
+#size = number of trials
+#prob = probability of an outcome in each trial
+
+
+```
+
+#Step Nine: The Gamma Distribution
+#Suitable for continuous, positive data
+#The ratio of the variance and mean is constant so appropriate to model data where an increased mean values also increases the variance - useful for response variables that are times
+```{r}
+#rgamma(n, shape, rate) rate controls the scale of the distribution, over which values the distribution spreads
+#shape parameter controls whether it is right-skewed or bell-shaped
+par(mfrow=c(1,2)) 
+hist(rgamma(1000,1,1),xlab = "Value", main = "")
+hist(rgamma(1000,100,1),xlab = "Value", main = "")
+```
+
+#Step Ten: Exploring the data
+```{r}
+str(my.data.sub)
+my.data.sub$Glacier <- as.factor(my.data.sub$Glacier)
+
+#LEt's look at our data 
+boxplot(Richness ~ Glacier, data = my.data.sub)
+
+# #We can look at the minimum richnesses of the glaciers
+# tapply(my.data.sub$Richness, my.data.sub$Glacier, min, na.rm = TRUE)
+# 
+# #and the maximum richnesses
+# tapply(my.data.sub$Richness, my.data.sub$Glacier, max, na.rm = TRUE)
+
+bwplot(logRich ~ Substrate | Glacier, data = my.data.sub)
+#It looks like the substrates are doing different things on the two glaciers (FAKE NEWS) so perhaps the substrate and glacier are interacting to affect ASV richness
+#The variances also look ver different
+
+#We can also use barplots to look at the different means
+
+
+tab <- tapply(my.data.sub$Richness, list(my.data.sub$Glacier, my.data.sub$Substrate), mean, na.rm=TRUE)
+
+print(tab)
+
+barplot(tab, beside=TRUE, log= 'y' )
+```
+
+#Step Eleven: Fit an ordinary linear model
+```{r}
+modLM <- lm(logRich ~ Substrate * Glacier, data=my.data.sub)
+par(mfrow=c(2,2), mar=c(3,3,3,1), mgp=c(2,0.8,0))
+plot(modLM)
+#The normal q-q plot doesn't look great (it's not actually that bad but just pretend it's terrible) so it doesn't look like a log transformation would help our data.
+```
+
+#Step Twelve: Fit a Generalized Linear Model
+#Some differences between continuous data and count data
+#Counts can bever be negative but can be zero
+#Counts are always integers rather than being continuous
+#The variance of count data is not constant
+#So if our data does not show constant normal variance we can't use a linear model
+#note: we don't need logged data here
+```{r}
+modPois <- glm(Richness ~ Substrate * Glacier, data=my.data.sub, family= 'poisson')
+
+summary(modPois)
+#what is this table showing us?
+#On Canada glacier, ice has the highest number of ASVs - because it had a positive difference with cryoconite (the intercept)
+#The overall effect of taylor glacier is to decrease species richness (it has a negative coefficient) but then the positive interactions show an increase in richness for Taylor glacier with specific substrates
+#There are two types of deviance in the model output. Deviance is a measure of goodness of fit in the GLM. Null deviance shows how well the response variable is predicted by a model that includes only the intercept (overall mean). We're looking for a significant reduction in deviation from the null deviance to the residual deviance. We see a significant decrease here so the model is significant.
+
+```
+
+#Step Thirteen: Let's look at overdispersion
+```{r}
+par(mfrow = c(2, 2), mar = c(3, 3, 3, 1), mgp = c(2, 0.8, 0))
+plot(modPois)
+
+#The q-q plot here actually doesn't look bad but just pretend it does for the purpose of this demo
+#If our q-q plot had points way from the line and the residuals were massive we would have a problem of overdispersion - The Poisson distribution predicts that the variance at a point in the model is equal to the prediction — the mean count at that point.
+
+#We can check the dispersion of the data using the summary table - ratio of the residual deviance to the residual degrees of freedom should be approximately 1.
+residual.deviance = 295.76
+residual.df = 22
+residual.deviance/residual.df = 13.44 #this is supposed to be approximately 1 so our data ARE overdispersed!
+#We can deal with this by using a different model...
+```
+
+#Step Fourteen: Fitting a GLM using a quasi-poisson distribution
+#The quasi-poisson distribution uses the data to estimate the dispersion of the model
+```{r}
+modQPois <- glm(Richness ~ Substrate * Glacier, data = my.data.sub, family = 'quasipoisson')
+summary(modQPois)
+#We can see in this output that the dispersion parameter line has changed and the p values are less significant - this is the effect of controlling for overdispersion
+
+par(mfrow = c(2, 2), mar = c(3, 3, 3, 1), mgp = c(2, 0.8, 0))
+plot(modQPois) #the plot is better but not perfect. We can't improve this anymore so we accept the imperfections of the model
+
+#ANOVA (technically an analysis of deviance) and F-test
+anova(modQPois, test ="F") #the interaction is the only term we can drop from this model and it doesn't look significant. Let's try it!
+
+modQPois2 <- update(modQPois, . ~ . - Substrate:Glacier)
+anova(modQPois, modQPois2, test = "F") #p > 0.05 so this model is not worse!
+
+anova(modQPois2, test ="F")
+```
+
+#Step Fifteen: Model predictions
+```{r}
+# use expand.grid to get all combinations of factors
+df <- expand.grid(Substrate = levels(my.data.sub$Substrate), Glacier = levels(my.data.sub$Glacier))
+
+predict(modQPois, newdata = df, type = "response")
+```
+
+#Step :
+```{r}
+
+```

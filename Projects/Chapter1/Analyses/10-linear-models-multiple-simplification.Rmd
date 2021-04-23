@@ -4,27 +4,235 @@ author: "Amy Solman"
 date: "23/04/2021"
 output: html_document
 ---
-
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
+https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/18-ModelSimp.ipynb
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+######I WILL BE USING FAKE DATA FOR THIS ANALYSIS FOR DEMONSTRATION PURPOSES#####
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+#This script will look at MODEL SIMPLIFICATION
+#Basically, we want to find our which terms or variables in our model are best at describing our data in the least amount of pvariables.
+#So we start with a MAXIMAL model (one that contains everything that might be important) and simplifying it toward the NULL model (the one that says none of the variables are important). There should be a point in between the MAXIMAL MODEL and the NULL MODEL where we can't make the model simpler without making it worse = MINIMUM ADEQUATE MODEL
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
 
-```{r cars}
-summary(cars)
+# library(dplyr)
+# library(tibble)
+# library(ggpubr)
+# library(phyloseq)
+# library(ape)
+library(vegan)
+# library(ggrepel)
+# install.packages("repr")
+# library(repr) #for plotting our pairs of data
+library("picante")
+#library(gplots)
+#library(lattice)
 ```
 
-## Including Plots
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+#hole area - calculate and add to dataframe
+#Method as per Darcy et al (2018)
+metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+metadata$area <- metadata$area*10000
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#Step Three: Rarefy data and get relative abundances
+```{r}
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Step Four: Calculate alpha diversity indices
+```{r}
+#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+div_shan <- diversity(t(count_table_clean), index = "shannon")
+
+#Use vegan package to get simpson diversity index of each sample
+div_simp <- diversity(t(count_table_clean), index = "simpson")
+
+#Use vegan package to get inverted simpson diversity index of each sample
+div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
+
+#Faith's phylogenetic diversity 
+asv_tab <- as.data.frame(my.ps@otu_table) #Hellinger transformed asv table
+
+my_tree <- my.ps@phy_tree #get my phylogenetic tree
+
+#Check if the tree is rooted
+my.ps@phy_tree #Rooted, includes branch lengths
+
+#It is a rooted tree so...
+df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+
+#Calculate Pilou evenness
+div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(df.pd$SR) #Here we use the species count we got earlier
+
+#bind alpha diversity indices into a dataframe
+diversity <- cbind(df.pd, div_shan, div_simp, div_inv_simp, div_pilou)
+colnames(diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+```
+
+#Step Five: Bind alpha diversity indices with metadata 
+```{r}
+my.data <- cbind(metadata, diversity)
+
+#remove columns with data we're not interested in
+my.data.sub <- subset(my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+rownames(my.data.sub) <- my.data.sub$Run
+my.data.sub <- subset(my.data.sub, select = -c(1))
+my.data.sub <- as.data.frame(lapply(my.data.sub, function(x) as.numeric(as.character(x))))
+my.data.sub$Glacier <- metadata$Glacier
+my.data.sub <- my.data.sub[complete.cases(my.data.sub), ]
+
+```
+
+#Step Six: Prepare our data
+```{r}
+#get logs of the continuous variables we are interested in
+my.data.sub$logChlo <- log(my.data.sub$Chlorophyll)
+my.data.sub$logDepth <- log(my.data.sub$Depth)
+my.data.sub$logDNA <- log(my.data.sub$DNA_per_g)
+my.data.sub$logOrg <- log(my.data.sub$org_matter)
+my.data.sub$logpH <- log(my.data.sub$pH)
+my.data.sub$logArea <- log(my.data.sub$area)
+my.data.sub$logRich <- log(my.data.sub$Richness)
+my.data.sub$logWat <- log(my.data.sub$water_content)
+```
+
+#Step Seven: Maximal Model
+```{r}
+model <- lm(formula = logRich ~ logChlo * logDepth * logArea * logpH * logOrg * logDNA * logWat * Glacier, data = my.data.sub)
+
+model <- lm(formula = logRich ~ logArea * logpH * logOrg * logWat * Glacier, data = my.data.sub)
+
+summary(model)
+
+anova(model)
+
+#As we can see here, starting with all possible variables in the model doesn't work very well. It's difficult to interpret these results. Instead we can consider two way interactions - how do pairs of variables affect each other?
+
+#Let's try this again!
+
+#model <- lm(logRich ~ (logChlo + logDepth + logArea + logpH + logOrg + logDNA + as.factor(Glacier))^2, data = my.data.sub)
+#model <- lm(logRich ~ (logChlo + logArea + logpH + logOrg + Glacier)^2, data = my.data.sub)
+model <- lm(logRich ~ (logArea + logpH + logOrg + logWat + Glacier)^2, data = my.data.sub)
+
+anova(model)
+#The first lines here are our main effects, followed by the paired interactions
+#We can see that area, organic matter and glacier are significant as main effects (pH might also be somewhat significant), whilst the slope of log Richness with organic matter differs with area (maybe, this significance is weak)
+```
+
+#Step Eight: Simplify the model!
+#We can use F-tests to compare a model with a simplified model - significance of the F test is BAD, the model has got SIGNIFICANTLY worse
+#So which terms can we remove from the model?
+```{r}
+drop.scope(model) #tells you what you can drop from a model
+
+#Instead of re-typing the model we can use the update function to change it, for example...
+
+# a simple model
+f <- y ~ a + b + c + b:c
+# remove b:c from the current model
+update(f, . ~ . - b:c)
+# model g as a response using the same explanatory variables.
+update(f, g ~ .)
+
+#from the ANOVA output I can see that the term logArea:Glacier is not significant (the drop output showed me that this was a valid term in the model)
+model2 <- update(model, . ~ . - logpH:logWat)
+
+#we can use ANOVA to compare the two models
+anova(model, model2) #the p value = 0.58 so we know model 2 is not significantly worse that model
+
+#let's get an anova table for model 2 to pick the next variable to remove!
+anova(model2)
+
+model3 <- update(model2, . ~ . - logWat:Glacier)
+anova(model2, model3) #p = 0.79
+
+anova(model3)
+summary(model3)
+
+model4 <- update(model3, . ~ . - logArea:logpH)
+anova(model3, model4) #p = 0.94
+
+anova(model4)
+summary(model4)
+model5 <- update(model4, . ~ . - logOrg:Glacier)
+anova(model4, model5) #p = 0.19
+
+anova(model5)
+summary(model5)
+model6 <- update(model5, . ~ . - logOrg:logWat)
+anova(model5, model6) #p = 0.17
+
+anova(model6)
+summary(model6)
+model7 <- update(model6, . ~ . - logpH:Glacier)
+anova(model6, model7) #p = 0.21
+
+anova(model7)
+summary(model7)
+model8 <- update(model7, . ~ . - logpH:logOrg)
+anova(model7, model8) #p = 0.13
+
+anova(model8)
+summary(model8)
+model9 <- update(model8, . ~ . - logArea:logOrg)
+anova(model8, model9) #p = 0.09
+
+anova(model9)
+summary(model9)
+model10 <- update(model9, . ~ . - logArea:logWat)
+anova(model9, model10) #p = 0.14
+
+anova(model10)
+summary(model10)
+model11 <- update(model10, . ~ . - logArea:Glacier)
+anova(model10, model11) #p = 0.24
+
+anova(model11)
+summary(model11)
+model12 <- update(model11, . ~ . - logWat)
+anova(model11, model12) #p = 0.25
+
+anova(model12)
+summary(model12)
+model13 <- update(model12, . ~ . - logpH)
+anova(model12, model13) #p = 0.06
+
+anova(model13)
+summary(model13)
+model14 <- update(model13, . ~ . - logOrg)
+anova(model13, model14) #p = 0.83
+
+
+###I CAN'T REMOVE ANYTHING ELSE HERE WITHOUT MAKING THE MODEL WORSE
+anova(model14) #< FINAL MODEL = MINIMUM ADEQUATE MODEL
+summary(model14)
+# model15 <- update(model14, . ~ . - logArea)
+# anova(model14, model15) #p = 0.83
+
+```
+
+#Step :
+```{r}
+
+```
