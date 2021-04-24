@@ -1,0 +1,54 @@
+---
+title: "Logistic Regression"
+author: "Amy Solman"
+date: "23/04/2021"
+output: html_document
+---
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
+(https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/20-ModelFitting-NLLS.ipynb)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#THIS SCRIPT WILL USE NLLS TO FIND A LOGISTIC MODEL TO SOME DEMO DATA 
+
+#Step : Clear workspace and load packages
+```{r}
+rm(list=ls())
+```
+
+#Step :Generate our data
+```{r}
+t <- seq(0, 22, 2)
+N <- c(32500, 33000, 38000, 105000, 445000, 1430000, 3020000, 4720000, 5670000, 5870000, 5930000, 5940000)
+
+set.seed(1234) # set seed to ensure you always get the same random sequence 
+
+data <- data.frame(t, N * (1 + rnorm(length(t), sd = 0.1))) # add some random error
+
+names(data) <- c("Time", "N")
+```
+
+#Step : Plot the data 
+```{r}
+ggplot(data, aes(x = Time, y = N)) + 
+ geom_point(size = 3) +
+ labs(x = "Time (Hours)", y = "Population size (cells)")
+```
+
+#Step : 
+
+#Step : Define logistic model function
+```{r}
+logistic_model <- function(t, r_max, K, N_0){ # The classic logistic equation
+ return(N_0 * K * exp(r_max * t)/(K + N_0 * (exp(r_max * t) - 1)))
+}
+```
+
+#Step : Get starting parameters for the model
+```{r}
+#Use OLS to estimate the slope of the lag transformed data so we can use this as a starting estimate for our maximum growth rate
+
+lm_growth <- lm(LogN ~ Time, data = data[data$Time > 2 & data$Time < 12,])
+
+```

@@ -231,7 +231,7 @@ plot(modPois)
 #We can check the dispersion of the data using the summary table - ratio of the residual deviance to the residual degrees of freedom should be approximately 1.
 residual.deviance = 295.76
 residual.df = 22
-residual.deviance/residual.df = 13.44 #this is supposed to be approximately 1 so our data ARE overdispersed!
+residual.deviance/residual.df #= 13.44 this is supposed to be approximately 1 so our data ARE overdispersed!
 #We can deal with this by using a different model...
 ```
 
@@ -255,6 +255,8 @@ anova(modQPois2, test ="F")
 ```
 
 #Step Fifteen: Model predictions
+# We can get model predictions and SEs using the predict function. This is done through a statistical method that I don't understand do don't worry about that for now. 
+#These values are the same as those calculated for the bar plot. 
 ```{r}
 # use expand.grid to get all combinations of factors
 df <- expand.grid(Substrate = levels(my.data.sub$Substrate), Glacier = levels(my.data.sub$Glacier))
@@ -262,7 +264,20 @@ df <- expand.grid(Substrate = levels(my.data.sub$Substrate), Glacier = levels(my
 predict(modQPois, newdata = df, type = "response")
 ```
 
-#Step :
+#Step Sixteen: Tips on reporting the model
 ```{r}
-
+#Make sure the reader understands what has been done well enough to repeat the analysis
+#Summarize and explain the results without pages of R output
+#Think about what the data shows? Present a graph or a table to show the data you are about to model. Always include a figure or table legend and always refer to that figure or legend from the text.
+#Have you transformed the data or used a subset? If so, why?
+#What kind of model or statistical test have you used?
+#With linear models, what is the response variable and what are the explanatory variables.
+#Have you simplified the model and, if so, what was the most complex model you tried?
+#How did you check the suitability of the model? Are there any problems with the model and, if so, what might cause them?
+#If you summarise stats in text, you must include all the information about the test.
+#For F tests, this is F, the two degrees of freedom and the p value. For example: 'There is a significant interaction between treatment and strain (F4,284=32.7,p<0.0001)'.
+#For t tests, this is the coefficient, the standard error, t, the degrees of freedom and p. For example, 'Across strains, the main effect of nitroguanisine is to reduce colony counts relative to the control (estimate=-2.17, s.e= 0.51, t=−4.26, df=284, p<0.0001)'.
+#With more complex models, it is common to present either the anova table or the coefficients table as a summary of the model output. Just include the tables from R output, not the information around it.
+#Never just include chunks of raw output from R.
+#Most importantly, you need to convey what the interpretation of the model is. What is it telling you about the data?
 ```

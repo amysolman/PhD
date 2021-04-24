@@ -10,8 +10,6 @@ https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/not
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-######I WILL BE USING FAKE DATA FOR THIS ANALYSIS FOR DEMONSTRATION PURPOSES#####
-
 #This script will look at MODEL SIMPLIFICATION
 #Basically, we want to find our which terms or variables in our model are best at describing our data in the least amount of pvariables.
 #So we start with a MAXIMAL model (one that contains everything that might be important) and simplifying it toward the NULL model (the one that says none of the variables are important). There should be a point in between the MAXIMAL MODEL and the NULL MODEL where we can't make the model simpler without making it worse = MINIMUM ADEQUATE MODEL
@@ -229,10 +227,5 @@ anova(model14) #< FINAL MODEL = MINIMUM ADEQUATE MODEL
 summary(model14)
 # model15 <- update(model14, . ~ . - logArea)
 # anova(model14, model15) #p = 0.83
-
-```
-
-#Step :
-```{r}
 
 ```

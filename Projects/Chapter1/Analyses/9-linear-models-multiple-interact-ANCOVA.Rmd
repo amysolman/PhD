@@ -202,27 +202,4 @@ lines(TayPred$fit ~ LogAreaForFitting, col = "red")
 lines(TayPred$fit + TayPred$se.fit ~ LogAreaForFitting, col = "red", lty = 2)
 lines(TayPred$fit - TayPred$se.fit ~ LogAreaForFitting, col = "red", lty = 2)
 
-
-
-
-```
-
-#Step :
-```{r}
-
-```
-
-#Step :
-```{r}
-
-```
-
-#Step :
-```{r}
-
-```
-
-#Step :
-```{r}
-
 ```
