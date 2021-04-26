@@ -4,27 +4,77 @@ author: "Amy Solman"
 date: "23/04/2021"
 output: html_document
 ---
-
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
+(https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/22-ModelFitting-Bayesian.ipynb)
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+#MODEL FITTING BAYSIAN WAY
+#This script will look at fitting models to biological data using Baysian Methods
+#For Baysian model fitting we need to:
+#Assess MCMC convergence - MCMC is a family of algorithms for sampling probability distributions so that it can be adequately characterized
+#Summarize MCMC draws - Summarize and visualize the outcome of the random draws using histograms for all draws of each parameter
+#Prior Sensitivity - Assess prior sensitivity by changing prior values and check whether it affects the results or not. If it does, that means the results are too senstive to that prior which is not good!
+#Make inferences: We use the values from iten to make inferences and answer the research question
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+rm(list=ls())
+graphics.off()
 ```
 
-## Including Plots
+#A likelihoods exercise
+#Bionomial distirbution = how many successes in a set of trials, like flipping a coin and getting tails
+#We're going to use the binomial distribution to practise two methods of estimating parameters for a probability distribution: method od moments and maximum likelihood.
+#First take 50 draws from a bionomial with different probabilityies with N trials (or flips) per draw
+```{r}
+set.seed(54321)
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+## 50 draws with each p 
+pp <- c(0.1, 0.5, 0.8)
+N <- 20
+reps <- 50
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#Plot the histograms of these draws together with the density functions.
+
+#GOING TO COME BACK TO THIS SCRIPT AT A LATER DATE BECAUSE IT NEED MORE BRAIN POWER THAN I CAN PUT IN RIGHT NOW
+```{r}
+## histograms + density here
+x <- seq(0, 50, by=1)
+par(mfrow=c(1,3), bty="n")
+
+# Write more code here
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```

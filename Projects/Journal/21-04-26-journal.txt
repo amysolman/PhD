@@ -1,5 +1,24 @@
 Monday 26th April 2021
 
+Done:
+Emailed Ye Olde King and Queen about booking for 30th May
+Have asked Ciara about pubs
+Bea birthday present - brought by Ben
+
+Chapter 1 PhD activities:
+Complete modelling scripts from Samraat's notebook
+Complete additional ordination
+Complete remaining scripts
+Complete Network analysis
+Sommers total - Write up description of each analysis, rationale and results
+Reapproach QIIME2/DADA2 step with comments from Anne and JAmes
+Repeat for rare and abundant taxa 
+Sommers total, rare and abundant - Write up description of each analysis, rationale and results
+Prepare/give presentation
+Get data from Jaz
+Repeat analysis with Jaz data for total, rare and abundant taxa 
+Jaz data - Write up description of each analysis, rationale and results
+
 List of non-Chapter 1 related PhD activities to complete:
 Organise next supervisor meeting
 Respond/action James' email (PMA)
@@ -44,7 +63,6 @@ Apply to be an Astronaught
 
 List of non-PhD activities to complete:
 Book Brighton restaurant
-Bea birthday present
 Birthday present for Mum
 Holiday booking for Mum
 Birthday Present for Ben
