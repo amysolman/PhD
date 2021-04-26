@@ -6,6 +6,8 @@ output: html_document
 ---
 #This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
 (https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/20-ModelFitting-NLLS.ipynb)
+
+#Additional info on model fitting available above but not included here. Some great tips, particularly on finding start values and fitting one model to multiple datasets.
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```

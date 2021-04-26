@@ -130,12 +130,26 @@ vonbert.w <- function(t, Winf, c, K){
 logistic1 <- function(t, r, K, N0){
  N0 * K * exp(r * t)/(K+N0 * (exp(r * t)-1))
 }
+
+
 ```
 
 #Step Seven: Fit the five models to the data
 ```{r}
 #subset our canada data 
 Data2Fit <- subset(my.data.sub, Glacier == "Canada")
+
+#Get starting parameters for the logistic equation
+ggplot(Data2Fit, aes(x = area, y = log(Richness))) + 
+ geom_point(size = 3) +
+ labs(x = "Area", y = "log(richness)")
+
+lm_rich <- lm(log(Richness) ~ area, data = Data2Fit[Data2Fit$area > 0 & Data2Fit$area <200, ])
+summary(lm_rich)
+
+r_start = as.numeric(coef(lm_rich)["area"])
+K_start = max(Data2Fit$Richness)
+N0_start = min(Data2Fit$Richness)
 
 #We will scale the data before fitting to improve the stability of the estimates
 #set a scale
@@ -158,7 +172,7 @@ QuaFit <- lm(Richness/scale ~ poly(area,2), data = Data2Fit)
 VonFit <- nlsLM(Richness/scale ~ vonbert.w(area, Winf, c, K), start=list(Winf=0.75, c=0.01, K=0.01), data=Data2Fit)
 
 #Logistic Model
-LogFit <- nlsLM(Richness ~logistic1(area, r, K, N0), start=list(K=600, r=0.1, N0=300), data=Data2Fit)
+LogFit <- nlsLM(Richness/scale ~logistic1(area, r, K, N0), start=list(K=K_start, r=r_start, N0=N0_start), data=Data2Fit)
 
 ```
 
@@ -183,7 +197,7 @@ Predic2PlotVon <- predict(VonFit, newdata = list(area=Areas)) * scale
 
 #Logistic Model
 # Predic2PlotLog <- predict.lm(LogFit, data.frame(area = Areas))
-Predic2PlotLog <- predict(LogFit, newdata = list(area=Areas)) #*scale
+Predic2PlotLog <- predict(LogFit, newdata = list(area=Areas)) *scale
 
 plot(Data2Fit$area, Data2Fit$Richness)
 lines(Areas, Predic2PlotLin, col="blue", lwd=2.5)

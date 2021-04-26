@@ -6,18 +6,23 @@ output: html_document
 ---
 #This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
 (https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/20-ModelFitting-NLLS.ipynb)
+
+#Additional info on model fitting available above but not included here. Some great tips, particularly on finding start values and fitting one model to multiple datasets.
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 #THIS SCRIPT WILL USE NLLS TO FIND A LOGISTIC MODEL TO SOME DEMO DATA 
 
-#Step : Clear workspace and load packages
+#Step One: Clear workspace and load packages
 ```{r}
 rm(list=ls())
+
+library(ggplot2)
+library(minpack.lm)
 ```
 
-#Step :Generate our data
+#Step Two: Generate our data
 ```{r}
 t <- seq(0, 22, 2)
 N <- c(32500, 33000, 38000, 105000, 445000, 1430000, 3020000, 4720000, 5670000, 5870000, 5930000, 5940000)
@@ -29,26 +34,170 @@ data <- data.frame(t, N * (1 + rnorm(length(t), sd = 0.1))) # add some random er
 names(data) <- c("Time", "N")
 ```
 
-#Step : Plot the data 
+#Step Three: Plot the data 
 ```{r}
 ggplot(data, aes(x = Time, y = N)) + 
  geom_point(size = 3) +
  labs(x = "Time (Hours)", y = "Population size (cells)")
 ```
 
-#Step : 
+#Step Four: Estimating exponential growth rate
+#By log transforming the population size we can estimate by eye where growth looks exponential
+```{r}
+data$LogN <- log(data$N)
 
-#Step : Define logistic model function
+# visualise
+ggplot(data, aes(x = t, y = LogN)) + 
+ geom_point(size = 3) +
+ labs(x = "Time (Hours)", y = "log(cell number)")
+#Between the hours of 5 and 10 the growth rate looks fairly linear so we can use that time period to calculate growth rate
+
+(data[data$Time == 10,]$LogN - data[data$Time == 6,]$LogN)/(10-6)
+#this equates to the log number of cells at time 10 - the log number of cells at time 6/10-6 = 0.73
+#So this is our first basic method of estimating growth rate
+
+#Alternatively, we can pick the maximum observed gradient of the curve using the diff() function
+diff(data$LogN) #this gives us all the (log) population size differences between timepoint pairs i.e. 0-2, 2-4, 4-6, 6-8...20-22
+
+#so if we look at the maximum different between any pair of time points
+max(diff(data$LogN)) #1.75
+#and divide this by two because this is the growth rate between two time points
+max(diff(data$LogN))/2 #we have our growth rate between each time point 0-1, 1-2, 2-3 etc = 0.88
+```
+
+#Step Five: Use OLS to calculate the growth rate
+#This is better than the above methods. We should fit a linear model through the time points, where the slope gives our growth rate. This is the traditional way of calculating microbial growth rates, by drawing s traight line through log-transformed data
+```{r}
+lm_growth <- lm(LogN ~ Time, data = data[data$Time > 2 & data$Time <12, ])
+#fit a linear model to log transformed data, by only for population size where time is greater than 2 and less than 12
+summary(lm_growth) #here our growth rate (the slope of the line) is predicted to be 0.62
+
+#But this isn't ideal because we guessed where the exponential growth phase was (between 3 and 11) by eye. We can fit a more appropriate model using NLLS! 
+```
+
+#Step Six: Define logistic model function
+#The logistic equation is a classical and somewhat mechanistic model!
+#t = time
+#r_mac = maximum growth rate
+#K = maximum possible size of population
+#N_0 = initial population size
 ```{r}
 logistic_model <- function(t, r_max, K, N_0){ # The classic logistic equation
  return(N_0 * K * exp(r_max * t)/(K + N_0 * (exp(r_max * t) - 1)))
 }
 ```
 
-#Step : Get starting parameters for the model
+#Step Seven: Fit the logistic model using NLLS
 ```{r}
-#Use OLS to estimate the slope of the lag transformed data so we can use this as a starting estimate for our maximum growth rate
+#First we need starting parameters
+N_0_start <- min(data$N) #initial population size
+K_start <- max(data$N) #maximum population size 
+r_max_start <- as.numeric(coef(lm_growth)["Time"]) #Use our estimate from the OLS fitting
 
-lm_growth <- lm(LogN ~ Time, data = data[data$Time > 2 & data$Time < 12,])
+fit_logistic <- nlsLM(N ~ logistic_model(t = Time, r_max, K, N_0), data, list(r_max=r_max_start, N_0=N_0_start, K=K_start))
 
+summary(fit_logistic) #here we have used the actualy data to generate some realistic starting values for the model
+```
+
+
+#Step Eight: Plot the fit!
+```{r}
+timepoints <- seq(0, 22, 0.1)
+
+logistic_points <- logistic_model(t = timepoints,
+                                  r_max = coef(fit_logistic)["r_max"],
+                                  K = coef(fit_logistic)["K"],
+                                  N_0 = coef(fit_logistic)["N_0"])
+
+df1 <- data.frame(timepoints, logistic_points)
+df1$model <- "Logistic equation"
+names(df1) <- c("Time", "N", "model")
+
+ggplot(data, aes(x = Time, y = N)) +
+  geom_point(size = 3) +
+  geom_line(data = df1, aes(x = Time, y = N, col = model), size = 1) +
+  theme(aspect.ratio=1)+ #This makes the plot square
+  labs(x="Time", y = "Cell number")
+
+#The fit looks very good and the r_max estimate using this NLLS model fitting = 0.63, which is similar to that estimated from the linear model (OLS) fitting= 0.62
+
+```
+
+#Step Nine: Logistic model fitting to log transformed data 
+```{r}
+#So we fit the linear model to log transformed data but we've only fit the logistic model to non transformed data. How does it fit to our log data?
+
+ggplot(data, aes(x = Time, y = LogN)) +
+ geom_point(size = 3) +
+ geom_line(data = df1, aes(x = Time, y = log(N), col = model), size = 1) +
+ theme(aspect.ratio=1)+ 
+ labs(x = "Time", y = "log(Cell number)")
+
+#The model diverges from the data at the lower end. This wasn't visible in the previous plot where the logistic model was fit in linear (non log) scale. The deviation of the model from the data is so small that it only becomes clear in the log scale. This is because of the way logarithms work. Let's look at this in our cell counts data.
+
+ggplot(data, aes(x = N, y = LogN)) +
+ geom_point(size = 3) +
+ theme(aspect.ratio = 1)+ 
+ labs(x = "N", y = "log(N)")
+
+#The logarithm is a strongly nonlinear transformation of any sequence of real numbers, with small numbers close to zero yielding disproportionately large deviations.
+
+#The reason the logarithmic model deviates from the data is because it assumes the population is growing from the start (Time = 0), while in reality growth begins after the lag phase - this is commonly seen in nature due to the time taken to active growth genes and utilise resources - reproduction is not instantaneous! 
+
+#To capture the lag phase more complicated models like the Gompertz model, have been developed. 
+```
+
+#Step Ten: Fit and compare the Gompertz model
+```{r}
+#define model function
+gompertz_model <- function(t, r_max, K, N_0, t_lag){ # Modified gompertz growth model (Zwietering 1990)
+ return(N_0 + (K - N_0) * exp(-exp(r_max * exp(1) * (t_lag - t)/((K - N_0) * log(10)) + 1)))
+}
+
+#get starting values
+N_0_start <- min(data$LogN) # lowest population size, note log scale
+K_start <- max(data$LogN) # highest population size, note log scale
+r_max_start <- 0.62 # use our previous estimate from the OLS fitting from above
+t_lag_start <- data$Time[which.max(diff(diff(data$LogN)))] # find last timepoint of lag phase
+
+#fit the model
+fit_gompertz <- nlsLM(LogN ~ gompertz_model(t = Time, r_max, K, N_0, t_lag), data,
+      list(t_lag=t_lag_start, r_max=r_max_start, N_0 = N_0_start, K = K_start))
+
+#get model summary
+summary(fit_gompertz)
+
+#plot both models
+
+timepoints <- seq(0, 24, 0.1)
+
+logistic_points <- log(logistic_model(t = timepoints, 
+          r_max = coef(fit_logistic)["r_max"], 
+          K = coef(fit_logistic)["K"], 
+          N_0 = coef(fit_logistic)["N_0"]))
+
+gompertz_points <- gompertz_model(t = timepoints, 
+         r_max = coef(fit_gompertz)["r_max"], 
+         K = coef(fit_gompertz)["K"], 
+         N_0 = coef(fit_gompertz)["N_0"], 
+         t_lag = coef(fit_gompertz)["t_lag"])
+
+df1 <- data.frame(timepoints, logistic_points)
+df1$model <- "Logistic model"
+names(df1) <- c("Time", "LogN", "model")
+
+df2 <- data.frame(timepoints, gompertz_points)
+df2$model <- "Gompertz model"
+names(df2) <- c("Time", "LogN", "model")
+
+model_frame <- rbind(df1, df2)
+
+ggplot(data, aes(x = Time, y = LogN)) +
+ geom_point(size = 3) +
+ geom_line(data = model_frame, aes(x = Time, y = LogN, col = model), size = 1) +
+ theme_bw() + # make the background white
+ theme(aspect.ratio=1)+ # make the plot square 
+ labs(x = "Time", y = "log(Abundance)")
+
+#we can see that the Gompertz model gives a much better fit to the data. It has also estimated r_max = 1.86 which is twice as high as that estimated by logistic model = 0.63. This is because the logistic model ignores the lag phase, including it in the exponential growth phase.
 ```
