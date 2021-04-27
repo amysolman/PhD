@@ -1,0 +1,373 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 12.2' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     14104,        365]
+NotebookOptionsPosition[     10467,        298]
+NotebookOutlinePosition[     10865,        314]
+CellTagsIndexPosition[     10822,        311]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell["Amy\[CloseCurlyQuote]s Guide to Mathematics - from basics to the \
+stars!", "Title",
+ CellChangeTimes->{{3.8284531410191593`*^9, 
+  3.828453155416018*^9}},ExpressionUUID->"957e397c-b6ba-43f6-9ba7-\
+9c4f13e6a64a"],
+
+Cell[CellGroupData[{
+
+Cell["Part One", "Chapter",
+ CellChangeTimes->{{3.828454043459392*^9, 
+  3.82845406749181*^9}},ExpressionUUID->"3fae3980-0c9a-4a66-9730-\
+8efbd47d2a0e"],
+
+Cell[CellGroupData[{
+
+Cell["Section One: Bottom of the Barrel Basic Maths", "Section",
+ CellChangeTimes->{{3.828454069323709*^9, 
+  3.8284540859766483`*^9}},ExpressionUUID->"7383ba9c-4d98-4d0b-ac4a-\
+c0bd494bbb9c"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+These notes are taken from GCSE Mathematics Complete Revision and Practise \
+Book by CGP\
+\>", "Subsection",
+ CellChangeTimes->{{3.828454603356533*^9, 
+  3.828454640901225*^9}},ExpressionUUID->"5ca15b5a-cdde-4ce3-bb8a-\
+65c657a6a9f9"],
+
+Cell[CellGroupData[{
+
+Cell["BODMAS", "Subsubsection",
+ CellChangeTimes->{{3.828453161932433*^9, 
+  3.8284531715303802`*^9}},ExpressionUUID->"01974e67-5097-463c-b6d0-\
+d95be80a97f2"],
+
+Cell["\<\
+We' re going to start off by looking at how BODMAS can help us deal with \
+operations in an equation . BODMAD tells us the order in which to tackle \
+these operations. B = Brackets, O = Other (like squares), D = Division, M = \
+Multiplication, A = Addition, S = Subtraction. 
+EXAMPLE 1
+Let\[CloseCurlyQuote]s try it out! If f = 4, g = 3 and h = -2, what is the \
+answer to the following equation?\
+\>", "Text",
+ CellChangeTimes->{{3.828453178527368*^9, 3.828453331043599*^9}, {
+  3.8284542465068808`*^9, 
+  3.828454265795266*^9}},ExpressionUUID->"df5db92c-49e6-46d3-821f-\
+979593f2ed4c"],
+
+Cell[BoxData[
+ StyleBox[
+  RowBox[{
+   RowBox[{"e", " ", "=", " ", Cell[BoxData[
+     FormBox[
+      RowBox[{
+       SuperscriptBox[
+        RowBox[{"(", 
+         RowBox[{"f", " ", "-", " ", "7"}], ")"}], "2"], "+", " ", 
+       FractionBox[
+        RowBox[{"4", "g"}], 
+        RowBox[{"h", " ", "+", " ", "1"}]]}], TraditionalForm]], "Input",
+     ExpressionUUID->"2b06a2dc-570b-48f8-a722-9d7080844b90"]}], ";"}], 
+  "Input"]], "Input",
+ CellChangeTimes->{{3.828451151263712*^9, 3.828451581768869*^9}, {
+  3.828451626957559*^9, 3.828451659968171*^9}, {3.8284518440334463`*^9, 
+  3.828451844785808*^9}, {3.828453295338887*^9, 3.828453300305808*^9}},
+ CellLabel->"In[11]:=",ExpressionUUID->"4ea8072d-30d0-444f-93d4-ba3eebc22eba"],
+
+Cell["Let\[CloseCurlyQuote]s replace the letters with the numbers we know \
+so...", "Text",
+ CellChangeTimes->{{3.828453335983666*^9, 3.828453345241878*^9}, {
+  3.8284533927754383`*^9, 3.828453399899156*^9}, {3.828453432971541*^9, 
+  3.828453469452999*^9}, {3.828453556714493*^9, 3.828453573731567*^9}, {
+  3.828453699433476*^9, 3.828453707645698*^9}, {3.828453750791739*^9, 
+  3.8284537744610147`*^9}},ExpressionUUID->"b663f251-f2c0-40d2-998e-\
+e693b7c02845"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"e", " ", "=", " ", 
+   RowBox[{
+    SuperscriptBox[
+     RowBox[{"(", 
+      RowBox[{"4", " ", "-", " ", "7"}], ")"}], "2"], "+", " ", 
+    FractionBox[
+     RowBox[{"4", "*", "3"}], 
+     RowBox[{
+      RowBox[{"-", "2"}], " ", "+", " ", "1"}]]}]}], ";"}]], "Input",
+ CellChangeTimes->{{3.828453782569625*^9, 3.828453845053947*^9}},
+ CellLabel->"In[14]:=",ExpressionUUID->"6b01a229-b532-45bb-88e3-7f8c418c2439"],
+
+Cell["\<\
+So, let' s try and solve it in our head . Deal with the brackets first, which \
+is (4-7) = -3. Then other which in this case is the square so -3^2 = 9. Then \
+we deal with division, but to divide we need to know the numerator and \
+denominator. Remember, around the top and bottom of a fraction are \
+\[OpenCurlyQuote]invisible\[CloseCurlyQuote] brackets, so we need to work out \
+the top and bottom before we continue. So 4*3 = 12 and -2 + 1 = -1 so 12/-1 = \
+-12 so we have 9 + -12 = -3. Let\[CloseCurlyQuote]s enter e and see if we got \
+the right answer! \
+\>", "Text",
+ CellChangeTimes->{{3.828453852265834*^9, 3.828454007762129*^9}, {
+  3.828454135256462*^9, 
+  3.828454181776121*^9}},ExpressionUUID->"b26e2717-09ca-438c-a0e9-\
+4269ea410319"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData["e"], "Input",
+ CellChangeTimes->{3.828454010147883*^9},
+ CellLabel->"In[15]:=",ExpressionUUID->"2c9ae128-eb9c-4474-b8f8-7f203da1d4f8"],
+
+Cell[BoxData[
+ RowBox[{"-", "3"}]], "Output",
+ CellChangeTimes->{3.828454011559926*^9},
+ CellLabel->"Out[15]=",ExpressionUUID->"beb72b18-2299-49fe-81f3-30507db5617c"]
+}, Open  ]],
+
+Cell["\<\
+Hey! Amazing! Using BODMAS we got the right answer.
+EXAMPLE 2
+If a motorbike is brought for \[Sterling]6300 and depreciates in value by 45% \
+over 3 years, how much is it worth at the end of three years? We know that \
+100% of the bike\[CloseCurlyQuote]s worth = 6300. We want to work out 55%. So \
+if we divide each side by 100 then times each side by 55, \
+we\[CloseCurlyQuote]ll get the current value of the bike on the right hand \
+side of the equation. Let\[CloseCurlyQuote]s try it!\
+\>", "Text",
+ CellChangeTimes->{{3.828454015451447*^9, 3.828454026841227*^9}, {
+  3.8284542684944677`*^9, 
+  3.8284544032069893`*^9}},ExpressionUUID->"360e2b99-fbe4-421b-a1c0-\
+be1f57f1c0e1"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"b", " ", "=", " ", "6300"}], ";"}]], "Input",
+ CellChangeTimes->{{3.828454406303266*^9, 3.8284544101879597`*^9}},
+ CellLabel->"In[16]:=",ExpressionUUID->"c9489883-3894-4fcc-bb77-c10bd0db0a5b"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"b", "/", "100"}], "*", "55"}]], "Input",
+ CellChangeTimes->{{3.8284544215774517`*^9, 3.828454425045814*^9}},
+ CellLabel->"In[17]:=",ExpressionUUID->"cfd6d1f5-05b5-4f7d-acb5-e12caabbb74c"],
+
+Cell[BoxData["3465"], "Output",
+ CellChangeTimes->{3.828454426382728*^9},
+ CellLabel->"Out[17]=",ExpressionUUID->"588c9336-cebe-45cc-ad65-6809fbf3c69e"]
+}, Open  ]],
+
+Cell["\<\
+Yes, that' s the correct answer! We can also multiply the starting value by \
+0.45 to get 45% of the value, then subtract this from the original value.\
+\>", "Text",
+ CellChangeTimes->{{3.8284544363920097`*^9, 
+  3.828454494099163*^9}},ExpressionUUID->"24bfdd4d-8049-4b7b-8709-\
+5c36e5b2cef7"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"reduction", " ", "=", " ", 
+   RowBox[{"b", " ", "*", " ", "0.45"}]}], ";"}]], "Input",
+ CellChangeTimes->{{3.828454497890383*^9, 3.828454510894516*^9}},
+ CellLabel->"In[18]:=",ExpressionUUID->"72740fd7-8fef-45b3-871c-f56a1bf15530"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"b", " ", "-", " ", "reduction"}]], "Input",
+ CellChangeTimes->{{3.828454514181027*^9, 3.828454516649795*^9}},
+ CellLabel->"In[19]:=",ExpressionUUID->"ed16ee78-61b5-493b-a432-6dd3f4fe6ec5"],
+
+Cell[BoxData["3465.`"], "Output",
+ CellChangeTimes->{3.828454518173572*^9},
+ CellLabel->"Out[19]=",ExpressionUUID->"bf079492-e1b4-4de2-9a69-b56521d08a04"]
+}, Open  ]],
+
+Cell["We get the same answer!", "Text",
+ CellChangeTimes->{{3.828454521177926*^9, 
+  3.828454527282596*^9}},ExpressionUUID->"a8c3609d-5532-4635-b94f-\
+ef249f8eee31"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["", "Section",
+ CellChangeTimes->{{3.8284545954216843`*^9, 3.828454598669945*^9}, 
+   3.828454659321027*^9, 
+   3.828454737204329*^9},ExpressionUUID->"db2a329b-7850-4844-9aae-\
+e5fb809830cf"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.828453668996413*^9, 3.8284536939912977`*^9}, 
+   3.828453769772106*^9},ExpressionUUID->"92b0bdaf-c552-4a88-8824-\
+d3cb7cd33eec"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.828453734560413*^9, 
+  3.828453765683505*^9}},ExpressionUUID->"ba8c489b-9686-4d00-a20d-\
+8edf390d640b"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ FormBox["", InputForm]], "Input",
+ CellChangeTimes->{{3.828453478866137*^9, 3.828453498434044*^9}, {
+  3.828453621589456*^9, 3.8284536313746367`*^9}},
+ EmphasizeSyntaxErrors->True,
+ CellLabel->"In[20]:=",ExpressionUUID->"ad9ed934-c90b-42dd-afa0-620d566106a0"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "MakeExpression", "boxfmt", 
+   "\"\\!\\(\\*RowBox[{\\\"InputForm\\\"}]\\) in \
+\\!\\(\\*RowBox[{\\\"MakeExpression\\\", \\\"[\\\", \
+RowBox[{\\\"\\\\\\\"\\\\\\\"\\\", \\\",\\\", \\\"InputForm\\\"}], \\\"]\\\"}]\
+\\) is not a box formatting type. A box formatting type is any member of \
+$BoxForms.\"", 2, 20, 11, 28126007300889876201, "Local"},
+  "MessageTemplate"]], "Message", "MSG",
+ CellChangeTimes->{{3.828453493092978*^9, 3.828453500751623*^9}, {
+  3.8284536247277822`*^9, 3.828453634139906*^9}, {3.828454714385046*^9, 
+  3.828454715262002*^9}},
+ CellLabel->
+  "During evaluation of \
+In[20]:=",ExpressionUUID->"91af27d7-38a4-4a65-944b-ce416bb0ec4a"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "Syntax", "sntxi", 
+   "\"Incomplete expression; more input is needed \\!\\(\\*RowBox[{\\\"\\\\\\\
+\"\\\\\\\"\\\"}]\\).\"", 2, 20, 12, 28126007300889876201, "Local"},
+  "MessageTemplate"]], "Message", "MSG",
+ CellChangeTimes->{{3.828453493092978*^9, 3.828453500751623*^9}, {
+  3.8284536247277822`*^9, 3.828453634139906*^9}, {3.828454714385046*^9, 
+  3.82845471526923*^9}},
+ CellLabel->
+  "During evaluation of \
+In[20]:=",ExpressionUUID->"00f40b7c-02bb-4b23-93f4-aab19c9ed2e2"]
+}, Open  ]],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8284533538991737`*^9, 3.828453379160593*^9}, 
+   3.828453427911845*^9},ExpressionUUID->"de8d3172-8b9a-4764-8c07-\
+a4d369308c1e"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.828454741281695*^9, 
+  3.828454743889036*^9}},ExpressionUUID->"33b5a999-6772-44f7-bc3a-\
+ab4ac6d697cb"],
+
+Cell[CellGroupData[{
+
+Cell["Types of Numbers", "Subsubsection",
+ CellChangeTimes->{{3.8284547464057503`*^9, 
+  3.828454753397233*^9}},ExpressionUUID->"85ebe920-1d1f-437a-96c6-\
+add3f1a3a117"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{
+  3.82845481410207*^9},ExpressionUUID->"8ef9d62e-1be1-48c2-a6d4-7414d6080eb2"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8284534229073057`*^9, 
+  3.8284534256143713`*^9}},ExpressionUUID->"4928e229-f304-4bcf-9a3f-\
+2f5e438cb3ad"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+},
+WindowSize->{808, 666},
+WindowMargins->{{278, Automatic}, {Automatic, 39}},
+FrontEndVersion->"12.2 for Mac OS X x86 (64-bit) (December 12, 2020)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"659a6483-525f-43b4-930b-c86206f5262a"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 218, 4, 160, "Title",ExpressionUUID->"957e397c-b6ba-43f6-9ba7-9c4f13e6a64a"],
+Cell[CellGroupData[{
+Cell[823, 30, 152, 3, 69, "Chapter",ExpressionUUID->"3fae3980-0c9a-4a66-9730-8efbd47d2a0e"],
+Cell[CellGroupData[{
+Cell[1000, 37, 192, 3, 67, "Section",ExpressionUUID->"7383ba9c-4d98-4d0b-ac4a-c0bd494bbb9c"],
+Cell[CellGroupData[{
+Cell[1217, 44, 244, 6, 81, "Subsection",ExpressionUUID->"5ca15b5a-cdde-4ce3-bb8a-65c657a6a9f9"],
+Cell[CellGroupData[{
+Cell[1486, 54, 159, 3, 45, "Subsubsection",ExpressionUUID->"01974e67-5097-463c-b6d0-d95be80a97f2"],
+Cell[1648, 59, 597, 12, 127, "Text",ExpressionUUID->"df5db92c-49e6-46d3-821f-979593f2ed4c"],
+Cell[2248, 73, 730, 17, 37, "Input",ExpressionUUID->"4ea8072d-30d0-444f-93d4-ba3eebc22eba"],
+Cell[2981, 92, 460, 7, 35, "Text",ExpressionUUID->"b663f251-f2c0-40d2-998e-e693b7c02845"],
+Cell[3444, 101, 447, 12, 47, "Input",ExpressionUUID->"6b01a229-b532-45bb-88e3-7f8c418c2439"],
+Cell[3894, 115, 758, 13, 127, "Text",ExpressionUUID->"b26e2717-09ca-438c-a0e9-4269ea410319"],
+Cell[CellGroupData[{
+Cell[4677, 132, 148, 2, 30, "Input",ExpressionUUID->"2c9ae128-eb9c-4474-b8f8-7f203da1d4f8"],
+Cell[4828, 136, 166, 3, 34, "Output",ExpressionUUID->"beb72b18-2299-49fe-81f3-30507db5617c"]
+}, Open  ]],
+Cell[5009, 142, 691, 13, 150, "Text",ExpressionUUID->"360e2b99-fbe4-421b-a1c0-be1f57f1c0e1"],
+Cell[5703, 157, 227, 4, 30, "Input",ExpressionUUID->"c9489883-3894-4fcc-bb77-c10bd0db0a5b"],
+Cell[CellGroupData[{
+Cell[5955, 165, 222, 4, 30, "Input",ExpressionUUID->"cfd6d1f5-05b5-4f7d-acb5-e12caabbb74c"],
+Cell[6180, 171, 152, 2, 34, "Output",ExpressionUUID->"588c9336-cebe-45cc-ad65-6809fbf3c69e"]
+}, Open  ]],
+Cell[6347, 176, 303, 6, 58, "Text",ExpressionUUID->"24bfdd4d-8049-4b7b-8709-5c36e5b2cef7"],
+Cell[6653, 184, 267, 5, 30, "Input",ExpressionUUID->"72740fd7-8fef-45b3-871c-f56a1bf15530"],
+Cell[CellGroupData[{
+Cell[6945, 193, 212, 3, 30, "Input",ExpressionUUID->"ed16ee78-61b5-493b-a432-6dd3f4fe6ec5"],
+Cell[7160, 198, 154, 2, 34, "Output",ExpressionUUID->"bf079492-e1b4-4de2-9a69-b56521d08a04"]
+}, Open  ]],
+Cell[7329, 203, 165, 3, 35, "Text",ExpressionUUID->"a8c3609d-5532-4635-b94f-ef249f8eee31"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[7555, 213, 196, 4, 67, "Section",ExpressionUUID->"db2a329b-7850-4844-9aae-e5fb809830cf"],
+Cell[7754, 219, 177, 3, 30, "Input",ExpressionUUID->"92b0bdaf-c552-4a88-8824-d3cb7cd33eec"],
+Cell[7934, 224, 152, 3, 30, "Input",ExpressionUUID->"ba8c489b-9686-4d00-a20d-8edf390d640b"],
+Cell[CellGroupData[{
+Cell[8111, 231, 274, 5, 30, "Input",ExpressionUUID->"ad9ed934-c90b-42dd-afa0-620d566106a0"],
+Cell[8388, 238, 688, 14, 39, "Message",ExpressionUUID->"91af27d7-38a4-4a65-944b-ce416bb0ec4a"],
+Cell[9079, 254, 508, 11, 24, "Message",ExpressionUUID->"00f40b7c-02bb-4b23-93f4-aab19c9ed2e2"]
+}, Open  ]],
+Cell[9602, 268, 177, 3, 30, "Input",ExpressionUUID->"de8d3172-8b9a-4764-8c07-a4d369308c1e"],
+Cell[9782, 273, 152, 3, 30, "Input",ExpressionUUID->"33b5a999-6772-44f7-bc3a-ab4ac6d697cb"],
+Cell[CellGroupData[{
+Cell[9959, 280, 169, 3, 45, "Subsubsection",ExpressionUUID->"85ebe920-1d1f-437a-96c6-add3f1a3a117"],
+Cell[10131, 285, 125, 2, 30, "Input",ExpressionUUID->"8ef9d62e-1be1-48c2-a6d4-7414d6080eb2"],
+Cell[10259, 289, 156, 3, 30, InheritFromParent,ExpressionUUID->"4928e229-f304-4bcf-9a3f-2f5e438cb3ad"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}
+]
+*)
+

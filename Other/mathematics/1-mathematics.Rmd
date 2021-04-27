@@ -1,0 +1,11 @@
+---
+title: "Mathematics - One - Numbers"
+author: "Amy Solman"
+date: "26/04/2021"
+output: html_document
+---
+This is an R markdown script with my notes on mathematics
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
