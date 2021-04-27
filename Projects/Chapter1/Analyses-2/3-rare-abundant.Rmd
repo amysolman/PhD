@@ -1,0 +1,12 @@
+---
+title: "Rare and Abundant"
+author: "Amy Solman"
+date: "27/04/2021"
+output: html_document
+---
+
+#Script differentiating between rare and abundant ASVs in a data set
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+

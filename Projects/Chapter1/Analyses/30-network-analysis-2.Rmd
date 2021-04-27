@@ -1,0 +1,27 @@
+---
+title: "Network Analysis"
+author: "Amy Solman"
+date: "27/04/2021"
+output: html_document
+---
+
+#This script follows the guide/tutorial for NetComI package available at: https://github.com/stefpeschel/NetCoMi
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+#install.packages("devtools")
+library(devtools)
+
+devtools::install_github("stefpeschel/NetCoMi", dependencies = TRUE,
+                         repos = c("https://cloud.r-project.org/",
+                                   BiocManager::repositories()))
+
+library(NetCoMi)
+
+```

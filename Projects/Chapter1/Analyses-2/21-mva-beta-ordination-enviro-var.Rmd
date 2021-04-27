@@ -1,0 +1,572 @@
+---
+title: "MVA Beta Ordination Enviro Variables"
+author: "Amy Solman"
+date: "21/04/2021"
+output: html_document
+---
+#This script will look at the impact of environmental variables on community composition 
+#Script developed from that of Barnett et al., (2020) code available at https://github.com/seb369/landuse_comm_assembly/
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tibble)
+library(ggpubr)
+library(phyloseq)
+library(ape)
+library(vegan)
+library(ggrepel)
+```
+
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+#hole area - calculate and add to dataframe
+#Method as per Darcy et al (2018)
+metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+metadata$area <- metadata$area*10000
+
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+```
+
+#Step Three: Rarefy data and get relative abundances
+```{r}
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Step Four: Get your data together for analysis
+```{r}
+#Glacier shapes
+Glacier.shapes = c("Canada" = 15, "Taylor" = 16)
+
+#which enviro variables am I going to look at:
+#hole area
+#pH
+#Chlorophyll
+#Organic matter content
+#Water content
+#DNA per gram
+
+#Get the glacier metadata
+meta.data = data.frame(sample_data(my.ps.rar.rel), stringsAsFactors = F)
+#meta.data$area <- hole_area_cm2
+meta.data$pH <- as.numeric(meta.data$pH)
+meta.data$DNA_per_g <- as.numeric(meta.data$DNA_per_g)
+
+#%>%
+  # rename(soil_temp = in_situ_soil_temp,
+  #        percent_organic_matter = organic_content_perc,
+  #        sand = sand__perc, silt = silt__perc, clay = clay__perc) %>%
+  # mutate(C.N_ratio = percent_C/percent_N,
+  #        location = gsub("_", " ", location))
+
+# ecosystem.conv = data.frame(ecosystem = c("agriculture", "meadow", "forest"), ecosystem2 = c("Cropland", "Old-field", "Forest"))
+# metadata = left_join(metadata, ecosystem.conv)
+# metadata$ecosystem2 = factor(metadata$ecosystem2, levels = c("Cropland", "Old-field", "Forest"))
+# 
+# metadata$ecosystem = factor(metadata$ecosystem, levels = c("agriculture", "meadow", "forest"))
+```
+
+#Step Five: Compare cryoconite hole area between the glaciers
+```{r}
+#First get our summary statistics
+summary.stats.area <- group_by(meta.data, Glacier) %>%
+  summarise(
+    count = n(),
+    mean = mean(area, na.rm = TRUE),
+    sd = sd(area, na.rm = TRUE)
+  )
+
+#Then plot our glaciers
+my.plot.area <- ggboxplot(meta.data, x = "Glacier", y = "area",
+          color="Glacier", palette = c("#00AFBB", "#E7B800"),
+          ylab="Cryoconite Hole Area (cm2)", xlab = "Glacier")
+
+my.plot.area
+
+#ASUMPTION 1: ARE THE GROUPS INDEPENDENT?
+#Yes the glacier samples are independent.
+
+#ASSUMPTION 2: ARE THE GROUPS NORMALLY DISTRIBUTED?
+#Should I use parameteric or non-parametric tests?
+#We're going to use a Shapiro-Wilk's Test to see if the data is normally distributed for each group
+
+with(meta.data, shapiro.test(area[Glacier == "Canada"])) #p=0.003 (p < 0.05) so the distribution of the data are significantly different from normal distribution so we can use NON-PARAMETRIC tests.
+with(meta.data, shapiro.test(area[Glacier == "Taylor"])) #p=0.0006 (p < 0.05) so the distribution of the data are significantly different from normal distribution so we can use NONPARAMETRIC tests.
+
+#UNPARIED TWO SAMPLES WILCOXON TEST (NON-PARAMTEROC)
+#Let's look at the non-parametric result
+my.wilcoxon.test <- wilcox.test(area ~ Glacier, data = meta.data, exact = FALSE)
+my.wilcoxon.test # p = 0.7966 so p > 0.05, there is no significant difference between cryoconite hole areas of the two glaciers.
+```
+
+#Step Six: Plot area data
+```{r}
+area.plot = ggplot(data=meta.data, aes(x=Glacier, y=area))+
+  geom_boxplot(outlier.shape=NA) +
+  geom_jitter(aes(shape = Glacier, colour=Glacier), width = 0.2, alpha=0.3, size=2) +
+  scale_shape_manual(values = Glacier.shapes) +
+  labs(x="Glacier", y="Cryoconite Hole Area (cm2)", title="Area") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(size=12),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+area.plot
+ggsave("../Outputs/Sommers2020/graphs/cryoconite-area-glacier.pdf", width=8, height=4)
+```
+
+#Step Seven: pH between the glaciers
+```{r}
+#First get our summary statistics
+summary.stats.pH <- group_by(meta.data, Glacier) %>%
+  summarise(
+    count = n(),
+    mean = mean(pH, na.rm = TRUE),
+    sd = sd(pH, na.rm = TRUE)
+  )
+
+#Then plot our glaciers
+my.plot.pH <- ggboxplot(meta.data, x = "Glacier", y = "pH",
+          color="Glacier", palette = c("#00AFBB", "#E7B800"),
+          ylab="pH", xlab = "Glacier")
+
+my.plot.pH
+
+#ASUMPTION 1: ARE THE GROUPS INDEPENDENT?
+#Yes the glacier samples are independent.
+
+#ASSUMPTION 2: ARE THE GROUPS NORMALLY DISTRIBUTED?
+#Should I use parameteric or non-parametric tests?
+#We're going to use a Shapiro-Wilk's Test to see if the data is normally distributed for each group
+
+with(meta.data, shapiro.test(pH[Glacier == "Canada"])) #p=0.378 (p > 0.05) so the distribution of the data are not significantly different from normal distribution so we can use PARAMETRIC tests.
+with(meta.data, shapiro.test(pH[Glacier == "Taylor"])) #p=0.7411 (p > 0.05) so the distribution of the data are not significantly different from normal distribution so we can use PARAMETRIC tests.
+
+#ASSUMPTION 3: DO THE TWO POPULATIONS HAVE THE SAME VARIANCES?
+#Use F-test to test for homogeneity in variances
+f.test <- var.test(pH ~ Glacier, data = meta.data)
+f.test #p value = 0.03839 which is less than 0.05 so there is a significant difference in the variances of the two datasets. Because the variances of the two groups are unequal we must use Welch's t-test (just omit the var.equal = TRUE bit)
+
+#WELCH'S T-TEST
+my.t.test <- t.test(pH ~ Glacier, data = meta.data)
+my.t.test #p = 0.0785 P< 0.05 so there is a significant difference in the pH of the two glaciers
+```
+
+#Step Eight: Plot pH data
+```{r}
+pH.plot = ggplot(data=meta.data, aes(x=Glacier, y=pH))+
+  geom_boxplot(outlier.shape=NA) +
+  geom_jitter(aes(shape = Glacier, colour=Glacier), width = 0.2, alpha=0.3, size=2) +
+  scale_shape_manual(values = Glacier.shapes) +
+  labs(x="Glacier", y="pH", title="pH") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(size=12),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+pH.plot
+ggsave("../Outputs/Sommers2020/graphs/pH-glacier.pdf", width=8, height=4)
+```
+
+#Step Nine: Compare chlorophyll between the glaciers
+```{r}
+#First get our summary statistics
+summary.stats.cho <- group_by(meta.data, Glacier) %>%
+  summarise(
+    count = n(),
+    mean = mean(Chlorophyll, na.rm = TRUE),
+    sd = sd(Chlorophyll, na.rm = TRUE)
+  )
+
+#Then plot our glaciers
+my.plot.cho <- ggboxplot(meta.data, x = "Glacier", y = "Chlorophyll",
+          color="Glacier", palette = c("#00AFBB", "#E7B800"),
+          ylab="Chlorophyll", xlab = "Glacier")
+
+my.plot.cho
+
+#ASUMPTION 1: ARE THE GROUPS INDEPENDENT?
+#Yes the glacier samples are independent.
+
+#ASSUMPTION 2: ARE THE GROUPS NORMALLY DISTRIBUTED?
+#Should I use parameteric or non-parametric tests?
+#We're going to use a Shapiro-Wilk's Test to see if the data is normally distributed for each group
+
+with(meta.data, shapiro.test(Chlorophyll[Glacier == "Canada"])) #p=0.0006 (p < 0.05) so the distribution of the data are significantly different from normal distribution so we can use NON-PARAMETRIC tests.
+with(meta.data, shapiro.test(Chlorophyll[Glacier == "Taylor"])) #p=0.004 (p < 0.05) so the distribution of the data are significantly different from normal distribution so we can use NONPARAMETRIC tests.
+
+#UNPARIED TWO SAMPLES WILCOXON TEST (NON-PARAMTEROC)
+#Let's look at the non-parametric result
+my.wilcoxon.test <- wilcox.test(Chlorophyll ~ Glacier, data = meta.data, exact = FALSE)
+my.wilcoxon.test # p = 0.141 so p > 0.05, there is no significant difference between cryoconite hole areas of the two glaciers.
+```
+
+#Step Ten: Plot chlorophyll data
+```{r}
+cho.plot = ggplot(data=meta.data, aes(x=Glacier, y=Chlorophyll))+
+  geom_boxplot(outlier.shape=NA) +
+  geom_jitter(aes(shape = Glacier, colour=Glacier), width = 0.2, alpha=0.3, size=2) +
+  scale_shape_manual(values = Glacier.shapes) +
+  labs(x="Glacier", y="Chlorophyll", title="Chlorophyll") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(size=12),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+cho.plot
+ggsave("../Outputs/Sommers2020/graphs/chlorophyll-glacier.pdf", width=8, height=4)
+```
+
+#Step Eleven: Compare organic matter content between the glaciers
+```{r}
+#First get our summary statistics
+summary.stats.org <- group_by(meta.data, Glacier) %>%
+  summarise(
+    count = n(),
+    mean = mean(org_matter, na.rm = TRUE),
+    sd = sd(org_matter, na.rm = TRUE)
+  )
+
+#Then plot our glaciers
+my.plot.org <- ggboxplot(meta.data, x = "Glacier", y = "org_matter",
+          color="Glacier", palette = c("#00AFBB", "#E7B800"),
+          ylab="Organic Matter Content", xlab = "Glacier")
+
+my.plot.org
+
+#ASUMPTION 1: ARE THE GROUPS INDEPENDENT?
+#Yes the glacier samples are independent.
+
+#ASSUMPTION 2: ARE THE GROUPS NORMALLY DISTRIBUTED?
+#Should I use parameteric or non-parametric tests?
+#We're going to use a Shapiro-Wilk's Test to see if the data is normally distributed for each group
+
+with(meta.data, shapiro.test(org_matter[Glacier == "Canada"])) #p=0.03 (p < 0.05) so the distribution of the data are significantly different from normal distribution so we can use NON-PARAMETRIC tests.
+with(meta.data, shapiro.test(org_matter[Glacier == "Taylor"])) #p=0.7224 (p > 0.05) so the distribution of the data are not significantly different from normal distribution so we can use PARAMETRIC tests.
+
+#UNPARIED TWO SAMPLES WILCOXON TEST (NON-PARAMTEROC)
+#Let's look at the non-parametric result
+my.wilcoxon.test <- wilcox.test(org_matter ~ Glacier, data = meta.data, exact = FALSE)
+my.wilcoxon.test # p = 0.000000838 so p < 0.05, there is a significant difference between organic matter content of the two glaciers.
+```
+
+#Step Twelve: Plot organic matter content data
+```{r}
+org.plot = ggplot(data=meta.data, aes(x=Glacier, y=org_matter))+
+  geom_boxplot(outlier.shape=NA) +
+  geom_jitter(aes(shape = Glacier, colour=Glacier), width = 0.2, alpha=0.3, size=2) +
+  scale_shape_manual(values = Glacier.shapes) +
+  labs(x="Glacier", y="Organic Matter Content", title="Org Matter") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(size=12),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+org.plot
+ggsave("../Outputs/Sommers2020/graphs/organic-matter-glacier.pdf", width=8, height=4)
+```
+
+#Step Thirteen: Compare water content between the glaciers
+```{r}
+#First get our summary statistics
+summary.stats.water <- group_by(meta.data, Glacier) %>%
+  summarise(
+    count = n(),
+    mean = mean(water_content, na.rm = TRUE),
+    sd = sd(water_content, na.rm = TRUE)
+  )
+
+#Then plot our glaciers
+my.plot.water <- ggboxplot(meta.data, x = "Glacier", y = "water_content",
+          color="Glacier", palette = c("#00AFBB", "#E7B800"),
+          ylab="Water Content", xlab = "Glacier")
+
+my.plot.water
+
+#ASUMPTION 1: ARE THE GROUPS INDEPENDENT?
+#Yes the glacier samples are independent.
+
+#ASSUMPTION 2: ARE THE GROUPS NORMALLY DISTRIBUTED?
+#Should I use parameteric or non-parametric tests?
+#We're going to use a Shapiro-Wilk's Test to see if the data is normally distributed for each group
+
+with(meta.data, shapiro.test(water_content[Glacier == "Canada"])) #p=0.957 (p > 0.05) so the distribution of the data are not significantly different from normal distribution so we can use PARAMETRIC tests.
+with(meta.data, shapiro.test(water_content[Glacier == "Taylor"])) #p=0.00005 (p < 0.05) so the distribution of the data are significantly different from normal distribution so we can use NONPARAMETRIC tests.
+
+#UNPARIED TWO SAMPLES WILCOXON TEST (NON-PARAMTEROC)
+#Let's look at the non-parametric result
+my.wilcoxon.test <- wilcox.test(water_content ~ Glacier, data = meta.data, exact = FALSE)
+my.wilcoxon.test # p = 0.000004 so p < 0.05, there is a significant difference between water content of the two glaciers.
+```
+
+#Step Fourteen: Plot water content data
+```{r}
+water.plot = ggplot(data=meta.data, aes(x=Glacier, y=water_content))+
+  geom_boxplot(outlier.shape=NA) +
+  geom_jitter(aes(shape = Glacier, colour=Glacier), width = 0.2, alpha=0.3, size=2) +
+  scale_shape_manual(values = Glacier.shapes) +
+  labs(x="Glacier", y="Water Content", title="Water") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(size=12),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+water.plot
+ggsave("../Outputs/Sommers2020/graphs/water-content-glacier.pdf", width=8, height=4)
+```
+
+#Step Fifteen: Compare DNA per gram cryoconite between the glaciers
+```{r}
+#First get our summary statistics
+summary.stats.dna <- group_by(meta.data, Glacier) %>%
+  summarise(
+    count = n(),
+    mean = mean(DNA_per_g, na.rm = TRUE),
+    sd = sd(DNA_per_g, na.rm = TRUE)
+  )
+
+#Then plot our glaciers
+my.plot.dna <- ggboxplot(meta.data, x = "Glacier", y = "DNA_per_g",
+          color="Glacier", palette = c("#00AFBB", "#E7B800"),
+          ylab="DNA per gram", xlab = "Glacier")
+
+my.plot.dna
+
+#ASUMPTION 1: ARE THE GROUPS INDEPENDENT?
+#Yes the glacier samples are independent.
+
+#ASSUMPTION 2: ARE THE GROUPS NORMALLY DISTRIBUTED?
+#Should I use parameteric or non-parametric tests?
+#We're going to use a Shapiro-Wilk's Test to see if the data is normally distributed for each group
+
+with(meta.data, shapiro.test(DNA_per_g[Glacier == "Canada"])) #p=0.002 (p < 0.05) so the distribution of the data are significantly different from normal distribution so we can use NONPARAMETRIC tests.
+with(meta.data, shapiro.test(DNA_per_g[Glacier == "Taylor"])) #p=0.00002 (p < 0.05) so the distribution of the data are significantly different from normal distribution so we can use NONPARAMETRIC tests.
+
+#UNPARIED TWO SAMPLES WILCOXON TEST (NON-PARAMTEROC)
+#Let's look at the non-parametric result
+my.wilcoxon.test <- wilcox.test(DNA_per_g ~ Glacier, data = meta.data, exact = FALSE)
+my.wilcoxon.test # p = 0.7966 so p > 0.05, there is no significant difference between cryoconite hole areas of the two glaciers.
+```
+
+#Step Sixteen: Plot dna data
+```{r}
+dna.plot = ggplot(data=meta.data, aes(x=Glacier, y=DNA_per_g))+
+  geom_boxplot(outlier.shape=NA) +
+  geom_jitter(aes(shape = Glacier, colour=Glacier), width = 0.2, alpha=0.3, size=2) +
+  scale_shape_manual(values = Glacier.shapes) +
+  labs(x="Glacier", y="DNA per gram cryoconite", title="DNA") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(size=12),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+dna.plot
+ggsave("../Outputs/Sommers2020/graphs/dna-glacier.pdf", width=8, height=4)
+```
+
+#Step Seventeen: Plot all together and save
+```{r}
+# Now plot all together
+glacier.properties.plot = cowplot::plot_grid(area.plot, cho.plot, dna.plot, org.plot, pH.plot, water.plot, ncol = 6, rel_widths = c(1,1,1,1,1,1))
+glacier.properties.plot
+ggsave("../Outputs/Sommers2020/graphs/all-enviro-var-plots.pdf", width=8, height=4)
+
+```
+
+#Step Eighteen: Use canonical analysis of principal coordinates (CAP) to explore how differences in community composition are explained by environmental variables - for Canada Glacier ONLY
+```{r}
+#Run CAP analysis for Canada Glacier
+my.ps.can = subset_samples(my.ps.rar.rel, Glacier == "Canada")
+  
+  meta = data.frame(sample_data(my.ps.can), stringsAsFactors = F) 
+  #meta$area <- meta.data$area[meta.data$Glacier == "Canada"]
+  
+  rownames(meta) = meta$Run
+  sample_data(my.ps.can) = sample_data(meta)
+  
+  # Extract which habitat you are looking at
+  glacier = unique(as.character(meta$Glacier))[1]
+  
+  writeLines(paste("Running", glacier, "\n"))
+  
+    #remove samples with missing data
+ my.ps.can = subset_samples(my.ps.can, org_matter != "NA")
+ my.ps.can = subset_samples(my.ps.can, water_content != "NA")
+  my.ps.can <- subset_samples(my.ps.can, Chlorophyll != "NA")
+  
+  # Get weighted unifrac distance matrix
+  wuf.dist = phyloseq::distance(my.ps.can, "wunifrac")
+  
+
+  # Ordinate
+  set.seed(1961)
+  cap_ord.full <- ordinate(physeq = my.ps.can, method = "CAP", distance = wuf.dist, 
+                      formula = ~ DNA_per_g + pH + area + Chlorophyll + org_matter + water_content) 
+  
+  set.seed(1961)
+  cap_ord.null <- ordinate(physeq = my.ps.can, method = "CAP", distance = wuf.dist, formula = ~ 1)
+  
+  # Model selection to get just significant variables
+  set.seed(1961)
+  ordistep.res = ordistep(cap_ord.null, scope = formula(cap_ord.full), perm.max = 1000, trace=F)
+  
+  goodform = ordistep.res$call$formula
+  
+  set.seed(1961)
+  cap_ord <- ordinate(physeq = my.ps.can, method = "CAP", distance = wuf.dist, formula = goodform)
+  
+  # CAP plot
+  cap_plot <- plot_ordination(physeq = my.ps.can, ordination = cap_ord, 
+                              color = "Glacier", axes = c(1,2))
+  
+  # Now add the environmental variables as arrows
+  arrowmat <- vegan::scores(cap_ord, display = "bp")
+  
+  # Add labels, make a data.frame
+  arrowdf <- data.frame(labels = rownames(arrowmat), arrowmat) %>%
+    mutate(labels = gsub("\\.", ":", labels))
+  colnames(arrowdf) = c("labels", "xend", "yend")
+  
+  # Define the arrow aesthetic mapping
+  arrow_map <- aes(xend = xend, yend = yend, x = 0, y = 0, 
+                   color = NULL)
+  
+  label_map <- aes(x = 1.1 * xend, y = 1.1 * yend, 
+                   color = NULL, label = labels)
+  
+  arrowhead = arrow(length = unit(0.02, "npc"))
+  
+  # Make a new graphic
+  cap_plot_1 = cap_plot + 
+    geom_segment(mapping = arrow_map, size = .5, data = arrowdf, color = "red", arrow = arrowhead) + 
+    geom_text_repel(mapping = label_map, size = 4, data = arrowdf, color = "red", show.legend = FALSE) +
+    ggtitle("Canada")
+  print(cap_plot_1)
+  ggsave("../Outputs/Sommers2020/graphs/CAP-canada.pdf", width=8, height=4)
+  
+  print(anova(cap_ord))
+  
+  writeLines(paste("\nTested environmental variabibles explain", round(100*RsquareAdj(cap_ord)$r.squared, 3), "% of the variation"))
+  writeLines("\n--------------------\n")
+
+```
+
+#Step Nineteen: Use canonical analysis of principal coordinates (CAP) to explore how differences in community composition are explained by environmental variables - for Taylor Glacier ONLY
+```{r}
+#Run CAP analysis for Canada Glacier
+my.ps.can = subset_samples(my.ps.rar.rel, Glacier == "Taylor")
+  
+  meta = data.frame(sample_data(my.ps.can), stringsAsFactors = F) 
+  #meta$area <- meta.data$area[meta.data$Glacier == "Canada"]
+  
+  rownames(meta) = meta$Run
+  sample_data(my.ps.can) = sample_data(meta)
+  
+  # Extract which habitat you are looking at
+  glacier = unique(as.character(meta$Glacier))[1]
+  
+  writeLines(paste("Running", glacier, "\n"))
+  
+    #remove samples with missing data
+ my.ps.can = subset_samples(my.ps.can, org_matter != "NA")
+ my.ps.can = subset_samples(my.ps.can, water_content != "NA")
+  my.ps.can <- subset_samples(my.ps.can, Chlorophyll != "NA")
+  
+  # Get weighted unifrac distance matrix
+  wuf.dist = phyloseq::distance(my.ps.can, "wunifrac")
+  
+
+  # Ordinate
+  set.seed(1961)
+  cap_ord.full <- ordinate(physeq = my.ps.can, method = "CAP", distance = wuf.dist, 
+                      formula = ~ DNA_per_g + pH + area + Chlorophyll + org_matter + water_content) 
+  
+  set.seed(1961)
+  cap_ord.null <- ordinate(physeq = my.ps.can, method = "CAP", distance = wuf.dist, formula = ~ 1)
+  
+  # Model selection to get just significant variables
+  set.seed(1961)
+  ordistep.res = ordistep(cap_ord.null, scope = formula(cap_ord.full), perm.max = 1000, trace=F)
+  
+  goodform = ordistep.res$call$formula
+  
+  set.seed(1961)
+  cap_ord <- ordinate(physeq = my.ps.can, method = "CAP", distance = wuf.dist, formula = goodform)
+  
+  # CAP plot
+  cap_plot <- plot_ordination(physeq = my.ps.can, ordination = cap_ord, 
+                              color = "Glacier", axes = c(1,2))
+  
+  # Now add the environmental variables as arrows
+  arrowmat <- vegan::scores(cap_ord, display = "bp")
+  
+  # Add labels, make a data.frame
+  arrowdf <- data.frame(labels = rownames(arrowmat), arrowmat) %>%
+    mutate(labels = gsub("\\.", ":", labels))
+  colnames(arrowdf) = c("labels", "xend", "yend")
+  
+  # Define the arrow aesthetic mapping
+  arrow_map <- aes(xend = xend, yend = yend, x = 0, y = 0, 
+                   color = NULL)
+  
+  label_map <- aes(x = 1.1 * xend, y = 1.1 * yend, 
+                   color = NULL, label = labels)
+  
+  arrowhead = arrow(length = unit(0.02, "npc"))
+  
+  # Make a new graphic
+  cap_plot_2 = cap_plot + 
+    geom_segment(mapping = arrow_map, size = .5, data = arrowdf, color = "red", arrow = arrowhead) + 
+    geom_text_repel(mapping = label_map, size = 4, data = arrowdf, color = "red", show.legend = FALSE) +
+    ggtitle("Taylor")
+  print(cap_plot_2)
+  ggsave("../Outputs/Sommers2020/graphs/CAP-talor.pdf", width=8, height=4)
+  
+  print(anova(cap_ord))
+  
+  writeLines(paste("\nTested environmental variabibles explain", round(100*RsquareAdj(cap_ord)$r.squared, 3), "% of the variation"))
+  writeLines("\n--------------------\n")
+
+```
+
+
+#Step Twenty: Put our CAP plots together
+```{r}
+ag.cap.plot.nl = cap_plot_1 + theme(legend.position="none")
+f.cap.plot.nl = cap_plot_2 + theme(legend.position="none")
+cowplot::plot_grid(ag.cap.plot.nl, f.cap.plot.nl)
+ggsave("../Outputs/Sommers2020/graphs/CAP-all.pdf", width=8, height=4)
+```

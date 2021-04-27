@@ -1,0 +1,295 @@
+---
+title: "Model Comparison"
+author: "Amy Solman"
+date: "24/04/2021"
+output: html_document
+---
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
+(https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/20-ModelFitting-NLLS.ipynb)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#THIS SCRIPT WILL DEFINE A SERIES OF MODELS, FIT THEM TO MY DATA AND ASSESS WHICH IS THE BEST FIT
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+# library(dplyr)
+# library(tibble)
+# library(ggpubr)
+# library(phyloseq)
+# library(ape)
+library(vegan)
+# library(ggrepel)
+# install.packages("repr")
+# library(repr) #for plotting our pairs of data
+library(picante)
+#library(gplots)
+#library(lattice)
+library(ggplot2)
+library(minpack.lm)
+```
+
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+#hole area - calculate and add to dataframe
+#Method as per Darcy et al (2018)
+metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+metadata$area <- metadata$area*10000
+
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+```
+
+#Step Three: Calculate alpha diversity indices
+```{r}
+#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+div_shan <- diversity(t(count_table_clean), index = "shannon")
+
+#Use vegan package to get simpson diversity index of each sample
+div_simp <- diversity(t(count_table_clean), index = "simpson")
+
+#Use vegan package to get inverted simpson diversity index of each sample
+div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
+
+#Faith's phylogenetic diversity 
+asv_tab <- as.data.frame(my.ps@otu_table) #Hellinger transformed asv table
+
+my_tree <- my.ps@phy_tree #get my phylogenetic tree
+
+#Check if the tree is rooted
+my.ps@phy_tree #Rooted, includes branch lengths
+
+#It is a rooted tree so...
+df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+
+#Calculate Pilou evenness
+div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(df.pd$SR) #Here we use the species count we got earlier
+
+#bind alpha diversity indices into a dataframe
+diversity <- cbind(df.pd, div_shan, div_simp, div_inv_simp, div_pilou)
+colnames(diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+```
+
+#Step Four: Bind alpha diversity indices with metadata 
+```{r}
+my.data <- cbind(metadata, diversity)
+
+#remove columns with data we're not interested in
+my.data.sub <- subset(my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+rownames(my.data.sub) <- my.data.sub$Run
+my.data.sub <- subset(my.data.sub, select = -c(1))
+my.data.sub <- as.data.frame(lapply(my.data.sub, function(x) as.numeric(as.character(x))))
+my.data.sub$Glacier <- metadata$Glacier
+my.data.sub <- my.data.sub[complete.cases(my.data.sub), ]
+
+```
+
+#Step Five: Prepare our data
+```{r}
+#get logs of the continuous variables we are interested in
+my.data.sub$logChlo <- log(my.data.sub$Chlorophyll)
+my.data.sub$logDepth <- log(my.data.sub$Depth)
+my.data.sub$logDNA <- log(my.data.sub$DNA_per_g)
+my.data.sub$logOrg <- log(my.data.sub$org_matter)
+my.data.sub$logpH <- log(my.data.sub$pH)
+my.data.sub$logArea <- log(my.data.sub$area)
+my.data.sub$logRich <- log(my.data.sub$Richness)
+my.data.sub$logWat <- log(my.data.sub$water_content)
+```
+
+#Step Six: Define our models as functions we can call when NLLS fitting
+```{r}
+#Straight Line Model
+lineMod <- function(x,a,b){
+  return(a + b*x)
+}
+
+#Power Law Model
+powMod <- function(x, a, b) {
+ return(a * x^b)
+}
+
+#Quadratic curve
+quaMod <- function(x, a, b, c){
+  return(a + b*x + c*x^2)
+}
+
+#Von Bertalanffy
+vonbert.w <- function(t, Winf, c, K){
+ Winf * (1 - exp(-K * t) + c * exp(-K * t))^3
+}
+
+#Logistic
+logistic1 <- function(t, r, K, N0){
+ N0 * K * exp(r * t)/(K+N0 * (exp(r * t)-1))
+}
+
+
+```
+
+#Step Seven: Fit the five models to the data
+```{r}
+#subset our canada data 
+Data2Fit <- subset(my.data.sub, Glacier == "Canada")
+
+#Get starting parameters for the logistic equation
+ggplot(Data2Fit, aes(x = area, y = log(Richness))) + 
+ geom_point(size = 3) +
+ labs(x = "Area", y = "log(richness)")
+
+lm_rich <- lm(log(Richness) ~ area, data = Data2Fit[Data2Fit$area > 0 & Data2Fit$area <200, ])
+summary(lm_rich)
+
+r_start = as.numeric(coef(lm_rich)["area"])
+K_start = max(Data2Fit$Richness)
+N0_start = min(Data2Fit$Richness)
+
+#We will scale the data before fitting to improve the stability of the estimates
+#set a scale
+scale <- 4000
+
+#Straight Line Model
+#LinFit <- nlsLM(Richness ~ lineMod(area, a, b), data = Data2Fit, start=list(a=.1, b=.1))
+#we can achieve the same thing with a standard lm() fitting
+LinFit2 <- lm(Richness/scale ~ area, data = Data2Fit)
+
+#Power Model
+PowFit <- nlsLM(Richness/scale ~ powMod(area, a, b), data = Data2Fit, start=list(a=.1, b=.1))
+
+#Quadratic Curve
+# QuaFit <- nlsLM(Richness ~ quaMod(area, a, b, c), data = Data2Fit, start=list(a=.1, b=.1, c=.1))
+#we can achieve the same thing with the poly command 
+QuaFit <- lm(Richness/scale ~ poly(area,2), data = Data2Fit)
+
+#Von Bertalanffy Model - this model isn't working so we'll leave it for now
+VonFit <- nlsLM(Richness/scale ~ vonbert.w(area, Winf, c, K), start=list(Winf=0.75, c=0.01, K=0.01), data=Data2Fit)
+
+#Logistic Model
+LogFit <- nlsLM(Richness/scale ~logistic1(area, r, K, N0), start=list(K=K_start, r=r_start, N0=N0_start), data=Data2Fit)
+
+```
+
+#Step Eight: Plot the models with our data
+```{r}
+#get areas for plotting
+Areas <- seq(min(Data2Fit$area), max(Data2Fit$area), len=200)
+
+#get points for plotting
+#Straight Line
+Predic2PlotLin <- predict.lm(LinFit2, data.frame(area = Areas)) * scale
+
+#Power Model
+#Predic2PlotPow <- predict.lm(PowFit, data.frame(area = Areas))
+Predic2PlotPow <- powMod(Areas, coef(PowFit)["a"],coef(PowFit)["b"]) *scale
+
+#Quadratic Model
+Predic2PlotQua <- predict.lm(QuaFit, data.frame(area = Areas)) * scale
+
+#Von Bertalanffy Model
+Predic2PlotVon <- predict(VonFit, newdata = list(area=Areas)) * scale
+
+#Logistic Model
+# Predic2PlotLog <- predict.lm(LogFit, data.frame(area = Areas))
+Predic2PlotLog <- predict(LogFit, newdata = list(area=Areas)) *scale
+
+plot(Data2Fit$area, Data2Fit$Richness)
+lines(Areas, Predic2PlotLin, col="blue", lwd=2.5)
+lines(Areas, Predic2PlotPow, col="red", lwd=2.5)
+lines(Areas, Predic2PlotQua, col="pink", lwd=2.5)
+lines(Areas, Predic2PlotVon, col="orange", lwd=2.5)
+lines(Areas, Predic2PlotLog, col="green", lwd=2.5)
+legend("topleft", legend = c("linear", "power", "quadratic", "Von Bert", "logistic"), lwd=2, lty=1, col=c("blue", "red", "pink", "orange", "green"))
+```
+
+#Step Nine: Get the R-Squared Values of the fitted models
+```{r}
+RSS_Lin <- sum(residuals(LinFit2)^2) # Residual sum of squares
+TSS_Lin <- sum((Data2Fit$Richness - mean(Data2Fit$Richness))^2) # Total sum of squares
+RSq_Lin <- 1 - (RSS_Lin/TSS_Lin) # R-squared value
+
+RSS_Pow <- sum(residuals(PowFit)^2) # Residual sum of squares
+TSS_Pow <- sum((Data2Fit$Richness - mean(Data2Fit$Richness))^2) # Total sum of squares
+RSq_Pow <- 1 - (RSS_Pow/TSS_Pow) # R-squared value
+
+RSS_Qua <- sum(residuals(QuaFit)^2) # Residual sum of squares
+TSS_Qua <- sum((Data2Fit$Richness - mean(Data2Fit$Richness))^2) # Total sum of squares
+RSq_Qua <- 1 - (RSS_Qua/TSS_Qua) # R-squared value
+
+RSS_Von <- sum(residuals(VonFit)^2) # Residual sum of squares
+TSS_Von <- sum((Data2Fit$Richness - mean(Data2Fit$Richness))^2) # Total sum of squares
+RSq_Von <- 1 - (RSS_Von/TSS_Von) # R-squared value
+
+RSS_Log <- sum(residuals(LogFit)^2) # Residual sum of squares
+TSS_Log <- sum((Data2Fit$Richness - mean(Data2Fit$Richness))^2) # Total sum of squares
+RSq_Log <- 1 - (RSS_Log/TSS_Log) # R-squared value
+
+RSq_Lin
+RSq_Pow 
+RSq_Qua
+RSq_Von
+RSq_Log
+```
+
+#Step Ten: Use AIC to compare models
+```{r}
+#A difference of more than 2 tells us one more is significantly better than the first 
+#value < -2 = the first model is better, value > 2 = the second model is better
+AIC(LinFit2) - AIC(PowFit) #power fit is better
+AIC(LinFit2) - AIC(QuaFit) #no significant difference
+AIC(LinFit2) - AIC(VonFit) #the von model is better
+AIC(LinFit2) - AIC(LogFit) #the line model is better
+AIC(PowFit) - AIC(QuaFit) #the power model is better
+AIC(PowFit) - AIC(VonFit) #the von model is better
+AIC(PowFit) - AIC(LogFit) #the power model is better
+AIC(QuaFit) - AIC(VonFit) #the von model is better
+AIC(QuaFit) - AIC(LogFit) #the quadratic model is better
+AIC(VonFit) - AIC(LogFit)  #the von model is better
+
+#The von model seems most succcessful as describing our data
+
+```
+
+#Step Eleven: Let's compare the residuals of the models
+```{r}
+par(mfrow=c(4,1))
+plot(Data2Fit$area, resid(LinFit2), main="LM resids", xlim=c(0,7000))
+plot(Data2Fit$area, resid(PowFit), main="Power resids", xlim=c(0,7000))
+plot(Data2Fit$area, resid(QuaFit), main="Quadratic resids", xlim=c(0,7000))
+plot(Data2Fit$area, resid(VonFit), main="VB resids", xlim=c(0,7000))
+#plot(Data2Fit$area, resid(LogFit), main="Logistic resids", xlim=c(0,7000)) #ouldn't fit all five models on here
+```
+
+#Step Twelve: Calculate the adjusted sum of squares for each mode
+```{r}
+n <- length(Data2Fit$Richness)
+list(lin=signif(sum(resid(LinFit2)^2)/(n-2 * 2), 3), 
+ pow= signif(sum(resid(PowFit)^2)/(n-2 * 3), 3), 
+ qua= signif(sum(resid(QuaFit)^2)/(n-2 * 3), 3),
+ vb= signif(sum(resid(VonFit)^2)/(n-2 * 3), 3),
+ log= signif(sum(resid(LogFit)^2)/(n-2 * 3), 3)
+ )
+
+#The model with the lowest SSE is the best by this measure = VB model!
+```
+
+#Step Thirteen:
+```{r}
+
+```
+
+#Step Fourteen:
+```{r}
+
+```
+
+#Step Fifteen:
+```{r}
+
+```

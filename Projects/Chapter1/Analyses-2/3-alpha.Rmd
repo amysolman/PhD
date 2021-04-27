@@ -1,0 +1,226 @@
+---
+title: "MVA Analysis - Alpha"
+author: "Amy Solman"
+date: "21/04/2021"
+output: html_document
+---
+
+#Script developed from that of BArnett et al., (2020) code available at https://github.com/seb369/landuse_comm_assembly/blob/master/Diversity_measures.md 
+#This script will calculate alpha diversities 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tibble)
+library(vegan)
+library(ggpubr)
+```
+
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+```
+
+#Step Three: Rarefy data and get relative abundances
+```{r}
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Step Four: Calculate alpha diversity of each sample by OTU richness
+```{r}
+#get the metadata table
+my.metadata <- data.frame(sample_data(my.ps))
+
+#get the rarefied ASV table
+ASV.table.bin <- otu_table(my.ps.rar)
+
+#for any ASV count that does NOT equal 0, make it 1 (so make it into a presence/absence table)
+ASV.table.bin[ASV.table.bin != 0] = 1
+
+#make a new dataframe called ASV count with a column called "count"
+#which is the column sums from the presence/absence table
+#Give the columns the sample names
+#join the metadata by sample name
+#arrange by sample name
+ASV.count = data.frame("num" = colSums(ASV.table.bin)) %>%
+  rownames_to_column(var="Run") %>%
+  inner_join(data.frame(sample_data(my.ps)), by="Run") %>%
+  arrange(Run) %>%
+  mutate(sample_ID=factor(Run, levels = Run))
+```
+
+#Step Five: #Compare ASV richness (alpha diversity) between glaciers
+```{r}
+#First get our summary statistics
+summary.stats <- group_by(ASV.count, Glacier) %>%
+  summarise(
+    count = n(),
+    mean = mean(num, na.rm = TRUE),
+    sd = sd(num, na.rm = TRUE)
+  )
+
+#Then plot our glaciers
+my.plot <- ggboxplot(ASV.count, x = "Glacier", y = "num",
+          color="Glacier", palette = c("#00AFBB", "#E7B800"),
+          ylab="ASV Num", xlab = "Glacier")
+
+my.plot
+
+#ASUMPTION 1: ARE THE GROUPS INDEPENDENT?
+#Yes the glacier samples are independent.
+
+#ASSUMPTION 2: ARE THE GROUPS NORMALLY DISTRIBUTED?
+#Should I use parameteric or non-parametric tests?
+#We're going to use a Shapiro-Wilk's Test to see if the data is normally distributed for each group
+
+with(ASV.count, shapiro.test(num[Glacier == "Canada"])) #p=0.5263 (p >0.05) so the distribution of the data are not significantly different from normal distribution so we can use PARAMETRIC tests.
+with(ASV.count, shapiro.test(num[Glacier == "Taylor"])) #p=0.9692 (p >0.05) so the distribution of the data are not significantly different from normal distribution so we can use PARAMETRIC tests.
+
+#ASSUMPTION 3: DO THE TWO POPULATIONS HAVE THE SAME VARIANCES?
+#Use F-test to test for homogeneity in variances
+f.test <- var.test(num ~ Glacier, data = ASV.count)
+f.test #p value = 0.7446 which is greater than 0.05 so there is no significant difference in the variances of the two datasets
+
+#ALL THREE ASSUMPTIONS ARE MET FOR THE PARAMTERIC TWO INDEPENDENT SAMPLES TEST
+
+#COMPARE THE MEANS OF TWO INDEPENDENT GROUPS
+#UNPAIRED TWO SAMPLES T-TEST (PARAMETERIC)
+my.t.test <- t.test(num ~ Glacier, data = ASV.count, var.equal = TRUE)
+my.t.test #p = 0.0518 so p > 0.05, there is no significant difference between the ASV richnesses of the two glaciers
+
+#UNPARIED TWO SAMPLES WILCOXON TEST (NON-PARAMTEROC)
+#Let's look at the non-parametric result
+my.wilcoxon.test <- wilcox.test(num ~ Glacier, data = ASV.count, exact = FALSE)
+my.wilcoxon.test # p = 0.04479 so p < 0.05, there is a significant difference between the ASV richness of the two glaciers.
+
+#Even though the non-parametric test gave me a significant result, where the parameteric test did not, I should use the parametric test because it is more efficient.
+
+####USE THIS WHEN COMPARING THREE OR MORE INDEPENDENT GROUPS WITH NON-PARAMETRIC DATA###
+# writeLines("Kruskal-Wallis test:")
+# k.test = kruskal.test(count ~ Glacier, data = ASV.count)
+# print(k.test)
+
+#The below Dunn's test can be used when comparing three or more groups
+#That is not useful now.
+
+# if (k.test$p.value <= 0.05){
+#   writeLines(c("", "There is a significant effect of sample type (Glacier) on ASV number. Now running Dunn test for pairwise comparisons:"))
+#   d.test = dunnTest(count ~ Glacier, data = ASV.count, method="bh")
+#   print(d.test)
+# } else {
+#   writeLines(c("", "We did not find a significant effect of sample type (Glacier) on ASV number."))
+# }
+```
+#Step Six: Plot the data
+```{r}
+ggplot(data=ASV.count, aes(x=Glacier, y=num))+
+  geom_boxplot(outlier.shape = 8)+
+  geom_jitter(aes(color=Glacier), width=0.2, height=0)+
+  labs(x="Glacier", y="Number of unique ASVs", colour="Glacier")+
+  theme(axis.text.x = element_text(angle=90, vjust=0.5))
+```
+
+#Step Seven: Calculate alpha diversity of each sample by Shannon Diversity index
+```{r}
+#make a new dataframe with shannon as the shannon diversity index of each sample
+ASV.table.bin = t(otu_table(my.ps.rar))
+shannon.df = data.frame(shannon=diversity(ASV.table.bin, index="shannon")) %>%
+  rownames_to_column(var="Run") %>%
+  inner_join(data.frame(sample_data(my.ps)), by="Run") %>%
+  arrange(Glacier)
+```
+
+#Step Eight: #Compare Shannon index (alpha diversity) between glaciers
+```{r}
+#First get our summary statistics
+summary.stats.shan <- group_by(shannon.df, Glacier) %>%
+  summarise(
+    count = n(),
+    mean = mean(shannon, na.rm = TRUE),
+    sd = sd(shannon, na.rm = TRUE)
+  )
+
+#Then plot our glaciers
+my.plot.shan <- ggboxplot(shannon.df, x = "Glacier", y = "shannon",
+          color="Glacier", palette = c("#00AFBB", "#E7B800"),
+          ylab="Shannon Index", xlab = "Glacier")
+
+my.plot.shan
+
+#ASUMPTION 1: ARE THE GROUPS INDEPENDENT?
+#Yes the glacier samples are independent.
+
+#ASSUMPTION 2: ARE THE GROUPS NORMALLY DISTRIBUTED?
+#Should I use parameteric or non-parametric tests?
+#We're going to use a Shapiro-Wilk's Test to see if the data is normally distributed for each group
+
+with(shannon.df, shapiro.test(shannon[Glacier == "Canada"])) #p=0.03166 (p < 0.05) so the distribution of the data are significantly different from normal distribution so must use a NON-PARAMETRIC test.
+with(shannon.df, shapiro.test(shannon[Glacier == "Taylor"])) #p=0.6421 (p < 0.05) so the distribution of the data are not significantly different from normal distribution, but because the canada data is NOT normally distributed we'll use a non-parametric test
+
+#ASSUMPTION 3: DO THE TWO POPULATIONS HAVE THE SAME VARIANCES? <- Ignore because Canada data is non-parametric
+
+#UNPARIED TWO SAMPLES WILCOXON TEST (NON-PARAMTEROC)
+#Let's look at the non-parametric result
+my.wilcoxon.test.shan <- wilcox.test(shannon ~ Glacier, data = shannon.df, exact = FALSE)
+my.wilcoxon.test.shan # p = 0.5808 so p > 0.05, there is no significant difference between the shannon diversity indexes of the two glaciers.
+```
+#Step Nine: Plot the data
+```{r}
+ggplot(data=shannon.df, aes(x=Glacier, y=shannon))+
+  geom_boxplot(outlier.shape = 8)+
+  geom_jitter(aes(color=Glacier), width=0.2, height=0)+
+  labs(x="Glacier", y="Shannon Index", colour="Glacier")+
+  theme(axis.text.x = element_text(angle=90, vjust=0.5))
+```
+
+#Step 10: Plot ASV richness and shannon diversity together
+```{r}
+#Glacier shapes
+Glacier.shapes = c("Canada" = 15, "Taylor" = 16)
+
+rich.plot = ggplot(data=ASV.count, aes(x=Glacier, y=num))+
+  geom_boxplot(outlier.shape = NA)+
+  geom_jitter(aes(color=Glacier, shape= Glacier), width=0.2, height=0)+
+  scale_shape_manual(values = Glacier.shapes)+
+  labs(x="Glacier", y="Num unique ASVs", colour="Glacier")+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        legend.position="none")
+
+shan.plot = ggplot(data=shannon.df, aes(x=Glacier, y=shannon))+
+  geom_boxplot(outlier.shape = NA)+
+  geom_jitter(aes(colour=Glacier, shape= Glacier), width=0.2, height=0)+
+   scale_shape_manual(values = Glacier.shapes)+
+  labs(x="Glacier", y="Shannon Index", colour="Glacier")+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        legend.position="none")
+
+fonttheme = theme(legend.text = element_text(size=12),
+                  legend.title = element_text(size=12),
+                  axis.text = element_text(size=12),
+                  axis.title = element_text(size=14))
+
+#Merge the plots together
+
+alpha.plot = cowplot::plot_grid(rich.plot + fonttheme, shan.plot + fonttheme, ncol=2, rel_widths = c(1, 1), labels = c("A", "B"))
+alpha.plot
+ggsave("../Outputs/Sommers2020/graphs/alpha-diversity.pdf", width=8, height=4)
+```
+

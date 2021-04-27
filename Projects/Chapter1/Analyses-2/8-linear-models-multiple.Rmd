@@ -1,0 +1,245 @@
+---
+title: "Multiple Explanatory Variables"
+author: "Amy Solman"
+date: "23/04/2021"
+output: html_document
+---
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
+(https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/16-MulExpl.ipynb)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+######I WILL BE USING FAKE DATA FOR THIS ANALYSIS FOR DEMONSTRATION PURPOSES#####
+
+#Here we're going to look at MULTI EXPLANATORY VARIABLE LINEAR MODELS
+#How to fit a linear model when you have multiple explanatory variables
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+# library(dplyr)
+# library(tibble)
+# library(ggpubr)
+# library(phyloseq)
+# library(ape)
+library(vegan)
+# library(ggrepel)
+# install.packages("repr")
+# library(repr) #for plotting our pairs of data
+library("picante")
+library(gplots)
+library(lattice)
+```
+
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+#hole area - calculate and add to dataframe
+#Method as per Darcy et al (2018)
+metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+metadata$area <- metadata$area*10000
+
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+```
+
+#Step Three: Rarefy data and get relative abundances
+```{r}
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Step Four: Calculate alpha diversity indices
+```{r}
+#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+div_shan <- diversity(t(count_table_clean), index = "shannon")
+
+#Use vegan package to get simpson diversity index of each sample
+div_simp <- diversity(t(count_table_clean), index = "simpson")
+
+#Use vegan package to get inverted simpson diversity index of each sample
+div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
+
+#Faith's phylogenetic diversity 
+asv_tab <- as.data.frame(my.ps@otu_table) #Hellinger transformed asv table
+
+my_tree <- my.ps@phy_tree #get my phylogenetic tree
+
+#Check if the tree is rooted
+my.ps@phy_tree #Rooted, includes branch lengths
+
+#It is a rooted tree so...
+df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+
+#Calculate Pilou evenness
+div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(df.pd$SR) #Here we use the species count we got earlier
+
+#bind alpha diversity indices into a dataframe
+diversity <- cbind(df.pd, div_shan, div_simp, div_inv_simp, div_pilou)
+colnames(diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+```
+
+#Step Five: Bind alpha diversity indices with metadata 
+```{r}
+my.data <- cbind(metadata, diversity)
+
+#remove columns with data we're not interested in
+my.data.sub <- subset(my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+rownames(my.data.sub) <- my.data.sub$Run
+my.data.sub <- subset(my.data.sub, select = -c(1))
+my.data.sub <- as.data.frame(lapply(my.data.sub, function(x) as.numeric(as.character(x))))
+my.data.sub$Glacier <- metadata$Glacier
+my.data.sub <- my.data.sub[complete.cases(my.data.sub), ]
+
+```
+
+#Step Six: Add another fake Glacier of data so we can compare three glaciers
+```{r}
+Chlorophyll <- sample(as.numeric(my.data.sub$Chlorophyll), size = 12)
+Depth <- sample(as.numeric(my.data.sub$Depth), size = 12)
+DNA_per_g <- sample(as.numeric(my.data.sub$DNA_per_g), size = 12)
+org_matter <- sample(as.numeric(my.data.sub$org_matter), size = 12)
+pH <- sample(as.numeric(my.data.sub$pH), size = 12)
+water_content <- sample(as.numeric(my.data.sub$water_content), size = 12)
+area <- sample(as.numeric(my.data.sub$area), size = 12)
+Faith <- sample(as.numeric(my.data.sub$Faith), size = 12)
+Richness <- sample(as.numeric(my.data.sub$Richness), size = 12)
+Shannon <- sample(as.numeric(my.data.sub$Shannon), size = 12)
+Simpson <- sample(as.numeric(my.data.sub$Simpson), size = 12)
+Inv.Simpson <- sample(as.numeric(my.data.sub$Inv.Simpson), size = 12)
+Pilou <- sample(as.numeric(my.data.sub$Pilou), size = 12)
+Glacier <- rep("Solman", 12)
+
+df <- cbind(Chlorophyll, Depth, DNA_per_g, org_matter, pH, water_content, area, Faith, Richness, Shannon, Simpson, Inv.Simpson, Pilou, Glacier)
+
+my.data.sub.X <- rbind(my.data.sub, df)
+my.data.sub.X.1 <- my.data.sub.X[,-c(14)] #remove glacier names
+
+my.data.sub <- as.data.frame(lapply(my.data.sub.X.1, function(x) as.numeric(as.character(x))))
+#re-add glacier names 
+my.data.sub$Glacier <- as.factor(my.data.sub.X$Glacier)
+```
+
+#Step Seven: Add an addition factor for us to play with
+```{r}
+Substrate <- rep(c("Ice", "Snow", "Cryoconite"), 12) 
+Substrate <- c(Substrate, rep("Cryoconite", 4))
+my.data.sub$Substrate <- as.factor(Substrate)
+```
+
+#Step Eight: Boxplots within groups
+```{r}
+par(mfrow=c(1,3))
+plot(Richness ~ Substrate, data = my.data.sub, subset = Glacier == "Canada", main = "Canada")
+plot(Richness ~ Substrate, data = my.data.sub, subset = Glacier == "Taylor", main = "Taylor")
+plot(Richness ~ Substrate, data = my.data.sub, subset = Glacier == "Solman", main = "Solman")
+
+#we can do something similar with lattice plots
+bwplot(Richness ~ Substrate | Glacier, data = my.data.sub)
+```
+
+#Step Nine: Barplots with standard errors
+```{r}
+groups <- list(my.data.sub$Substrate, my.data.sub$Glacier)
+groupMeans <- tapply(my.data.sub$Richness, groups, FUN = mean)
+print(groupMeans)
+
+seMean <- function(x){
+	# get rid of missing values
+	x <- na.omit(x)
+	# calculate the standard error
+	se <- sqrt(var(x)/length(x))
+	# tell the function to report the standard error
+	return(se)
+}
+
+groups <- list(my.data.sub$Substrate, my.data.sub$Glacier)
+
+groupMeans <- tapply(my.data.sub$Richness, groups, FUN=mean)
+print(groupMeans)
+
+groupSE <- tapply(my.data.sub$Richness, groups, FUN=seMean)
+print(groupSE)
+
+
+# get upper and lower standard error height
+upperSE <- groupMeans + groupSE
+lowerSE <- groupMeans - groupSE
+# create barplot
+barMids <- barplot(groupMeans, ylim=c(0, max(upperSE)), beside=TRUE, ylab= ' log C value (pg) ' , col=c( ' white ' , ' grey70 '))
+arrows(barMids, upperSE, barMids, lowerSE, ang=90, code=3, len=0.05)
+```
+
+#Step Ten: An alternative to barplots 
+#let's use gplots to plot group means and standard errors
+```{r}
+# Get plots of group means and standard errors
+par(mfrow=c(1,3))
+plotmeans(Richness ~ Substrate, data=my.data.sub, subset = Glacier == "Canada", p=0.95, connect=FALSE, main="Canada", ylim=c(0, 700))
+plotmeans(Richness ~ Substrate, data=my.data.sub, subset = Glacier == "Taylor", p=0.95, connect=FALSE, main = "Taylor", ylim=c(0, 700))
+plotmeans(Richness ~ Substrate, data=my.data.sub, subset = Glacier == "Solman", p=0.95, connect=FALSE, main = "Solman", ylim=c(0, 700))
+
+```
+
+#Step Eleven: Fitting the linear model
+```{r}
+model <- lm(Richness ~ Glacier + Substrate, data = my.data.sub)
+
+#check diagnostic plot
+par(mfrow=c(2,2))
+plot(model)
+
+#ANOVA of the model
+anova(model) #here we see the sum of squares of the two variables are much smaller than the residuals - so there is a lot of unexplained variation. Substrate explained less vairation than glacier - this makes sense with our plots where there were big differences between the glacier plots but less variation within the glacier plots (where we compared the substrates)
+
+#summary of the model
+summary(model) #adjusted r = 0.03
+#the intercept is the mean for Canada glacier cryoconite samples, we then have differences from this estimate for the different glaciers and different substrates
+#glacier taylor makes a small difference to richness
+```
+
+#Step Twelve: Predicted values
+#let's get our predicted values from the model
+```{r}
+# data frame of combinations of variables
+gd <- rep(levels(my.data.sub$Substrate), times = 3)
+print(gd)
+tl <- rep(levels(my.data.sub$Glacier), each = 3)
+print(tl)
+predVals <- data.frame(Substrate = gd, Glacier = tl)
+
+predVals$predict <- predict(model, newdata = predVals)
+print(predVals)
+
+barMids <- barplot(groupMeans, ylim=c(0, 500), ylab='Richness', beside=TRUE, col=c('white', 'grey70'))
+
+arrows(barMids, upperSE, barMids, lowerSE, ang=90, code=3, len=0.1)
+points(barMids, predVals$predict, col='red', pch=12)
+
+#The red markers do not match the calculated means because the model only includes a single difference between substrates, which has to be the same for each glacier. So there is no interaction between glacier and substrate in this model.
+```
+
+#Step :
+```{r}
+
+```
+
+#Step :
+```{r}
+
+```
+
+#Step :
+```{r}
+
+```

@@ -1,0 +1,229 @@
+---
+title: "Linear Models ANOVA"
+author: "Amy Solman"
+date: "23/04/2021"
+output: html_document
+---
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
+(https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/15-anova.ipynb)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#We're going carry out Analysis of Variance (a class of linear model)
+#ANOVA is useful if our response variable is continuous and our predictor variable is categorical
+#One-way ANOVA is used to compare the means of two or more continuous, numerical samples in response to one categorical variable. This tests if the samples from two or more groups are draw from populations with the same mean value.
+#One way ANOVA is typically used when looking at three or more groups as t.test can be used on two groups.
+#Two way ANOVA looks at the influence of two categorical variables on one dependent variable.
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+# library(dplyr)
+# library(tibble)
+# library(ggpubr)
+# library(phyloseq)
+# library(ape)
+library(vegan)
+# library(ggrepel)
+# install.packages("repr")
+# library(repr) #for plotting our pairs of data
+library("picante")
+library(gplots)
+```
+
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+load("results/cleaned_files/cleanedfiles_3.RData")
+#hole area - calculate and add to dataframe
+#Method as per Darcy et al (2018)
+metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+metadata$area <- metadata$area*10000
+
+#Let's make our data into a phyloseq object
+ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy))
+META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+```
+
+#Step Three: Rarefy data and get relative abundances
+```{r}
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Step Four: Calculate alpha diversity indices
+```{r}
+#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+div_shan <- diversity(t(count_table_clean), index = "shannon")
+
+#Use vegan package to get simpson diversity index of each sample
+div_simp <- diversity(t(count_table_clean), index = "simpson")
+
+#Use vegan package to get inverted simpson diversity index of each sample
+div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
+
+#Faith's phylogenetic diversity 
+asv_tab <- as.data.frame(my.ps@otu_table) #Hellinger transformed asv table
+
+my_tree <- my.ps@phy_tree #get my phylogenetic tree
+
+#Check if the tree is rooted
+my.ps@phy_tree #Rooted, includes branch lengths
+
+#It is a rooted tree so...
+df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+
+#Calculate Pilou evenness
+div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(df.pd$SR) #Here we use the species count we got earlier
+
+#bind alpha diversity indices into a dataframe
+diversity <- cbind(df.pd, div_shan, div_simp, div_inv_simp, div_pilou)
+colnames(diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+```
+
+#Step Five: Bind alpha diversity indices with metadata 
+```{r}
+my.data <- cbind(metadata, diversity)
+
+#remove columns with data we're not interested in
+my.data.sub <- subset(my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+rownames(my.data.sub) <- my.data.sub$Run
+my.data.sub <- subset(my.data.sub, select = -c(1))
+my.data.sub <- as.data.frame(lapply(my.data.sub, function(x) as.numeric(as.character(x))))
+my.data.sub$Glacier <- metadata$Glacier
+my.data.sub <- my.data.sub[complete.cases(my.data.sub), ]
+
+```
+
+#Step Six: Add another fake Glacier of data so we can compare three glaciers
+```{r}
+Chlorophyll <- sample(as.numeric(my.data.sub$Chlorophyll), size = 12)
+Depth <- sample(as.numeric(my.data.sub$Depth), size = 12)
+DNA_per_g <- sample(as.numeric(my.data.sub$DNA_per_g), size = 12)
+org_matter <- sample(as.numeric(my.data.sub$org_matter), size = 12)
+pH <- sample(as.numeric(my.data.sub$pH), size = 12)
+water_content <- sample(as.numeric(my.data.sub$water_content), size = 12)
+area <- sample(as.numeric(my.data.sub$area), size = 12)
+Faith <- sample(as.numeric(my.data.sub$Faith), size = 12)
+Richness <- sample(as.numeric(my.data.sub$Richness), size = 12)
+Shannon <- sample(as.numeric(my.data.sub$Shannon), size = 12)
+Simpson <- sample(as.numeric(my.data.sub$Simpson), size = 12)
+Inv.Simpson <- sample(as.numeric(my.data.sub$Inv.Simpson), size = 12)
+Pilou <- sample(as.numeric(my.data.sub$Pilou), size = 12)
+Glacier <- rep("Solman", 12)
+
+df <- cbind(Chlorophyll, Depth, DNA_per_g, org_matter, pH, water_content, area, Faith, Richness, Shannon, Simpson, Inv.Simpson, Pilou, Glacier)
+
+my.data.sub.X <- rbind(my.data.sub, df)
+my.data.sub.X.1 <- my.data.sub.X[,-c(14)] #remove glacier names
+
+my.data.sub <- as.data.frame(lapply(my.data.sub.X.1, function(x) as.numeric(as.character(x))))
+#re-add glacier names 
+my.data.sub$Glacier <- as.factor(my.data.sub.X$Glacier)
+```
+
+#Step Seven: Explore the data with boxplots
+```{r}
+summary(my.data.sub)
+plot(Richness ~ Glacier, data = my.data.sub)
+
+#let's log richness and re-do our boxplot
+my.data.sub$logRichness <- log(my.data.sub$Richness)
+
+plot(logRichness ~ Glacier, data = my.data.sub)
+```
+
+#Step Eight: Let's look at the differences in means with barplots
+#We want to test whether the means are different - how different are the means, given the standard error? Barplots and standard error bars are commonly used to show these differences.
+```{r}
+#Create function to calculate standard error of the mean
+seMean <- function(x){ # get standard error of the mean from a set of values (x)
+    x <- na.omit(x) # get rid of missing values
+
+    se <- sqrt(var(x)/length(x)) # calculate the standard error
+
+    return(se)  # tell the function to return the standard error
+}
+
+#Get the glacier means
+glacierMeans <- tapply(my.data.sub$logRichness, my.data.sub$Glacier, FUN = mean, na.rm = TRUE)
+print(glacierMeans)
+
+#get the standard error of the means
+glacierSE <- tapply(my.data.sub$logRichness, my.data.sub$Glacier, FUN = seMean)
+print(glacierSE)
+
+#Let's plot these values
+# get the upper and lower limits of the error bars
+upperSE <- glacierMeans + glacierSE
+lowerSE <- glacierMeans - glacierSE
+
+# get a barplot
+# - this function can report where the middle of the bars are on the x-axis
+# - set the y axis limits to contain the error bars
+
+barMids <- barplot(glacierMeans, ylim=c(0, max(upperSE)), ylab = 'log Richness')
+
+# Now use the function to add error bars
+# - draws arrows between the points (x0,y0) and (x1,y1)
+# - arrow heads at each end (code=3) and at 90 degree angles
+
+arrows(barMids, upperSE, barMids, lowerSE, ang=90, code=3)
+
+#There doesn't appear to be a huge amount of different in the means of our glaciers
+```
+
+#Step Nine: An alternative to barplots 
+#let's use gplots to plot group means and standard errors
+```{r}
+# Get plots of group means and standard errors
+plotmeans(logRichness ~ Glacier, data=my.data.sub, p=0.95, connect=FALSE)
+
+```
+
+#Step Ten: Perform Analysis of Variance
+```{r}
+glacierLM <- lm(logRichness ~ Glacier, data = my.data.sub)
+anova(glacierLM) #p = 0.07
+summary(glacierLM) #overall the model is not significant (p value) and has low explanatory power (R2 = 0.13, adj R2 = 0.09)
+```
+
+#Step Eleven: Is the model appropriate for our data?
+```{r}
+par(mfrow=c(2,2), mar=c(5,5,1.5,1.5))
+plot(glacierLM) #looks okay-ish
+```
+
+#Step Twelve: Testing pairwise differences between levels
+#We want to test the pairwise differences between our factors, between which glaciers is there a difference? We can do this using a Tukey Honest Significance Difference Test. We have to convert to LM object to an aov object first
+```{r}
+TukeyGlacier <- TukeyHSD(aov(glacierLM))
+print(TukeyGlacier)
+
+#the lower and upper bounds tell us that the difference between each pair of glaciers could be zero - the p values are all > 0.05
+
+par(las=1, mar=c(4,10,3,1))
+# las= 1 turns labels horizontal
+# mar makes the left margin wider (bottom, left, top, right)
+plot(TukeyGlacier)
+```
+
+#Step Thriteen: The above tests rely on the idea that the factors are independent, if we had two factors (Glacier and Substrate - snow/ice/cryoconite) we want to know tha they are independent - we can do this with a chi-square test
+
+#Chi squared tests are used to test how likely it is that an observed distribution of values is due to chance. It is also called a goodness-of-fit statistic - it measures how well the observed distribution of data fits with the distribution expected if the variables are independent. I don't have substrate data so I'm going to make some up for demonstration purposes
+```{r}
+Substrate <- rep(c("Ice", "Snow", "Cryoconite"), 12) 
+Substrate <- c(Substrate, rep("Cryoconite", 4))
+my.data.sub$Substrate <- as.factor(Substrate)
+factorTable <- table(my.data.sub$Glacier, my.data.sub$Substrate)
+print(factorTable)
+chisq.test(factorTable) #p = 0.54 so the variables Glacier and Substrate are independent
+```
