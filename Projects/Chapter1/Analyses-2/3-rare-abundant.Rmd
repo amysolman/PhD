@@ -159,28 +159,20 @@ my.data <- my.data[-c(1)]
 
 }
 
+#merge our local abundances with the regional abundance
+my.data <- merge(my.data, df, by=0, all=TRUE)
+row.names(my.data) <- my.data$Row.names
+my.data <- my.data[-c(1,2)]
+
+#Add taxonomic classifications
+my.data.tax <- merge(my.data, taxonomy, by=0, all=TRUE)
+row.names(my.data.tax) <- my.data.tax$Row.names
+my.data.tax <- my.data.tax[-c(1)]
+
+#remove rows with NA in any particular sample (these are the ASVs that got removed from the count table in the rarification step. Remember that they were NOT removed from the taxonomy table)
+my.data_complete <- my.data[complete.cases(my.data$SRR12805327), ]
 
 
-blah <- data.frame(a$SRR12805327)
-row.names(blah) <- otu$OTU
-
-#Locally abundant = >1% relative abundance per sample
-local.abun <- blah %>% filter(blah$a.SRR12805327 > 0.01)
-#Locally rare ASVs <0.01% per sample
-local.rare <- blah %>% filter(blah$a.SRR12805327 < 0.0001)
-#locallt intermediate ASVs with relative abundance > 0.01% & < 1%
-local.inter <- blah %>% filter(blah$a.SRR12805327 > 0.0001 & blah$a.SRR12805327 < 0.01)
-
-local.rare.df <- local.rare
-local.rare.df$SRR12805327 <- "Rare"
-
-local.abun.df <- local.abun
-local.abun.df$SRR12805327 <- "Abundant"
-
-local.inter.df <- local.inter
-local.inter.df$SRR12805327 <- "Intermediate"
-
-df2 <- rbind(local.rare.df, local.abun.df, local.inter.df)
 
 
 ```

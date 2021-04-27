@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[     14104,        365]
-NotebookOptionsPosition[     10467,        298]
-NotebookOutlinePosition[     10865,        314]
-CellTagsIndexPosition[     10822,        311]
+NotebookDataLength[     28799,        730]
+NotebookOptionsPosition[     21252,        612]
+NotebookOutlinePosition[     21650,        628]
+CellTagsIndexPosition[     21607,        625]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -26,8 +26,6 @@ stars!", "Title",
   3.828453155416018*^9}},ExpressionUUID->"957e397c-b6ba-43f6-9ba7-\
 9c4f13e6a64a"],
 
-Cell[CellGroupData[{
-
 Cell["Part One", "Chapter",
  CellChangeTimes->{{3.828454043459392*^9, 
   3.82845406749181*^9}},ExpressionUUID->"3fae3980-0c9a-4a66-9730-\
@@ -35,7 +33,7 @@ Cell["Part One", "Chapter",
 
 Cell[CellGroupData[{
 
-Cell["Section One: Bottom of the Barrel Basic Maths", "Section",
+Cell["Section One: Bottom of the Barrel Basic Maths", "Chapter",
  CellChangeTimes->{{3.828454069323709*^9, 
   3.8284540859766483`*^9}},ExpressionUUID->"7383ba9c-4d98-4d0b-ac4a-\
 c0bd494bbb9c"],
@@ -45,14 +43,14 @@ Cell[CellGroupData[{
 Cell["\<\
 These notes are taken from GCSE Mathematics Complete Revision and Practise \
 Book by CGP\
-\>", "Subsection",
+\>", "Section",
  CellChangeTimes->{{3.828454603356533*^9, 
   3.828454640901225*^9}},ExpressionUUID->"5ca15b5a-cdde-4ce3-bb8a-\
 65c657a6a9f9"],
 
 Cell[CellGroupData[{
 
-Cell["BODMAS", "Subsubsection",
+Cell["BODMAS", "Subsection",
  CellChangeTimes->{{3.828453161932433*^9, 
   3.8284531715303802`*^9}},ExpressionUUID->"01974e67-5097-463c-b6d0-\
 d95be80a97f2"],
@@ -206,7 +204,6 @@ Cell["We get the same answer!", "Text",
   3.828454527282596*^9}},ExpressionUUID->"a8c3609d-5532-4635-b94f-\
 ef249f8eee31"]
 }, Open  ]]
-}, Open  ]]
 }, Open  ]],
 
 Cell[CellGroupData[{
@@ -278,10 +275,326 @@ ab4ac6d697cb"],
 
 Cell[CellGroupData[{
 
-Cell["Types of Numbers", "Subsubsection",
+Cell["Types of Numbers", "Subsection",
  CellChangeTimes->{{3.8284547464057503`*^9, 
   3.828454753397233*^9}},ExpressionUUID->"85ebe920-1d1f-437a-96c6-\
 add3f1a3a117"],
+
+Cell[CellGroupData[{
+
+Cell["Rational and Irrational Numbers", "Subsubsection",
+ CellChangeTimes->{{3.828529448406743*^9, 
+  3.82852946461012*^9}},ExpressionUUID->"33e1e621-0c54-4528-8e95-\
+c5e2c76a8e11"],
+
+Cell["\<\
+Rational numbers come in three forms :
+1) Integers
+2) Fractions p/q where p and q are non-zero integers
+3) Terminating or recurring decimals (e.g. 0.125 = 1/8, or 1/3 = 0.3333...)
+
+Irrational numbers can\[CloseCurlyQuote]t be written as fractions. They are \
+never-ending, non-repeating decimals. Roots of +ve (positive) integers are \
+either integers or irrational numbers:\
+\>", "Text",
+ CellChangeTimes->{{3.828529474206622*^9, 3.828529602148219*^9}, {
+  3.828529670628323*^9, 
+  3.8285297007640123`*^9}},ExpressionUUID->"a851fc0d-3009-4644-9903-\
+a4245e5dee74"],
+
+Cell[BoxData[
+ RowBox[{
+  SqrtBox["4"], "=", " ", 
+  RowBox[{"2", "  ", 
+   StyleBox["This", "Text"], 
+   StyleBox[" ", "Text"], 
+   StyleBox["is", "Text"], 
+   StyleBox[" ", "Text"], 
+   StyleBox["an", "Text"], 
+   StyleBox[" ", "Text"], 
+   StyleBox["integer", "Text"]}]}]], "Input",
+ CellChangeTimes->{{3.828529712077791*^9, 
+  3.8285297617543097`*^9}},ExpressionUUID->"db15fb29-8d65-4a79-8ecc-\
+77be5877ba25"],
+
+Cell[BoxData[
+ RowBox[{
+  SqrtBox["2"], 
+  StyleBox["This", "Text"], 
+  StyleBox[" ", "Text"], 
+  StyleBox["is", "Text"], 
+  StyleBox[" ", "Text"], 
+  StyleBox["an", "Text"], 
+  StyleBox[" ", "Text"], 
+  StyleBox["irrational", "Text"], 
+  StyleBox[" ", "Text"], 
+  StyleBox["number", "Text"]}]], "Input",
+ CellChangeTimes->{{3.828529768718595*^9, 
+  3.828529777917398*^9}},ExpressionUUID->"1f50330e-d443-4991-ba80-\
+7e56c0cf2715"],
+
+Cell["\<\
+Surds are also numbers of expressions that contain irrational roots (\[Pi] is \
+also irrational) .\
+\>", "Text",
+ CellChangeTimes->{{3.828529900616776*^9, 
+  3.828529940143217*^9}},ExpressionUUID->"836a234c-850a-44b6-a4dd-\
+31fa9340877c"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Squares and Cubes", "Subsubsection",
+ CellChangeTimes->{{3.828529968316291*^9, 
+  3.828529973602665*^9}},ExpressionUUID->"3327cd95-93fb-4ede-a9fc-\
+514c606c8d2b"],
+
+Cell["\<\
+The first 15 cubed numbers are : 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, \
+144, 169,196, 225.
+The first 6 cubes numbers are: 1, 8, 27, 64, 125, 1000 \
+\>", "Text",
+ CellChangeTimes->{{3.828530063682317*^9, 
+  3.828530264424844*^9}},ExpressionUUID->"8daa64d4-9b23-4e5c-80ea-\
+1f2a3e5a4dd4"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Prime Numbers", "Subsubsection",
+ CellChangeTimes->{{3.828530270443182*^9, 
+  3.828530274225018*^9}},ExpressionUUID->"64728585-e137-43c8-a0b9-\
+b0de7540ea64"],
+
+Cell["\<\
+A prime number is any number that can only be divided by 1 and itself (the \
+only exception to this is 1 which is not a prime number). REMEBER: apart from \
+2 and 5, all prime numbers end in 1, 3, 7 or 9. 
+The first 14 prime numbers are: 2, 3, 5, 7, 9, 11, 13, 17, 19, 23, 29, 31, \
+37, 41, 43. \
+\>", "Text",
+ CellChangeTimes->{{3.828530278019165*^9, 3.8285304298919497`*^9}, {
+  3.828532699451309*^9, 
+  3.8285327020730553`*^9}},ExpressionUUID->"e8ffb310-c12d-4df5-a7d9-\
+d32728012071"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Multiples, Factors and Prime Factors", "Subsubsection",
+ CellChangeTimes->{{3.828530461838767*^9, 
+  3.8285304768954144`*^9}},ExpressionUUID->"54b2bbc9-286c-4b6d-867b-\
+7b1287216a0e"],
+
+Cell["\<\
+The multiples of a number are it' s times table (e.g. multiples of 6 are 6, \
+12, 18, 24, 30, 36...).
+The factors of a number are all the numbers that divide into it (e.g. the \
+factors of 6 are 1, 2, 3, and 6).
+
+Any number can be broken down into prime numbers all multiplied together. \
+This is called, \[OpenCurlyQuote]expressing a number as a produce of its \
+prime factors\[CloseCurlyQuote]. Let\[CloseCurlyQuote]s break down 420 as a \
+produce of it\[CloseCurlyQuote]s prime factors. We know that 420 divides into \
+10 and 42. 10 divides into 2 and 5 which are prime numbers. 42 divides into 2 \
+and 21. 21 divides into 7 and 3. So:\
+\>", "Text",
+ CellChangeTimes->{{3.828530496024046*^9, 3.8285306401612587`*^9}, {
+  3.828530681025134*^9, 3.828530704560054*^9}, {3.828531312971469*^9, 
+  3.82853137458469*^9}},ExpressionUUID->"2464dce8-9080-4dbf-ba84-\
+0eb498ebb7d4"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"2", "*", "5", "*", "2", "*", "7", "*", "3"}]], "Input",
+ CellChangeTimes->{{3.8285313808352633`*^9, 3.828531387930046*^9}},
+ CellLabel->"In[10]:=",ExpressionUUID->"489da722-0b19-49eb-a65c-46915c3752cd"],
+
+Cell[BoxData["420"], "Output",
+ CellChangeTimes->{3.8285313891703463`*^9},
+ CellLabel->"Out[10]=",ExpressionUUID->"003e1657-7b14-4afc-bf46-30c704646e44"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Lower Common Multiple (LCM) and Highest Common Factor (HCF)", \
+"Subsubsection",
+ CellChangeTimes->{{3.828531404461308*^9, 
+  3.828531423259571*^9}},ExpressionUUID->"e1283de3-a5ff-4744-a1c3-\
+de0f59744d4c"],
+
+Cell["\<\
+The Lowest Common Multiple (LCM) is the smallest number that will divide by \
+all the numbers in question. We can work out the LCM by 1) listing the \
+multiples of all the numbers, 2) find the smallest number that\
+\[CloseCurlyQuote]s in all the lists, 3) that\[CloseCurlyQuote]s the LCM! For \
+example, find the LCM of 12 and 15. \
+\>", "Text",
+ CellChangeTimes->{{3.828531430894373*^9, 3.828531516909625*^9}, {
+  3.828531569786224*^9, 
+  3.828531585740926*^9}},ExpressionUUID->"1b868916-4d66-4ad8-b9d1-\
+c31bd5955e93"],
+
+Cell["Multiples of 12 = 12, 24, 36, 48, 60", "Text",
+ CellChangeTimes->{{3.8285315919287357`*^9, 3.828531615050666*^9}, {
+  3.828531651899952*^9, 
+  3.828531661466021*^9}},ExpressionUUID->"256549f3-e170-44ad-a232-\
+4a64387306be"],
+
+Cell["Multiples of 15 = 15, 30, 45, 60", "Text",
+ CellChangeTimes->{{3.828531617761376*^9, 
+  3.828531670454913*^9}},ExpressionUUID->"2f455525-8488-4504-8380-\
+d2d66653237c"],
+
+Cell["The LCM of 12 and 15 is 60.", "Text",
+ CellChangeTimes->{{3.828531674529334*^9, 
+  3.82853168135312*^9}},ExpressionUUID->"8d41b3f2-506b-4a5d-aa2e-\
+fb0e376912d3"],
+
+Cell["\<\
+The Highest Common Factor (HCF) is the biggest number that will divide into \
+all the numbers in question. We can work out the HCF by 1) List the factors \
+of all the numbers, 2) find the biggest one that\[CloseCurlyQuote]s in all \
+the lists, 3) that\[CloseCurlyQuote]s the HCF! For example, find the HCF of \
+36, 54, 72.\
+\>", "Text",
+ CellChangeTimes->{{3.8285316873497057`*^9, 3.828531692384403*^9}, {
+  3.8285317800180902`*^9, 
+  3.828531848961343*^9}},ExpressionUUID->"53c3af5a-30c8-4ce2-80db-\
+faf53d870d03"],
+
+Cell["\<\
+Factors of 36 = 1*36, 2*18, 3*12, 4*9, 6*6 (1, 2, 3, 4, 6, 9, 12, 18, 36)
+Factors of 54 = 1*54, 2*27, 3*18, 6*9 (1, 2, 3, 6, 9, 18, 27, 54)
+Factors of 72 = 1*72, 2*36, 3*24, 4*18, 6*12, 8*9 (1, 2, 3, 4, 6, 8, 9, 12, \
+18, 24, 36, 72) \
+\>", "Text",
+ CellChangeTimes->{{3.828531852424177*^9, 3.828532016410247*^9}, {
+  3.828532048657872*^9, 
+  3.828532147908372*^9}},ExpressionUUID->"296d33ce-00f4-4c3a-a44c-\
+a1d75ed8b859"],
+
+Cell["The HCF of 36, 54 and 72 is 36.", "Text",
+ CellChangeTimes->{{3.828532184080838*^9, 
+  3.82853219773913*^9}},ExpressionUUID->"0d076cbb-ee11-4181-ab11-\
+af1f6b7b7a9d"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Questions", "Subsubsection",
+ CellChangeTimes->{{3.828532243363212*^9, 
+  3.828532247425161*^9}},ExpressionUUID->"e006a31a-f5a4-4d5f-a829-\
+50c0035973ec"],
+
+Cell["Of the following numbers, which are square, cube and prime?", "Text",
+ CellChangeTimes->{{3.8285322572311783`*^9, 
+  3.8285322715405807`*^9}},ExpressionUUID->"e5aedc97-1ba5-4a59-b065-\
+26580634bf01"],
+
+Cell["1,  2,  3,  4,  5,  6,  7,  8,  9,  10", "Text",
+ CellChangeTimes->{{3.828532277581039*^9, 
+  3.828532294431135*^9}},ExpressionUUID->"4dd67473-183b-4058-a950-\
+58f8de6e998a"],
+
+Cell["Square numbers = 1, 4, 9", "Text",
+ CellChangeTimes->{{3.828532305026554*^9, 3.828532315430533*^9}, {
+  3.828532571966489*^9, 
+  3.8285325722753553`*^9}},ExpressionUUID->"10401a67-0934-4320-9b47-\
+fb4562b1617d"],
+
+Cell["Cube numbers = 1, 8", "Text",
+ CellChangeTimes->{{3.8285323174970493`*^9, 
+  3.828532342582287*^9}},ExpressionUUID->"46cdb526-9a73-469f-93a5-\
+f4102681013b"],
+
+Cell["Prime numbers = 2, 3, 5, 7", "Text",
+ CellChangeTimes->{{3.828532346221086*^9, 3.828532369573225*^9}, {
+  3.828532581553548*^9, 
+  3.828532582046501*^9}},ExpressionUUID->"ba739247-abd7-4065-9c6f-\
+a404037cb7fa"],
+
+Cell["\<\
+Of the following numbers, which are square, cube and prime?
+30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40\
+\>", "Text",
+ CellChangeTimes->{{3.828532384538713*^9, 
+  3.8285323999176397`*^9}},ExpressionUUID->"7ebd8225-f6ce-40eb-b7d4-\
+b803de505cf8"],
+
+Cell["\<\
+Square numbers = 36
+Cube numbers = None
+Prime numbers = 31, 37\
+\>", "Text",
+ CellChangeTimes->{{3.828532428225195*^9, 3.8285325438097973`*^9}, {
+  3.828532714634604*^9, 
+  3.828532715757766*^9}},ExpressionUUID->"e304f3ad-e9fd-458a-9a66-\
+e94c52a5e379"],
+
+Cell["\<\
+Explain why 231 is not a prime number.
+231 is not a prime number because it can be divided by 3, 7 and 11. 
+3x50 = 150 3*25 = 75 3*75 = 225 3*77=231. 77 = 7*11\
+\>", "Text",
+ CellChangeTimes->{{3.828532731967855*^9, 
+  3.828532866004871*^9}},ExpressionUUID->"c080cf78-448b-4a75-9193-\
+9407f22d8e39"],
+
+Cell["\<\
+Find all the factors of 40.
+1*40, 2*20, 4*10, 5*8 (1,2,4,5,8,10,20,40)\
+\>", "Text",
+ CellChangeTimes->{{3.82853287228759*^9, 
+  3.828532937222168*^9}},ExpressionUUID->"f49d7a5e-2aca-4f23-a912-\
+cb0ac76d0a7e"],
+
+Cell["\<\
+Write 40 as a produce of its prime factors.
+4 0 = 4*10. 4= 2*2. 10 = 2*5. 2*2*2*5 = 40\
+\>", "Text",
+ CellChangeTimes->{{3.8285329427838078`*^9, 
+  3.828532977800166*^9}},ExpressionUUID->"4f0d539b-e975-4763-abe5-\
+4cdd67f2f875"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.828532378961746*^9, 
+  3.828532379630612*^9}},ExpressionUUID->"a0fedf32-01a6-4f58-b588-\
+b2c11b49b059"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.828531201224585*^9, 3.8285312076223593`*^9}, {
+  3.828531286675886*^9, 
+  3.8285312882495623`*^9}},ExpressionUUID->"5405f997-e761-43c9-89e5-\
+8465c53a630c"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.828531283951445*^9, 
+  3.828531283952035*^9}},ExpressionUUID->"a0509324-78ca-4dc0-9cab-\
+c43bd89c2807"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.828530947377596*^9, 
+  3.828530950525301*^9}},ExpressionUUID->"1eb95d27-c29f-4e9e-aee7-\
+e35dd5e964f2"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.828530017643448*^9, 3.8285300192885103`*^9}, {
+  3.828530059725471*^9, 
+  3.828530060622539*^9}},ExpressionUUID->"e70a6670-b22f-4204-82de-\
+edb4cafcff6d"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8285300582518167`*^9, 
+  3.8285300582522707`*^9}},ExpressionUUID->"9d66323c-0219-498e-8b47-\
+e001de304903"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8285300508163643`*^9, 
+  3.828530053164905*^9}},ExpressionUUID->"2aca880c-6981-4991-98d2-\
+dd81fb97cda3"],
 
 Cell[BoxData[""], "Input",
  CellChangeTimes->{
@@ -291,6 +604,7 @@ Cell[BoxData[""], "Input",
  CellChangeTimes->{{3.8284534229073057`*^9, 
   3.8284534256143713`*^9}},ExpressionUUID->"4928e229-f304-4bcf-9a3f-\
 2f5e438cb3ad"]
+}, Open  ]]
 }, Open  ]]
 }, Open  ]]
 }, Open  ]]
@@ -315,54 +629,105 @@ CellTagsIndex->{}
 Notebook[{
 Cell[CellGroupData[{
 Cell[580, 22, 218, 4, 160, "Title",ExpressionUUID->"957e397c-b6ba-43f6-9ba7-9c4f13e6a64a"],
+Cell[801, 28, 152, 3, 69, "Chapter",ExpressionUUID->"3fae3980-0c9a-4a66-9730-8efbd47d2a0e"],
 Cell[CellGroupData[{
-Cell[823, 30, 152, 3, 69, "Chapter",ExpressionUUID->"3fae3980-0c9a-4a66-9730-8efbd47d2a0e"],
+Cell[978, 35, 192, 3, 58, "Chapter",ExpressionUUID->"7383ba9c-4d98-4d0b-ac4a-c0bd494bbb9c"],
 Cell[CellGroupData[{
-Cell[1000, 37, 192, 3, 67, "Section",ExpressionUUID->"7383ba9c-4d98-4d0b-ac4a-c0bd494bbb9c"],
+Cell[1195, 42, 241, 6, 105, "Section",ExpressionUUID->"5ca15b5a-cdde-4ce3-bb8a-65c657a6a9f9"],
 Cell[CellGroupData[{
-Cell[1217, 44, 244, 6, 81, "Subsection",ExpressionUUID->"5ca15b5a-cdde-4ce3-bb8a-65c657a6a9f9"],
+Cell[1461, 52, 156, 3, 54, "Subsection",ExpressionUUID->"01974e67-5097-463c-b6d0-d95be80a97f2"],
+Cell[1620, 57, 597, 12, 127, "Text",ExpressionUUID->"df5db92c-49e6-46d3-821f-979593f2ed4c"],
+Cell[2220, 71, 730, 17, 37, "Input",ExpressionUUID->"4ea8072d-30d0-444f-93d4-ba3eebc22eba"],
+Cell[2953, 90, 460, 7, 35, "Text",ExpressionUUID->"b663f251-f2c0-40d2-998e-e693b7c02845"],
+Cell[3416, 99, 447, 12, 47, "Input",ExpressionUUID->"6b01a229-b532-45bb-88e3-7f8c418c2439"],
+Cell[3866, 113, 758, 13, 127, "Text",ExpressionUUID->"b26e2717-09ca-438c-a0e9-4269ea410319"],
 Cell[CellGroupData[{
-Cell[1486, 54, 159, 3, 45, "Subsubsection",ExpressionUUID->"01974e67-5097-463c-b6d0-d95be80a97f2"],
-Cell[1648, 59, 597, 12, 127, "Text",ExpressionUUID->"df5db92c-49e6-46d3-821f-979593f2ed4c"],
-Cell[2248, 73, 730, 17, 37, "Input",ExpressionUUID->"4ea8072d-30d0-444f-93d4-ba3eebc22eba"],
-Cell[2981, 92, 460, 7, 35, "Text",ExpressionUUID->"b663f251-f2c0-40d2-998e-e693b7c02845"],
-Cell[3444, 101, 447, 12, 47, "Input",ExpressionUUID->"6b01a229-b532-45bb-88e3-7f8c418c2439"],
-Cell[3894, 115, 758, 13, 127, "Text",ExpressionUUID->"b26e2717-09ca-438c-a0e9-4269ea410319"],
-Cell[CellGroupData[{
-Cell[4677, 132, 148, 2, 30, "Input",ExpressionUUID->"2c9ae128-eb9c-4474-b8f8-7f203da1d4f8"],
-Cell[4828, 136, 166, 3, 34, "Output",ExpressionUUID->"beb72b18-2299-49fe-81f3-30507db5617c"]
+Cell[4649, 130, 148, 2, 30, "Input",ExpressionUUID->"2c9ae128-eb9c-4474-b8f8-7f203da1d4f8"],
+Cell[4800, 134, 166, 3, 34, "Output",ExpressionUUID->"beb72b18-2299-49fe-81f3-30507db5617c"]
 }, Open  ]],
-Cell[5009, 142, 691, 13, 150, "Text",ExpressionUUID->"360e2b99-fbe4-421b-a1c0-be1f57f1c0e1"],
-Cell[5703, 157, 227, 4, 30, "Input",ExpressionUUID->"c9489883-3894-4fcc-bb77-c10bd0db0a5b"],
+Cell[4981, 140, 691, 13, 150, "Text",ExpressionUUID->"360e2b99-fbe4-421b-a1c0-be1f57f1c0e1"],
+Cell[5675, 155, 227, 4, 30, "Input",ExpressionUUID->"c9489883-3894-4fcc-bb77-c10bd0db0a5b"],
 Cell[CellGroupData[{
-Cell[5955, 165, 222, 4, 30, "Input",ExpressionUUID->"cfd6d1f5-05b5-4f7d-acb5-e12caabbb74c"],
-Cell[6180, 171, 152, 2, 34, "Output",ExpressionUUID->"588c9336-cebe-45cc-ad65-6809fbf3c69e"]
+Cell[5927, 163, 222, 4, 30, "Input",ExpressionUUID->"cfd6d1f5-05b5-4f7d-acb5-e12caabbb74c"],
+Cell[6152, 169, 152, 2, 34, "Output",ExpressionUUID->"588c9336-cebe-45cc-ad65-6809fbf3c69e"]
 }, Open  ]],
-Cell[6347, 176, 303, 6, 58, "Text",ExpressionUUID->"24bfdd4d-8049-4b7b-8709-5c36e5b2cef7"],
-Cell[6653, 184, 267, 5, 30, "Input",ExpressionUUID->"72740fd7-8fef-45b3-871c-f56a1bf15530"],
+Cell[6319, 174, 303, 6, 58, "Text",ExpressionUUID->"24bfdd4d-8049-4b7b-8709-5c36e5b2cef7"],
+Cell[6625, 182, 267, 5, 30, "Input",ExpressionUUID->"72740fd7-8fef-45b3-871c-f56a1bf15530"],
 Cell[CellGroupData[{
-Cell[6945, 193, 212, 3, 30, "Input",ExpressionUUID->"ed16ee78-61b5-493b-a432-6dd3f4fe6ec5"],
-Cell[7160, 198, 154, 2, 34, "Output",ExpressionUUID->"bf079492-e1b4-4de2-9a69-b56521d08a04"]
+Cell[6917, 191, 212, 3, 30, "Input",ExpressionUUID->"ed16ee78-61b5-493b-a432-6dd3f4fe6ec5"],
+Cell[7132, 196, 154, 2, 34, "Output",ExpressionUUID->"bf079492-e1b4-4de2-9a69-b56521d08a04"]
 }, Open  ]],
-Cell[7329, 203, 165, 3, 35, "Text",ExpressionUUID->"a8c3609d-5532-4635-b94f-ef249f8eee31"]
-}, Open  ]]
+Cell[7301, 201, 165, 3, 35, "Text",ExpressionUUID->"a8c3609d-5532-4635-b94f-ef249f8eee31"]
 }, Open  ]]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[7555, 213, 196, 4, 67, "Section",ExpressionUUID->"db2a329b-7850-4844-9aae-e5fb809830cf"],
-Cell[7754, 219, 177, 3, 30, "Input",ExpressionUUID->"92b0bdaf-c552-4a88-8824-d3cb7cd33eec"],
-Cell[7934, 224, 152, 3, 30, "Input",ExpressionUUID->"ba8c489b-9686-4d00-a20d-8edf390d640b"],
+Cell[7515, 210, 196, 4, 67, "Section",ExpressionUUID->"db2a329b-7850-4844-9aae-e5fb809830cf"],
+Cell[7714, 216, 177, 3, 30, "Input",ExpressionUUID->"92b0bdaf-c552-4a88-8824-d3cb7cd33eec"],
+Cell[7894, 221, 152, 3, 30, "Input",ExpressionUUID->"ba8c489b-9686-4d00-a20d-8edf390d640b"],
 Cell[CellGroupData[{
-Cell[8111, 231, 274, 5, 30, "Input",ExpressionUUID->"ad9ed934-c90b-42dd-afa0-620d566106a0"],
-Cell[8388, 238, 688, 14, 39, "Message",ExpressionUUID->"91af27d7-38a4-4a65-944b-ce416bb0ec4a"],
-Cell[9079, 254, 508, 11, 24, "Message",ExpressionUUID->"00f40b7c-02bb-4b23-93f4-aab19c9ed2e2"]
+Cell[8071, 228, 274, 5, 30, "Input",ExpressionUUID->"ad9ed934-c90b-42dd-afa0-620d566106a0"],
+Cell[8348, 235, 688, 14, 39, "Message",ExpressionUUID->"91af27d7-38a4-4a65-944b-ce416bb0ec4a"],
+Cell[9039, 251, 508, 11, 24, "Message",ExpressionUUID->"00f40b7c-02bb-4b23-93f4-aab19c9ed2e2"]
 }, Open  ]],
-Cell[9602, 268, 177, 3, 30, "Input",ExpressionUUID->"de8d3172-8b9a-4764-8c07-a4d369308c1e"],
-Cell[9782, 273, 152, 3, 30, "Input",ExpressionUUID->"33b5a999-6772-44f7-bc3a-ab4ac6d697cb"],
+Cell[9562, 265, 177, 3, 30, "Input",ExpressionUUID->"de8d3172-8b9a-4764-8c07-a4d369308c1e"],
+Cell[9742, 270, 152, 3, 30, "Input",ExpressionUUID->"33b5a999-6772-44f7-bc3a-ab4ac6d697cb"],
 Cell[CellGroupData[{
-Cell[9959, 280, 169, 3, 45, "Subsubsection",ExpressionUUID->"85ebe920-1d1f-437a-96c6-add3f1a3a117"],
-Cell[10131, 285, 125, 2, 30, "Input",ExpressionUUID->"8ef9d62e-1be1-48c2-a6d4-7414d6080eb2"],
-Cell[10259, 289, 156, 3, 30, InheritFromParent,ExpressionUUID->"4928e229-f304-4bcf-9a3f-2f5e438cb3ad"]
+Cell[9919, 277, 166, 3, 54, "Subsection",ExpressionUUID->"85ebe920-1d1f-437a-96c6-add3f1a3a117"],
+Cell[CellGroupData[{
+Cell[10110, 284, 181, 3, 45, "Subsubsection",ExpressionUUID->"33e1e621-0c54-4528-8e95-c5e2c76a8e11"],
+Cell[10294, 289, 575, 13, 173, "Text",ExpressionUUID->"a851fc0d-3009-4644-9903-a4245e5dee74"],
+Cell[10872, 304, 413, 13, 33, "Input",ExpressionUUID->"db15fb29-8d65-4a79-8ecc-77be5877ba25"],
+Cell[11288, 319, 430, 14, 32, "Input",ExpressionUUID->"1f50330e-d443-4991-ba80-7e56c0cf2715"],
+Cell[11721, 335, 248, 6, 35, "Text",ExpressionUUID->"836a234c-850a-44b6-a4dd-31fa9340877c"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[12006, 346, 168, 3, 45, "Subsubsection",ExpressionUUID->"3327cd95-93fb-4ede-a9fc-514c606c8d2b"],
+Cell[12177, 351, 302, 7, 58, "Text",ExpressionUUID->"8daa64d4-9b23-4e5c-80ea-1f2a3e5a4dd4"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[12516, 363, 164, 3, 45, "Subsubsection",ExpressionUUID->"64728585-e137-43c8-a0b9-b0de7540ea64"],
+Cell[12683, 368, 498, 10, 81, "Text",ExpressionUUID->"e8ffb310-c12d-4df5-a7d9-d32728012071"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[13218, 383, 189, 3, 45, "Subsubsection",ExpressionUUID->"54b2bbc9-286c-4b6d-867b-7b1287216a0e"],
+Cell[13410, 388, 884, 16, 173, "Text",ExpressionUUID->"2464dce8-9080-4dbf-ba84-0eb498ebb7d4"],
+Cell[CellGroupData[{
+Cell[14319, 408, 226, 3, 30, "Input",ExpressionUUID->"489da722-0b19-49eb-a65c-46915c3752cd"],
+Cell[14548, 413, 153, 2, 34, "Output",ExpressionUUID->"003e1657-7b14-4afc-bf46-30c704646e44"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[14750, 421, 212, 4, 45, "Subsubsection",ExpressionUUID->"e1283de3-a5ff-4744-a1c3-de0f59744d4c"],
+Cell[14965, 427, 530, 10, 81, "Text",ExpressionUUID->"1b868916-4d66-4ad8-b9d1-c31bd5955e93"],
+Cell[15498, 439, 229, 4, 35, "Text",ExpressionUUID->"256549f3-e170-44ad-a232-4a64387306be"],
+Cell[15730, 445, 174, 3, 35, "Text",ExpressionUUID->"2f455525-8488-4504-8380-d2d66653237c"],
+Cell[15907, 450, 168, 3, 35, "Text",ExpressionUUID->"8d41b3f2-506b-4a5d-aa2e-fb0e376912d3"],
+Cell[16078, 455, 525, 10, 81, "Text",ExpressionUUID->"53c3af5a-30c8-4ce2-80db-faf53d870d03"],
+Cell[16606, 467, 433, 9, 81, "Text",ExpressionUUID->"296d33ce-00f4-4c3a-a44c-a1d75ed8b859"],
+Cell[17042, 478, 172, 3, 35, "Text",ExpressionUUID->"0d076cbb-ee11-4181-ab11-af1f6b7b7a9d"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[17251, 486, 160, 3, 45, "Subsubsection",ExpressionUUID->"e006a31a-f5a4-4d5f-a829-50c0035973ec"],
+Cell[17414, 491, 205, 3, 35, "Text",ExpressionUUID->"e5aedc97-1ba5-4a59-b065-26580634bf01"],
+Cell[17622, 496, 180, 3, 35, "Text",ExpressionUUID->"4dd67473-183b-4058-a950-58f8de6e998a"],
+Cell[17805, 501, 217, 4, 35, "Text",ExpressionUUID->"10401a67-0934-4320-9b47-fb4562b1617d"],
+Cell[18025, 507, 163, 3, 35, "Text",ExpressionUUID->"46cdb526-9a73-469f-93a5-f4102681013b"],
+Cell[18191, 512, 217, 4, 35, "Text",ExpressionUUID->"ba739247-abd7-4065-9c6f-a404037cb7fa"],
+Cell[18411, 518, 254, 6, 58, "Text",ExpressionUUID->"7ebd8225-f6ce-40eb-b7d4-b803de505cf8"],
+Cell[18668, 526, 263, 8, 81, "Text",ExpressionUUID->"e304f3ad-e9fd-458a-9a66-e94c52a5e379"],
+Cell[18934, 536, 309, 7, 81, "Text",ExpressionUUID->"c080cf78-448b-4a75-9193-9407f22d8e39"],
+Cell[19246, 545, 219, 6, 58, "Text",ExpressionUUID->"f49d7a5e-2aca-4f23-a912-cb0ac76d0a7e"],
+Cell[19468, 553, 238, 6, 58, "Text",ExpressionUUID->"4f0d539b-e975-4763-abe5-4cdd67f2f875"],
+Cell[19709, 561, 152, 3, 30, "Input",ExpressionUUID->"a0fedf32-01a6-4f58-b588-b2c11b49b059"],
+Cell[19864, 566, 205, 4, 30, "Input",ExpressionUUID->"5405f997-e761-43c9-89e5-8465c53a630c"],
+Cell[20072, 572, 152, 3, 30, InheritFromParent,ExpressionUUID->"a0509324-78ca-4dc0-9cab-c43bd89c2807"],
+Cell[20227, 577, 152, 3, 30, InheritFromParent,ExpressionUUID->"1eb95d27-c29f-4e9e-aee7-e35dd5e964f2"],
+Cell[20382, 582, 203, 4, 30, "Input",ExpressionUUID->"e70a6670-b22f-4204-82de-edb4cafcff6d"],
+Cell[20588, 588, 156, 3, 30, InheritFromParent,ExpressionUUID->"9d66323c-0219-498e-8b47-e001de304903"],
+Cell[20747, 593, 154, 3, 30, "Input",ExpressionUUID->"2aca880c-6981-4991-98d2-dd81fb97cda3"],
+Cell[20904, 598, 125, 2, 30, "Input",ExpressionUUID->"8ef9d62e-1be1-48c2-a6d4-7414d6080eb2"],
+Cell[21032, 602, 156, 3, 30, "Input",ExpressionUUID->"4928e229-f304-4bcf-9a3f-2f5e438cb3ad"]
+}, Open  ]]
 }, Open  ]]
 }, Open  ]]
 }, Open  ]]
