@@ -6,7 +6,181 @@ output: html_document
 ---
 
 #Script differentiating between rare and abundant ASVs in a data set
+#Some code taken from https://github.com/shuojiao/Rare-and-abundant-bacteria-/blob/master/Alpha-diversity.R 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#Clear workspace and load data
+```{r}
+rm(list=ls())
+
+#install.packages("remotes")
+remotes::install_github("vmikk/metagMisc") #for transforming phyloseq object to data frame
+library(metagMisc)
+library(tibble) #for subsetting the data
+#install.packages("compare")
+#library(compare) #for comparing ASV IDs in my dataframes
+library(dplyr)
+
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles.RData")
+
+#load phyloseq object
+my.ps <- readRDS("../Outputs/Sommers2020/my-phyloseq-object.rds")
+
+```
+
+#Step Three: Rarefy data and get relative abundances
+```{r}
+#set a seed so we get the same results each time we run this
+set.seed(1961)
+
+#rarefy the data to equal sampling depths
+my.ps.rar <- rarefy_even_depth(my.ps)
+
+#get relative abundances
+my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x)) #
+```
+
+#Define rare and abundant taxa
+Abundant and rare taxa will be classified based on their relative abundance in local and metacommunities (M. Li et al., 2021). Locally abundant ASVs are those that comprise >1% of a sample, while abundant ASVs in the metacommunity are those that comprise >0.1% of average local abundance. Locally rare ASVs are those that comprise <0.01% of a sample, whilst rare ASVs in the metacommunity are those that comprise <0.001% of average local abundance
+
+For bacterial and archaeal communities, abundant and rare ASVs were defined based on their local and regional relative abundance. Locally abundant and rare ASVs were defined as all the ASVs with abundance >1% and <0.01% within a sample, respectively (Galand et al., 2009; Liu et al., 2015b). Subsequently, the average relative abundance of locally abundant and rare ASVs was calculated. Regionally abundant and rare ASVs were defined as all the ASVs with an average abundance >0.1% and <0.001%, respectively (Logares et al., 2014).
+```{r}
+#convert rarefied phyloseq object with relative abundances to data frame
+otu <- phyloseq_to_df(my.ps.rar.rel) 
+
+#get our rarefied relative abundance data
+a <- otu[-c(1:8)] 
+
+#get the mean relative abundances of all ASVs across all samples
+mean.abun <- data.frame(rowMeans(a, na.rm = TRUE))
+row.names(mean.abun) <- otu$OTU#we now have a list of ASV IDs and their mean relative abundances across samples
+names(mean.abun)[1] <- "mean_abun"
+
+#Locally abundant ASVs >1% per sample
+#Regionally abundance ASVs have mean relative abundance across all samples >0.1%
+regional.abun <- mean.abun %>% filter(mean_abun > 0.001)
+
+#Locally rare ASVs <0.01% per sample
+#Regionally rare ASVs have mean relative abundance across all samples < 0.001
+regional.rare <- mean.abun %>% filter(mean_abun < .00001)
+
+
+#regionally intermediate ASVs with mean relative abundance across all samples > 0.001% & < 0.1%
+regional.inter <- mean.abun %>% filter(mean_abun > 0.00001 & mean_abun < 0.001)
+
+#Make a dataframe with every ASV as a rowname, then if they're either abundant, rare or intermediate in the metacommunity
+
+regional.rare.df <- regional.rare
+regional.rare.df$Meta <- "Rare"
+
+regional.abun.df <- regional.abun
+regional.abun.df$Meta <- "Abundant"
+
+regional.inter.df <- regional.inter
+regional.inter.df$Meta <- "Intermediate"
+
+df <- rbind(regional.rare.df, regional.abun.df, regional.inter.df)
+  
+
+
+
+#####BELOW IS POINTLESS MADNESS######
+
+# rn1 <- row.names(df) #get ASV IDs of our abundant and rare taxa
+# rn2 <- row.names(mean.abun) #get all ASV IDs
+# rn3 = rn2[ - which(rn2 %in% rn1)] #which ASV IDs are not regionally abundant or rare
+
+# comparison <- compare(df, mean.abun,allowAll=TRUE)
+# 
+# require(dplyr) 
+# blah <- anti_join(df,mean.abun)
+# 
+# setdiff(rn1, rn2)
+# 
+
+# 
+# rn3 <- rn2[-c(rn1)]
+# 
+# rn3 <- rn2[rn2 != rn1,]
+# 
+# rn3 <- within(rn2, rm(rn1))
+# 
+# setdiff(rn1, rn2)
+```
+
+
+#Now let's make a data frame with our locally rare, abundant or intermediate taxa
+```{r}
+
+my.data <- data.frame(otu$OTU)
+row.names(my.data) <- otu$OTU
+
+for (i in 1:ncol(a)){
+  
+blah <- data.frame(a)[i]
+names(blah) <- "Sample"
+row.names(blah) <- otu$OTU
+
+local.abs <- blah %>% filter(Sample == 0)
+
+#Locally abundant = >1% relative abundance per sample
+local.abun <- blah %>% filter(Sample > 0.01)
+
+#Locally rare ASVs <0.01% per sample
+local.rare <- blah %>% filter(Sample > 0 & Sample < 0.0001)
+
+#locallt intermediate ASVs with relative abundance > 0.01% & < 1%
+local.inter <- blah %>% filter(Sample > 0.0001 & Sample < 0.01)
+
+local.abs.df <- local.abs
+local.abs.df$Sample <- "Absent"
+
+local.rare.df <- local.rare
+local.rare.df$Sample <- "Rare"
+
+local.abun.df <- local.abun
+local.abun.df$Sample <- "Abundant"
+
+local.inter.df <- local.inter
+local.inter.df$Sample <- "Intermediate"
+
+#df2 <- cbind.data.frame(local.abs.df, local.rare.df, local.abun.df, local.inter.df, row.names = TRUE)
+df2 <- rbind(local.abs.df, local.rare.df, local.abun.df, local.inter.df)
+
+names(df2) <- names((a)[i])
+
+#my.data[ , ncol(my.data) + 1] <- df2
+my.data <- merge(my.data, df2, by=0, all=TRUE)
+row.names(my.data) <- my.data$Row.names
+my.data <- my.data[-c(1)]
+
+}
+
+
+
+blah <- data.frame(a$SRR12805327)
+row.names(blah) <- otu$OTU
+
+#Locally abundant = >1% relative abundance per sample
+local.abun <- blah %>% filter(blah$a.SRR12805327 > 0.01)
+#Locally rare ASVs <0.01% per sample
+local.rare <- blah %>% filter(blah$a.SRR12805327 < 0.0001)
+#locallt intermediate ASVs with relative abundance > 0.01% & < 1%
+local.inter <- blah %>% filter(blah$a.SRR12805327 > 0.0001 & blah$a.SRR12805327 < 0.01)
+
+local.rare.df <- local.rare
+local.rare.df$SRR12805327 <- "Rare"
+
+local.abun.df <- local.abun
+local.abun.df$SRR12805327 <- "Abundant"
+
+local.inter.df <- local.inter
+local.inter.df$SRR12805327 <- "Intermediate"
+
+df2 <- rbind(local.rare.df, local.abun.df, local.inter.df)
+
+
+```

@@ -21,6 +21,8 @@ Prepare/give presentation
 Complete remaining scripts
 Input Rey's code on soil assembly into my scripts
 Follow microeco tutorial
+Follow this tutorial https://joey711.github.io/phyloseq/import-data.html 
+Follow this tutorial https://vaulot.github.io/tutorials/Phyloseq_tutorial.html#network-analysis 
 Get data from Jaz
 Repeat analysis with Jaz data for total, rare and abundant taxa 
 Jaz data - Write up description of each analysis, rationale and results
