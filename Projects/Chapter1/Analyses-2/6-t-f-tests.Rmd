@@ -1,0 +1,328 @@
+---
+title: "Basic Hypothesis Test with T and F Tests"
+author: "Amy Solman"
+date: "22/04/2021"
+output: html_document
+---
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook (https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/13-t_F_tests.ipynb)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Basic Hypothesis Testing
+#We're going to use t tests to compare differences in means. We're going to use F tests to compare the variance of samples. We're also going to look at non-parametric tests.
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+# library(dplyr)
+# library(tibble)
+# library(ggpubr)
+# library(phyloseq)
+# library(ape)
+# library(vegan)
+# library(ggrepel)
+# install.packages("repr")
+# library(repr) #for plotting our pairs of data
+library("picante")
+```
+
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+# load("results/cleaned_files/cleanedfiles_3.RData")
+# #hole area - calculate and add to dataframe
+# #Method as per Darcy et al (2018)
+# metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+# metadata$area <- metadata$area*10000
+# 
+# #Let's make our data into a phyloseq object
+# ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+# TAX = tax_table(as.matrix(taxonomy))
+# META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+# my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+my.ps <- readRDS("../Outputs/Sommers2020/my-ps-original.rds") #original full dataset, no rareification, 
+my.ps.rar <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-total.rds") #rarefied dataset, total taxa
+my.ps.rar.rel <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative.rds") #rarefied relative abundance, total taxa
+my.ps.rar.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-abundant.rds") #rarefied abundant taxa ONLY
+my.ps.rar.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-rare.rds") #rarefied rare taxa ONLY
+```
+
+#Step Three: Rarefy data and get relative abundances
+```{r}
+# #set a seed so we get the same results each time we run this
+# set.seed(1961)
+# #rarefy the data to equal sampling depths
+# my.ps.rar <- rarefy_even_depth(my.ps)
+# #get relative abundances
+# my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Step Four: Calculate alpha diversity indices
+```{r}
+###TOTAL TAXA
+#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+tot.div_shan <- diversity(t(otu_table(my.ps.rar)), index = "shannon")
+
+#Use vegan package to get simpson diversity index of each sample
+tot.div_simp <- diversity(t(otu_table(my.ps.rar)), index = "simpson")
+
+#Use vegan package to get inverted simpson diversity index of each sample
+tot.div_inv_simp <- diversity(t(otu_table(my.ps.rar)), index = "invsimpson")
+
+#Faith's phylogenetic diversity 
+tot.asv_tab <- as.data.frame(my.ps.rar@otu_table)
+
+tot.my_tree <- my.ps.rar@phy_tree #get my phylogenetic tree
+
+#Check if the tree is rooted
+my.ps.rar@phy_tree #Rooted, includes branch lengths
+
+#It is a rooted tree so...
+tot.df.pd <- pd(t(tot.asv_tab), tot.my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+
+#Calculate Pilou evenness
+tot.div_pilou <- diversity(t(otu_table(my.ps.rar)), index = "simpson")/log(tot.df.pd$SR) #Here we use the species count we got earlier
+
+#bind alpha diversity indices into a dataframe
+tot.diversity <- cbind(tot.df.pd, tot.div_shan, tot.div_simp, tot.div_inv_simp, tot.div_pilou)
+colnames(tot.diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+###ABUNDANT TAXA
+#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+abun.div_shan <- diversity(t(otu_table(my.ps.rar.abun)), index = "shannon")
+
+#Use vegan package to get simpson diversity index of each sample
+abun.div_simp <- diversity(t(otu_table(my.ps.rar.abun)), index = "simpson")
+
+#Use vegan package to get inverted simpson diversity index of each sample
+abun.div_inv_simp <- diversity(t(otu_table(my.ps.rar.abun)), index = "invsimpson")
+
+#Faith's phylogenetic diversity 
+abun.asv_tab <- as.data.frame(my.ps.rar.abun@otu_table)
+
+abun.my_tree <- my.ps.rar.abun@phy_tree #get my phylogenetic tree
+
+#Check if the tree is rooted
+my.ps.rar.abun@phy_tree #Rooted, includes branch lengths
+
+#It is a rooted tree so...
+abun.df.pd <- pd(t(abun.asv_tab), abun.my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+
+#Calculate Pilou evenness
+abun.div_pilou <- diversity(t(otu_table(my.ps.rar.abun)), index = "simpson")/log(abun.df.pd$SR) #Here we use the species count we got earlier
+
+#bind alpha diversity indices into a dataframe
+abun.diversity <- cbind(abun.df.pd, abun.div_shan, abun.div_simp, abun.div_inv_simp, abun.div_pilou)
+colnames(abun.diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+###RARE TAXA
+#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+rare.div_shan <- diversity(t(otu_table(my.ps.rar.rare)), index = "shannon")
+
+#Use vegan package to get simpson diversity index of each sample
+rare.div_simp <- diversity(t(otu_table(my.ps.rar.rare)), index = "simpson")
+
+#Use vegan package to get inverted simpson diversity index of each sample
+rare.div_inv_simp <- diversity(t(otu_table(my.ps.rar.rare)), index = "invsimpson")
+
+#Faith's phylogenetic diversity 
+rare.asv_tab <- as.data.frame(my.ps.rar.rare@otu_table)
+
+rare.my_tree <- my.ps.rar.rare@phy_tree #get my phylogenetic tree
+
+#Check if the tree is rooted
+my.ps.rar.rare@phy_tree #Rooted, includes branch lengths
+
+#It is a rooted tree so...
+rare.df.pd <- pd(t(rare.asv_tab), rare.my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+
+#Calculate Pilou evenness
+rare.div_pilou <- diversity(t(otu_table(my.ps.rar.rare)), index = "simpson")/log(rare.df.pd$SR) #Here we use the species count we got earlier
+
+#bind alpha diversity indices into a dataframe
+rare.diversity <- cbind(rare.df.pd, rare.div_shan, rare.div_simp, rare.div_inv_simp, rare.div_pilou)
+colnames(rare.diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+```
+
+#Step Five: Bind alpha diversity indices with metadata 
+```{r}
+
+###TOTAL TAXA
+tot.my.data <- cbind(metadata, tot.diversity)
+
+#remove columns with data we're not interested in
+tot.my.data.sub <- subset(tot.my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+rownames(tot.my.data.sub) <- tot.my.data.sub$Run
+tot.my.data.sub <- subset(tot.my.data.sub, select = -c(1))
+tot.my.data.sub <- as.data.frame(lapply(tot.my.data.sub, function(x) as.numeric(as.character(x))))
+tot.my.data.sub$Glacier <- metadata$Glacier
+tot.my.data.sub <- tot.my.data.sub[complete.cases(tot.my.data.sub), ]
+
+###ABUNDANT TAXA
+abun.my.data <- cbind(metadata, abun.diversity)
+
+#remove columns with data we're not interested in
+abun.my.data.sub <- subset(abun.my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+rownames(abun.my.data.sub) <- abun.my.data.sub$Run
+abun.my.data.sub <- subset(abun.my.data.sub, select = -c(1))
+abun.my.data.sub <- as.data.frame(lapply(abun.my.data.sub, function(x) as.numeric(as.character(x))))
+abun.my.data.sub$Glacier <- metadata$Glacier
+abun.my.data.sub <- abun.my.data.sub[complete.cases(abun.my.data.sub), ]
+
+###RARE TAXA
+rare.my.data <- cbind(metadata, rare.diversity)
+
+#remove columns with data we're not interested in
+rare.my.data.sub <- subset(rare.my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+rownames(rare.my.data.sub) <- rare.my.data.sub$Run
+rare.my.data.sub <- subset(rare.my.data.sub, select = -c(1))
+rare.my.data.sub <- as.data.frame(lapply(rare.my.data.sub, function(x) as.numeric(as.character(x))))
+rare.my.data.sub$Glacier <- metadata$Glacier
+rare.my.data.sub <- rare.my.data.sub[complete.cases(rare.my.data.sub), ]
+
+```
+
+#Export our diversity dataframes
+```{r}
+write.csv(tot.my.data.sub,"../Outputs/Sommers2020/total-diversity-metadata.csv", row.names = FALSE)
+write.csv(abun.my.data.sub,"../Outputs/Sommers2020/abundant-diversity-metadata.csv", row.names = FALSE)
+write.csv(rare.my.data.sub,"../Outputs/Sommers2020/rare-diversity-metadata.csv", row.names = FALSE)
+```
+#T-tests
+#Use to compare the means of two samples, or one sample to another value.
+#T-test is best used for use with a two level factor (like my two glaciers) as multiple levels multiplies the significance level (0.05), increasing the chances of making a Type I error (a false positive)
+# t = the difference between the values/the standard error
+#If there is no difference then t = 0, so the larger the t value the bigger the difference between factors
+
+#Step Three: One-sample t-test
+#Is the mean of a sample difference from a specific value
+```{r}
+#get the mean species richness
+mean.rich <- mean(my.data.sub$Richness)
+
+#get the variance 
+var.rich <- var(my.data.sub$Richness)
+
+#get the number of datapoints
+n.rich <- length(my.data.sub$Richness)
+
+#now we can ask if the mean species richness is different from 400 (for example, I've just picked 400 out of nowhere!)
+diff.rich <- mean.rich - 400
+
+#get the standard error
+se.rich <- sqrt(var.rich/n.rich)
+
+#Now we can calculate the t value
+t.rich <- diff.rich/se.rich
+print(t.rich) #-2.38 this is a reasonably high t value so we can say that the mean species richness of our glaciers is different from 400
+
+#or we can do all this in one go
+t.test(my.data.sub$Richness, mu = 400) #t = -2.38. p = 0.02 so there is a significant different
+
+
+```
+
+#Step Four: Two-sample t-tests
+#The two-sample t-test is more commonly used that the one sample t test to compare the means of two samples.
+#This test makes the assumption that are data are normally distributed and have similar vairances
+```{r}
+###TOTAL TAXA
+t.test(Richness ~ Glacier, data = tot.my.data.sub) # #p > 0.05
+t.test(Faith ~ Glacier, data = tot.my.data.sub) #p > 0.05
+t.test(Shannon ~ Glacier, data = tot.my.data.sub) #p > 0.05
+t.test(Simpson ~ Glacier, data = tot.my.data.sub) #p > 0.05
+t.test(Inv.Simpson ~ Glacier, data = tot.my.data.sub) #p > 0.05
+t.test(Pilou ~ Glacier, data = tot.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+
+###ABUNDANT TAXA
+t.test(Richness ~ Glacier, data = abun.my.data.sub) #p > 0.05
+t.test(Faith ~ Glacier, data = abun.my.data.sub) #p > 0.05
+t.test(Shannon ~ Glacier, data = abun.my.data.sub) #p > 0.05
+t.test(Simpson ~ Glacier, data = abun.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+t.test(Inv.Simpson ~ Glacier, data = abun.my.data.sub) #p > 0.05
+t.test(Pilou ~ Glacier, data = abun.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+
+###RARE TAXA
+t.test(Richness ~ Glacier, data = rare.my.data.sub) #p > 0.05
+t.test(Faith ~ Glacier, data = rare.my.data.sub) #p > 0.05
+t.test(Shannon ~ Glacier, data = rare.my.data.sub) #p > 0.05
+t.test(Simpson ~ Glacier, data = rare.my.data.sub) #p > 0.05
+t.test(Inv.Simpson ~ Glacier, data = rare.my.data.sub) #p > 0.05
+t.test(Pilou ~ Glacier, data = rare.my.data.sub) #p > 0.05
+```
+
+#Step Five: F Test 
+#The F test can be used to compare variances of two samples or populations. This can be used when checking to see if data meet the variance assumption (like in the two sample t-test)
+#If F value is < 0.5 or > 2 they have may have unequal variances, check the p value (p < 0.05 means there is a significant difference in the variances)
+```{r}
+# var.test(Richness ~ Glacier, data = my.data.sub) #p > 0.05
+# var.test(Faith ~ Glacier, data = my.data.sub) #p > 0.05
+# var.test(Shannon ~ Glacier, data = my.data.sub) #p > 0.05
+# var.test(Simpson ~ Glacier, data = my.data.sub) #p > 0.05
+# var.test(Inv.Simpson ~ Glacier, data = my.data.sub) #p > 0.05
+# var.test(Pilou ~ Glacier, data = my.data.sub) # p < 0.05
+
+###TOTAL TAXA
+var.test(Richness ~ Glacier, data = tot.my.data.sub) # #p > 0.05
+var.test(Faith ~ Glacier, data = tot.my.data.sub) #p > 0.05
+var.test(Shannon ~ Glacier, data = tot.my.data.sub) #p > 0.05
+var.test(Simpson ~ Glacier, data = tot.my.data.sub) #p > 0.05
+var.test(Inv.Simpson ~ Glacier, data = tot.my.data.sub) #p > 0.05
+var.test(Pilou ~ Glacier, data = tot.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+
+###ABUNDANT TAXA
+var.test(Richness ~ Glacier, data = abun.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+var.test(Faith ~ Glacier, data = abun.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+var.test(Shannon ~ Glacier, data = abun.my.data.sub) #p > 0.05
+var.test(Simpson ~ Glacier, data = abun.my.data.sub) #p > 0.05
+var.test(Inv.Simpson ~ Glacier, data = abun.my.data.sub) #p > 0.05
+var.test(Pilou ~ Glacier, data = abun.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+
+###RARE TAXA
+var.test(Richness ~ Glacier, data = rare.my.data.sub) #p > 0.05
+var.test(Faith ~ Glacier, data = rare.my.data.sub) #p > 0.05
+var.test(Shannon ~ Glacier, data = rare.my.data.sub) #p > 0.05
+var.test(Simpson ~ Glacier, data = rare.my.data.sub) #p > 0.05
+var.test(Inv.Simpson ~ Glacier, data = rare.my.data.sub) #p > 0.05
+var.test(Pilou ~ Glacier, data = rare.my.data.sub) #p > 0.05
+```
+
+#Non-parametric tests
+#If our data are not normally distributed and don't have equal variances (and log transformations don't make our data normal) then we can use a non-parametric alternative
+```{r}
+# wilcox.test(Richness ~ Glacier, data = my.data.sub)
+# wilcox.test(Faith ~ Glacier, data = my.data.sub) #p > 0.05
+# wilcox.test(Shannon ~ Glacier, data = my.data.sub) #p > 0.05
+# wilcox.test(Simpson ~ Glacier, data = my.data.sub) #p > 0.05
+# wilcox.test(Inv.Simpson ~ Glacier, data = my.data.sub) #p > 0.05
+# wilcox.test(Pilou ~ Glacier, data = my.data.sub) # p < 0.05
+
+###TOTAL TAXA
+wilcox.test(Richness ~ Glacier, data = tot.my.data.sub) # #p > 0.05
+wilcox.test(Faith ~ Glacier, data = tot.my.data.sub) #p > 0.05
+wilcox.test(Shannon ~ Glacier, data = tot.my.data.sub) #p > 0.05
+wilcox.test(Simpson ~ Glacier, data = tot.my.data.sub) #p > 0.05
+wilcox.test(Inv.Simpson ~ Glacier, data = tot.my.data.sub) #p > 0.05
+wilcox.test(Pilou ~ Glacier, data = tot.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+
+###ABUNDANT TAXA
+wilcox.test(Richness ~ Glacier, data = abun.my.data.sub) #p > 0.05
+wilcox.test(Faith ~ Glacier, data = abun.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+wilcox.test(Shannon ~ Glacier, data = abun.my.data.sub) #p > 0.05
+wilcox.test(Simpson ~ Glacier, data = abun.my.data.sub) #p > 0.05
+wilcox.test(Inv.Simpson ~ Glacier, data = abun.my.data.sub) #p > 0.05
+wilcox.test(Pilou ~ Glacier, data = abun.my.data.sub) #p < 0.05 SIGNIFICANT DIFFERENCE
+
+###RARE TAXA
+wilcox.test(Richness ~ Glacier, data = rare.my.data.sub) #p > 0.05
+wilcox.test(Faith ~ Glacier, data = rare.my.data.sub) #p > 0.05
+wilcox.test(Shannon ~ Glacier, data = rare.my.data.sub) #p > 0.05
+wilcox.test(Simpson ~ Glacier, data = rare.my.data.sub) #p > 0.05
+wilcox.test(Inv.Simpson ~ Glacier, data = rare.my.data.sub) #p > 0.05
+wilcox.test(Pilou ~ Glacier, data = rare.my.data.sub) #p > 0.05
+```

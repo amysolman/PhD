@@ -35,99 +35,112 @@ library(gplots)
 
 #Step Two: Load Data and make into phyloseq object 
 ```{r}
-load("results/cleaned_files/cleanedfiles_3.RData")
-#hole area - calculate and add to dataframe
-#Method as per Darcy et al (2018)
-metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
-metadata$area <- metadata$area*10000
+# load("results/cleaned_files/cleanedfiles_3.RData")
+# #hole area - calculate and add to dataframe
+# #Method as per Darcy et al (2018)
+# metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+# metadata$area <- metadata$area*10000
+# 
+# #Let's make our data into a phyloseq object
+# ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+# TAX = tax_table(as.matrix(taxonomy))
+# META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+# my.ps <- phyloseq(ASV, TAX, META, tree_clean)
 
-#Let's make our data into a phyloseq object
-ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
-TAX = tax_table(as.matrix(taxonomy))
-META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
-my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+my.ps <- readRDS("../Outputs/Sommers2020/my-ps-original.rds") #original full dataset, no rareification, 
+my.ps.rar <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-total.rds") #rarefied dataset, total taxa
+my.ps.rar.rel <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative.rds") #rarefied relative abundance, total taxa
+my.ps.rar.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-abundant.rds") #rarefied abundant taxa ONLY
+my.ps.rar.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-rare.rds") #rarefied rare taxa ONLY
+
+#Load dataframes
+tot.diversity.data <- read.csv("../Outputs/Sommers2020/total-diversity-metadata.csv")
+abun.diversity.data <- read.csv("../Outputs/Sommers2020/abundant-diversity-metadata.csv")
+rare.diversity.data <- read.csv("../Outputs/Sommers2020/rare-diversity-metadata.csv")
 ```
 
 #Step Three: Rarefy data and get relative abundances
 ```{r}
-#set a seed so we get the same results each time we run this
-set.seed(1961)
-#rarefy the data to equal sampling depths
-my.ps.rar <- rarefy_even_depth(my.ps)
-#get relative abundances
-my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+# #set a seed so we get the same results each time we run this
+# set.seed(1961)
+# #rarefy the data to equal sampling depths
+# my.ps.rar <- rarefy_even_depth(my.ps)
+# #get relative abundances
+# my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
 ```
 
 #Step Four: Calculate alpha diversity indices
 ```{r}
-#Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
-div_shan <- diversity(t(count_table_clean), index = "shannon")
-
-#Use vegan package to get simpson diversity index of each sample
-div_simp <- diversity(t(count_table_clean), index = "simpson")
-
-#Use vegan package to get inverted simpson diversity index of each sample
-div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
-
-#Faith's phylogenetic diversity 
-asv_tab <- as.data.frame(my.ps@otu_table) #Hellinger transformed asv table
-
-my_tree <- my.ps@phy_tree #get my phylogenetic tree
-
-#Check if the tree is rooted
-my.ps@phy_tree #Rooted, includes branch lengths
-
-#It is a rooted tree so...
-df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
-
-#Calculate Pilou evenness
-div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(df.pd$SR) #Here we use the species count we got earlier
-
-#bind alpha diversity indices into a dataframe
-diversity <- cbind(df.pd, div_shan, div_simp, div_inv_simp, div_pilou)
-colnames(diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+# #Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+# div_shan <- diversity(t(count_table_clean), index = "shannon")
+# 
+# #Use vegan package to get simpson diversity index of each sample
+# div_simp <- diversity(t(count_table_clean), index = "simpson")
+# 
+# #Use vegan package to get inverted simpson diversity index of each sample
+# div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
+# 
+# #Faith's phylogenetic diversity 
+# asv_tab <- as.data.frame(my.ps@otu_table) #Hellinger transformed asv table
+# 
+# my_tree <- my.ps@phy_tree #get my phylogenetic tree
+# 
+# #Check if the tree is rooted
+# my.ps@phy_tree #Rooted, includes branch lengths
+# 
+# #It is a rooted tree so...
+# df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+# 
+# #Calculate Pilou evenness
+# div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(df.pd$SR) #Here we use the species count we got earlier
+# 
+# #bind alpha diversity indices into a dataframe
+# diversity <- cbind(df.pd, div_shan, div_simp, div_inv_simp, div_pilou)
+# colnames(diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
 
 ```
 
 #Step Five: Bind alpha diversity indices with metadata 
 ```{r}
-my.data <- cbind(metadata, diversity)
-
-#remove columns with data we're not interested in
-my.data.sub <- subset(my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
-rownames(my.data.sub) <- my.data.sub$Run
-my.data.sub <- subset(my.data.sub, select = -c(1))
-my.data.sub <- as.data.frame(lapply(my.data.sub, function(x) as.numeric(as.character(x))))
-my.data.sub$Glacier <- metadata$Glacier
-my.data.sub <- my.data.sub[complete.cases(my.data.sub), ]
+# my.data <- cbind(metadata, diversity)
+# 
+# #remove columns with data we're not interested in
+# my.data.sub <- subset(my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+# rownames(my.data.sub) <- my.data.sub$Run
+# my.data.sub <- subset(my.data.sub, select = -c(1))
+# my.data.sub <- as.data.frame(lapply(my.data.sub, function(x) as.numeric(as.character(x))))
+# my.data.sub$Glacier <- metadata$Glacier
+# my.data.sub <- my.data.sub[complete.cases(my.data.sub), ]
 
 ```
 
 #Step Six: Add another fake Glacier of data so we can compare three glaciers
 ```{r}
-Chlorophyll <- sample(as.numeric(my.data.sub$Chlorophyll), size = 12)
-Depth <- sample(as.numeric(my.data.sub$Depth), size = 12)
-DNA_per_g <- sample(as.numeric(my.data.sub$DNA_per_g), size = 12)
-org_matter <- sample(as.numeric(my.data.sub$org_matter), size = 12)
-pH <- sample(as.numeric(my.data.sub$pH), size = 12)
-water_content <- sample(as.numeric(my.data.sub$water_content), size = 12)
-area <- sample(as.numeric(my.data.sub$area), size = 12)
-Faith <- sample(as.numeric(my.data.sub$Faith), size = 12)
-Richness <- sample(as.numeric(my.data.sub$Richness), size = 12)
-Shannon <- sample(as.numeric(my.data.sub$Shannon), size = 12)
-Simpson <- sample(as.numeric(my.data.sub$Simpson), size = 12)
-Inv.Simpson <- sample(as.numeric(my.data.sub$Inv.Simpson), size = 12)
-Pilou <- sample(as.numeric(my.data.sub$Pilou), size = 12)
-Glacier <- rep("Solman", 12)
-
-df <- cbind(Chlorophyll, Depth, DNA_per_g, org_matter, pH, water_content, area, Faith, Richness, Shannon, Simpson, Inv.Simpson, Pilou, Glacier)
-
-my.data.sub.X <- rbind(my.data.sub, df)
-my.data.sub.X.1 <- my.data.sub.X[,-c(14)] #remove glacier names
-
-my.data.sub <- as.data.frame(lapply(my.data.sub.X.1, function(x) as.numeric(as.character(x))))
-#re-add glacier names 
-my.data.sub$Glacier <- as.factor(my.data.sub.X$Glacier)
+# Chlorophyll <- sample(as.numeric(my.data.sub$Chlorophyll), size = 12)
+# Depth <- sample(as.numeric(my.data.sub$Depth), size = 12)
+# DNA_per_g <- sample(as.numeric(my.data.sub$DNA_per_g), size = 12)
+# org_matter <- sample(as.numeric(my.data.sub$org_matter), size = 12)
+# pH <- sample(as.numeric(my.data.sub$pH), size = 12)
+# water_content <- sample(as.numeric(my.data.sub$water_content), size = 12)
+# area <- sample(as.numeric(my.data.sub$area), size = 12)
+# Faith <- sample(as.numeric(my.data.sub$Faith), size = 12)
+# Richness <- sample(as.numeric(my.data.sub$Richness), size = 12)
+# Shannon <- sample(as.numeric(my.data.sub$Shannon), size = 12)
+# Simpson <- sample(as.numeric(my.data.sub$Simpson), size = 12)
+# Inv.Simpson <- sample(as.numeric(my.data.sub$Inv.Simpson), size = 12)
+# Pilou <- sample(as.numeric(my.data.sub$Pilou), size = 12)
+# Glacier <- rep("Solman", 12)
+# 
+# df <- cbind(Chlorophyll, Depth, DNA_per_g, org_matter, pH, water_content, area, Faith, Richness, Shannon, Simpson, Inv.Simpson, Pilou, Glacier)
+# 
+# my.data.sub.X <- rbind(my.data.sub, df)
+# my.data.sub.X.1 <- my.data.sub.X[,-c(14)] #remove glacier names
+# 
+# my.data.sub <- as.data.frame(lapply(my.data.sub.X.1, function(x) as.numeric(as.character(x))))
+# #re-add glacier names 
+# my.data.sub$Glacier <- as.factor(my.data.sub.X$Glacier)
 ```
 
 #Step Seven: Explore the data with boxplots
