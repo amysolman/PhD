@@ -23,23 +23,31 @@ library(ggpubr)
 
 #Step Two: Load Data and make into phyloseq object 
 ```{r}
-load("results/cleaned_files/cleanedfiles_3.RData")
+#load("results/cleaned_files/cleanedfiles_3.RData")
 
 #Let's make our data into a phyloseq object
-ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
-TAX = tax_table(as.matrix(taxonomy))
-META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
-my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+# ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+# TAX = tax_table(as.matrix(taxonomy))
+# META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+# my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+
+#load phyloseq objects
+my.ps <- readRDS("../Outputs/Sommers2020/my-ps-original.rds")
+my.ps.rar <- readRDS("../Outputs/Sommers2020/my-ps-rarefied.rds")
+my.ps.rar.rel <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative.rds")
 ```
 
 #Step Three: Rarefy data and get relative abundances
 ```{r}
-#set a seed so we get the same results each time we run this
-set.seed(1961)
-#rarefy the data to equal sampling depths
-my.ps.rar <- rarefy_even_depth(my.ps)
-#get relative abundances
-my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+# #set a seed so we get the same results each time we run this
+# set.seed(1961)
+# #rarefy the data to equal sampling depths
+# my.ps.rar <- rarefy_even_depth(my.ps)
+# #get relative abundances
+# my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
 ```
 
 #Step Four: Calculate alpha diversity of each sample by OTU richness

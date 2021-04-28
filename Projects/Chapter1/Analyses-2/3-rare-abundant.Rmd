@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 
 #install.packages("remotes")
-remotes::install_github("vmikk/metagMisc") #for transforming phyloseq object to data frame
+#remotes::install_github("vmikk/metagMisc") #for transforming phyloseq object to data frame
 library(metagMisc)
 library(tibble) #for subsetting the data
 #install.packages("compare")
@@ -83,32 +83,6 @@ regional.inter.df <- regional.inter
 regional.inter.df$Meta <- "Intermediate"
 
 df <- rbind(regional.rare.df, regional.abun.df, regional.inter.df)
-  
-
-
-
-#####BELOW IS POINTLESS MADNESS######
-
-# rn1 <- row.names(df) #get ASV IDs of our abundant and rare taxa
-# rn2 <- row.names(mean.abun) #get all ASV IDs
-# rn3 = rn2[ - which(rn2 %in% rn1)] #which ASV IDs are not regionally abundant or rare
-
-# comparison <- compare(df, mean.abun,allowAll=TRUE)
-# 
-# require(dplyr) 
-# blah <- anti_join(df,mean.abun)
-# 
-# setdiff(rn1, rn2)
-# 
-
-# 
-# rn3 <- rn2[-c(rn1)]
-# 
-# rn3 <- rn2[rn2 != rn1,]
-# 
-# rn3 <- within(rn2, rm(rn1))
-# 
-# setdiff(rn1, rn2)
 ```
 
 
@@ -170,9 +144,57 @@ row.names(my.data.tax) <- my.data.tax$Row.names
 my.data.tax <- my.data.tax[-c(1)]
 
 #remove rows with NA in any particular sample (these are the ASVs that got removed from the count table in the rarification step. Remember that they were NOT removed from the taxonomy table)
-my.data_complete <- my.data[complete.cases(my.data$SRR12805327), ]
+my.data_complete <- my.data.tax[complete.cases(my.data.tax$SRR12805327), ]
 
+```
 
+#Make new phyloseq objects with total, abundant and rare microbial communities
+```{r}
+#Subset the count_table_clean, metadata, taxonomy and tree_clean dataframes by only ASVs that are abundant in the metacommunity
+abun.IDs <- my.data_complete[my.data_complete$Meta== "Abundant",]
+abun.IDs <- row.names(abun.IDs)
+abun.count <- subset(count_table_clean.tax, rownames(count_table_clean.tax) %in% abun.IDs)
+abun.tax <- subset(taxonomy, rownames(taxonomy) %in% abun.IDs)
+abun.tree <- prune_taxa(abun.IDs, tree_clean)
+
+#remove taxonomy from the count table
+abun.count.no.tax <- abun.count[-c(35:41)]
+
+#make a phyloseq object with just abundant taxa
+abun.ASV = otu_table(data.frame(abun.count.no.tax), taxa_are_rows = TRUE)
+abun.TAX = tax_table(as.matrix(abun.tax))
+abun.META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+ps.abun <- phyloseq(abun.ASV, abun.TAX, abun.META, abun.tree)
+
+#Subset the count_table_clean, metadata, taxonomy and tree_clean dataframes by only ASVs that are rare in the metacommunity
+rare.IDs <- my.data_complete[my.data_complete$Meta== "Rare",]
+rare.IDs <- row.names(rare.IDs)
+rare.count <- subset(count_table_clean.tax, rownames(count_table_clean.tax) %in% abun.IDs)
+rare.tax <- subset(taxonomy, rownames(taxonomy) %in% rare.IDs)
+rare.tree <- prune_taxa(rare.IDs, tree_clean)
+
+#remove taxonomy from the count table
+rare.count.no.tax <- rare.count[-c(35:41)]
+
+#make a phyloseq object with just abundant taxa
+rare.ASV = otu_table(data.frame(rare.count.no.tax), taxa_are_rows = TRUE)
+rare.TAX = tax_table(as.matrix(rare.tax))
+rare.META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+ps.rare <- phyloseq(rare.ASV, rare.TAX, rare.META, rare.tree)
+```
+
+#Export data: I need the phyloseq object with original data, the rarefied phyloseq object, the rarefied relative abundance phyloseq object. I also want my metadata table, fasta file, count_table with taxonomy, phylogenetic table and abundance table with taxonomy.
+```{r}
+
+#r data object
+save(metadata, fasta_clean, count_table_clean.tax, taxonomy, tree_clean, my.data_complete, file = "../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+
+#Now I'm going to export my phyloseq object
+saveRDS(my.ps, "../Outputs/Sommers2020/my-ps-original.rds")
+saveRDS(my.ps.rar, "../Outputs/Sommers2020/my-ps-rarefied-total.rds") #this is essentially the total community as the abundant and rare phyloseq object are also rarefied which is important for downstream analysis
+saveRDS(my.ps.rar.rel, "../Outputs/Sommers2020/my-ps-rarefied-relative.rds")
+saveRDS(ps.abun, "../Outputs/Sommers2020/my-ps-rarefied-abundant.rds")
+saveRDS(ps.rare, "../Outputs/Sommers2020/my-ps-rarefied-rare.rds")
 
 
 ```
