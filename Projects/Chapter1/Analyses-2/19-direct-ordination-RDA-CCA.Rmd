@@ -1,0 +1,217 @@
+---
+title: "Direct or Constrained Ordination"
+author: "Amy Solman"
+date: "23/04/2021"
+output: html_document
+---
+#This code will follow the tutorial and notes from Applied Quantitative Methods
+(http://dmcglinn.github.io/quant_methods/lessons/multivariate_models.html)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#MULTIVARIATE ORDINATION ANALYSIS
+#Two types of ordination:
+#Indirect or unconstrained ordination in which only a single matrix is analyzed
+#Direct on constrained ordination in which one matrix is used to explain the variance of another matrix
+
+#Ordination is frequently used when exploring patterns in datasets graphically. It can also be used in hypothesis testing.
+#The term ordination derives from the idea to ordinate or put things into order. With ordination approaches we are attempting to take a high-dimensional data matrix and explain its patterns with a small number of axis.
+
+#Ordination is close to multiple regression. The key difference is that the response variable is multivariate rather than univariate.
+
+#Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(vegan)
+#install.packages("dummies")
+library(dummies)
+```
+
+#Load Data and make into phyloseq object 
+```{r}
+# load("results/cleaned_files/cleanedfiles_3.RData")
+# 
+# #hole area - calculate and add to dataframe
+# #Method as per Darcy et al (2018)
+# metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+# metadata$area <- metadata$area*10000
+# metadata$Chlorophyll <- as.numeric(metadata$Chlorophyll)
+# metadata$Depth <- as.numeric(metadata$Depth)
+# metadata$DNA_per_g <- as.numeric(metadata$DNA_per_g)
+# metadata$org_matter <- as.numeric(metadata$org_matter)
+# metadata$pH <- as.numeric(metadata$pH)
+# metadata$water_content <- as.numeric(metadata$water_content)
+# metadata$Glacier <- as.factor(metadata$Glacier)
+# 
+# #Let's make our data into a phyloseq object
+# ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+# TAX = tax_table(as.matrix(taxonomy))
+# META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+# my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+my.ps <- readRDS("../Outputs/Sommers2020/my-ps-original.rds") #original full dataset, no rareification, 
+my.ps.rar <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-total.rds") #rarefied dataset, total taxa
+my.ps.rar.rel <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative.rds") #rarefied relative abundance, total taxa
+my.ps.rar.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-abundant.rds") #rarefied abundant taxa ONLY
+my.ps.rar.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-rare.rds") #rarefied rare taxa ONLY
+
+#Load dataframes
+tot.diversity.data <- read.csv("../Outputs/Sommers2020/total-diversity-metadata.csv")
+abun.diversity.data <- read.csv("../Outputs/Sommers2020/abundant-diversity-metadata.csv")
+rare.diversity.data <- read.csv("../Outputs/Sommers2020/rare-diversity-metadata.csv")
+```
+
+#Transpose count table to that ASVs are columns and samples are rows
+```{r}
+comm <- t(otu_table(my.ps.rar))
+
+```
+
+#Visually explore our data
+```{r}
+uni_sp = unique(colnames(comm)) #get our unique species IDs
+sp_sum <- apply(comm, 2, sum) #get the sum of each column (asv - how many individuals of the ASV are found across all samples)
+site_sum <- apply(comm, 1, sum) #get the sum of each row (sample - how many individuals are there across all ASVs in the sample)
+par(mfrow=c(2,2))
+hist(sp_sum) #histogram of total ASV abundances
+col=colorRamp(c('red', 'orange', 'blue'))
+pc_cols = col(length(uni_sp))
+plot(sp_sum[order(sp_sum, decreasing=T)], type='o', col='red', lwd=2, xlab='Sp Rank', ylab='Sum Cover') #plot the total ASV abundances by order
+hist(site_sum) #histogram of total abundances across all samples
+plot(site_sum[order(site_sum, decreasing=T)], type='o', col='red', lwd=2, xlab='Site Rank', ylab='Sum Cover') #plot total abundances per sample by order
+
+#We can see from the upper right hand graph that most species have low sum cover (total covers), so most species are rare
+
+#These plots are not terribly helpful at understanding the variability in the community matrix so let’s get our enviornmental variables ready to use and start to conduct some actual analyses.
+```
+
+#Create an explanatory matrix
+#We know that each sample has an accompanying set of environmental measurements!
+#Let's pull out the environmental data that we need
+```{r}
+cols_to_keep = c('Chlorophyll', 'Depth', 'DNA_per_g', 'org_matter', 'pH', 'water_content', 'Area', 'Glacier')
+env = aggregate(metadata[ , cols_to_keep], by = list(metadata$Run), function(x) x[1])
+# aggregate does have a side effect of adding a column to the output which 
+# is the unique plotID in this case. We just need to move that so it is a 
+# row name instead. 
+row.names(env) = env[ , 1]
+env = env[ , -1]
+head(env)
+
+#Let's check to make sure our explanatory matrix has the same sample names as our count table
+
+all.equal(rownames(comm), rownames(env)) #TRUE!
+
+#Now we can rename the samples names to something simpler 
+rownames(comm) = 1:nrow(comm)
+rownames(env) = 1:nrow(env)
+```
+
+#DIRECT OR CONSTRAINED ORDINATION
+#REDUNDANCY ANALYSIS
+#Here we're going to carry out an RDA which expects a linear response of each species to the environmental variables. RDA is the most direct analog of OLS refression to the multivariate response variable.
+```{r}
+#rda_cryo = rda(comm, env) #this doesn't work because I have NAs in my env data so let's remove them
+
+c1 <- complete.cases(comm)
+c2 <- complete.cases(env)
+c12 <- c1 & c2
+
+comm_sub <- comm[c12, ]
+env_sub <- env[c12, ]
+
+#rda_cryo = rda(comm_sub, env_sub)
+
+# vegan requires that we write out each term if we are not going to 
+# convert the factor to a dummy matrix 
+# rda_cryo = rda(comm_sub ~ env_sub$Chlorophyll + env_sub$Depth +
+#                env_sub$DNA_per_g + env_sub$org_matter + env_sub$pH + env_sub$water_content + env_sub$area + env_sub$Glacier)
+
+#Including everything was too much for this processes so I've kept a handful of predictor variables
+
+# rda_cryo = rda(comm_sub ~ env_sub$org_matter + env_sub$pH +env_sub$area + env_sub$Glacier)
+
+# alternatively we could use a shorthand approach to include all variables
+rda_cryo = rda(comm_sub ~ . , data=env_sub)
+rda_cryo
+
+# rda_cryo = rda(comm ~ . , data=env)
+# rda_cryo
+
+RsquareAdj(rda_cryo) #computes R and adjusted R
+
+#Intertia in our output = the variation
+#Total inertia = total variance
+#Constrained inertia = amount of variance explained by the explanatory variances
+#Unconstrained = residual variance
+#Constrained + Unconstrained = Total
+#R2 stat = constrained/total
+#Rank = number of variables included
+
+```
+
+#Plot the model result to get a sense of which variables are correlating with the ASVs along which axis
+```{r}
+plot(rda_cryo, type='n', scaling=1)
+orditorp(rda_cryo, display ='sp', cex=0.5, scaling=1, col='blue')
+text(rda_cryo, display='cn', col='red')
+
+#We interpret this plot similarly to previous plots, except now we have environmental variables displayed and their placement indicates their loading on the two displayed RDA.
+#The location of a species relative to environmental variables indicates how strongly an ASV is associated with a particular environmental variable. 
+
+```
+
+#Canonical Correspondence Analysis (CCA)
+#CCA is appropriate for modeling unimodel or hump-shapes responses to explanatory vairables - rather than linear as with RDA
+```{r}
+cca_cryo = cca(comm_sub ~., data=env_sub)
+RsquareAdj(cca_cryo)
+anova(cca_cryo, permutations=999)
+anova(cca_cryo, by='margin', permutations = 999)
+```
+
+#Plot the CCA
+```{r}
+plot(cca_cryo, type='n', scaling=1)
+orditorp(cca_cryo, display='sp', cex=0.5, scaling=1, col='blue')
+text(cca_cryo, display='bp', col='red')
+
+```
+
+#Hypothesis Testing
+```{r}
+anova(rda_cryo, permutations = 100) #test to examine overall model fit realtive to a randomized or permuted matrix of data
+anova(rda_cryo, by='margin', permutations = 100) #Test examines the partial effects of the individual variables included in the model
+
+```
+
+#Model Comparison
+#Model comparison can be carried out using direct ordination methods either using nested models of different degrees of complexity as can be done with univariate lm type models
+```{r}
+rda_cryo_simple <- update(rda_cryo, . ~ . - DNA_per_g)
+anova(rda_cryo_simple, rda_cryo)
+#There is no significant difference between the models so the reduced model is better
+RsquareAdj(rda_cryo_simple) #better R2 results
+RsquareAdj(rda_cryo)
+```
+#Variation Partitioning
+#Lastly, we're going to carry out variation partitioning. We can use this approach t examine how much of the explained variance is due to different groups of variables. In other words this approach is really only useful is you are interested in comparing the realtive important of several variable to another set of variables.
+```{r}
+#get a dataframe of a subset of environmental variables
+x = env_sub[ , c('Chlorophyll', 'Depth', 'org_matter', 'pH', 'Glacier')]
+# because the variable glacier is a factor we need to convert it into 
+# a dummy matrix using the function dummies::dummy
+Glacier = dummy(env_sub$Glacier)
+
+# examine the explanatory variable of each class of variables.
+varpart(comm_sub, x, Glacier) 
+#The output shows that the x group of variables explains 16% of variances, while Glacier explains 0% of the variances in the data
+#There is a large fraction of shared variances (20%) which indicates that the variables effects are not entirely independent of each other
+
+showvarparts(2) 
+```

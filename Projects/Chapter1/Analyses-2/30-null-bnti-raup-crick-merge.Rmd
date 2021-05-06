@@ -1,0 +1,517 @@
+---
+title: "BNTI and Raup-Crick Merge"
+author: "Amy Solman"
+date: "14/04/2021"
+output: html_document
+---
+#BNTI and Raup-Crick merge code developed from Barrnet et al., (2020) (https://github.com/seb369/landuse_comm_assembly/blob/master/Comm_assembly_processes.md)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rm(list=ls())
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+
+# # Import bulk soil phyloseq data
+# load("results/cleaned_files/cleanedfiles_3.RData")
+# 
+# #Let's make our data into a phyloseq object
+# ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+# TAX = tax_table(as.matrix(taxonomy))
+# META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+# my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+# 
+# #check number of reads in each sample
+# read.num <- data.frame("count" = colSums(otu_table(my.ps))) %>%
+#   rownames_to_column(var="Run") %>%
+#   inner_join(data.frame(sample_data(my.ps)), by="Run") %>%
+#   arrange(-count) %>%
+#   mutate(X.Sample=factor(Run, levels=Run))
+# 
+# #Check to make sure all of our samples are at or above 10000 reads
+# ggplot(data=read.num, aes(x=Run, y=log10(count), fill = Glacier)) +
+#   geom_bar(stat="identity")+
+#   labs(x="Sample", y="Log10(Read count)")+
+#   geom_hline(yintercept=log10(10000))+
+#   theme(text=element_text(size=16),
+#        axis.text.x=element_blank())
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+
+#Phyloseq objects
+my.ps <- readRDS("../Outputs/Sommers2020/my-ps-original.rds") #original full dataset, no rareification,
+my.ps.rar <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-total.rds") #rarefied dataset, total taxa
+my.ps.rar.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-abundant.rds") #rarefied abundant taxa ONLY
+my.ps.rar.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-rare.rds") #rarefied rare taxa ONLY
+my.ps.rar.rel <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative.rds") #rarefied relative abundance, total taxa
+my.ps.rar.rel.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative-abundant.rds")#rarefied relative abundance abundant taxa ONLY
+my.ps.rar.rel.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative-rare.rds") #rarefied relative abundance rare taxa ONLY
+
+#Load dataframes
+tot.diversity.data <- read.csv("../Outputs/Sommers2020/total-diversity-metadata.csv")
+abun.diversity.data <- read.csv("../Outputs/Sommers2020/abundant-diversity-metadata.csv")
+rare.diversity.data <- read.csv("../Outputs/Sommers2020/rare-diversity-metadata.csv")
+```
+
+
+Now we need to rarefy the data to normalize the sequencing depth. We should also get a normalized dataset which gives relative abundance rather than readcounts.
+
+```{r}
+# #set a seed so we get the same results each time we run this
+# set.seed(1961)
+# #rarefy the data to equal sampling depths
+# my.ps.rar <- rarefy_even_depth(my.ps)
+# #get relative abundances
+# my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+
+```
+
+
+```{r}
+# bNTI data
+# Import bNTI data
+bNTI.df = read.table("../Outputs/Sommers2020/full_bNTI-total.txt") #read in BNTI results
+
+# RCbray data
+RCb.df = read.table(file="../Outputs/Sommers2020/RCb_df-total.txt") %>%
+  mutate(Sample_1 = Site2, Sample_2 = Site1) #and match up sample names with BNTI results
+
+x.1 = data.frame(sample_data(my.ps.rar)) %>%
+  select(Run, Glacier) %>%
+  rename(Sample_1 = Run, Glacier_1 = Glacier) #get the corresponding glacier for each sample in sample_1
+
+x.2 = data.frame(sample_data(my.ps.rar)) %>%
+  select(Run, Glacier) %>%
+  rename(Sample_2 = Run, Glacier_2 = Glacier) #get the corresponding glacier for each sample in sample_2
+
+#create dataframes 
+
+bNTI.df = inner_join(bNTI.df, x.1) %>% #join the BNTI results with the right glacier names for samples1 and sample 2
+  inner_join(x.2)
+# Merge both datasets
+turnover.df = inner_join(bNTI.df, RCb.df) #match the BNTI and RCbray results by sample name and merge
+head(turnover.df)
+```
+
+```{r}
+#We need to assign each BNTI result to a particular glacier
+# Make bNTI figure
+within.bNTI.df = bNTI.df %>% #so get your BNTI dataframe
+  filter(Glacier_1 == Glacier_2) %>% ##where the glaciers are the sample (i.e. the BNTI results are from samples within the same glacier)
+  mutate(Glacier = Glacier_1) #give it an overall glacier name of that glacier. So this omits comparisons with samples from different sites
+# 
+#within.bNTI.df$Glacier = factor(within.bNTI.df$Glacier, levels = c("Canada", "Taylor"))
+
+#plot the results!
+eco.bNTI.plot = ggplot(within.bNTI.df, aes(x=Glacier, y=bNTI)) +
+  geom_boxplot(outlier.shape=1) +
+  geom_hline(yintercept = 2, linetype=2, size=0.5) +
+  geom_hline(yintercept = -2, linetype=2, size=0.5) +
+  labs(x="Glacier", y="βNTI") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text = element_text(size=12),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(size=14))
+
+eco.bNTI.plot
+```
+
+```{r}
+#Make the community analysis plot
+#do the same as with did with JUST the BNTI dataframe with the BNTI and RCb dataframe
+eco.turnover.df = turnover.df %>%
+  filter(Glacier_1 == Glacier_2) %>%
+  mutate(Glacier = Glacier_1)
+
+#eco.turnover.df = left_join(eco.turnover.df, ecosystem.conv)
+
+#eco.turnover.df$Glacier2 = factor(eco.turnover.df$Glacier2, levels = c("Canada", "Taylor"))
+eco.turnover.df$Glacier = factor(eco.turnover.df$Glacier, levels=c("Canada", "Taylor"))
+
+## Calculate the relative influence of each process
+# eco.turnover.df = eco.turnover.df %>%
+#   mutate(process = ifelse(abs(bNTI) < 2,
+#                           ifelse(abs(RCb) < 0.95, "Drift",
+#                                  ifelse(RCb >= 0.95, "Dispersal Limited",
+#                                         ifelse(RCb <= -0.95, "Homogenizing Dispersal", "ERROR"))),
+#                           ifelse(bNTI >= 2, "Variable Selection",
+#                                  ifelse(bNTI <= -2, "Homogeneous Selection", "ERROR"))))
+
+eco.turnover.df = eco.turnover.df %>%
+  mutate(process = ifelse(abs(bNTI) < 2, #if absolute value of BNTI is less than 2
+                          ifelse(abs(RCb) < 0.95, "Drift", #and absolute value of RCb is less than 0.95 = Drift
+                                 ifelse(RCb >= 0.95, "Dispersal Limited", #if RCb is > 0.95 = Dispersal limited
+                                        ifelse(RCb <= -0.95, "Homogenizing Dispersal", "ERROR"))), #< -0.95 = homo disp
+                          ifelse(bNTI >= 2, "Variable Selection", #more than 2 = variable selection
+                                 ifelse(bNTI <= -2, "Homogeneous Selection", "ERROR")))) #< -2 = homogenous selection
+
+eco.turnover.df$process = factor(eco.turnover.df$process, levels = c("Drift", 
+                                                           "Dispersal Limited", "Homogenizing Dispersal", 
+                                                              "Variable Selection", "Homogeneous Selection"))
+# sum.eco.turnover.df = eco.turnover.df %>%
+#   group_by(Glacier_2, process) %>%
+#   dplyr::summarize(n_sites = n(),
+#                    perc=(n()*100) %>%
+#     as.data.frame
+    
+sum.eco.turnover.df = eco.turnover.df %>%
+  group_by(Glacier, process) %>%
+  dplyr::summarize(n_sites = n(),
+                   perc=(n()/154)*100) %>%
+  as.data.frame
+  
+  eco.turnover.df$Glacier
+  #for each glacier
+  #find the number of number of site pairs
+  #and the percentage of those pairs that shows that process
+    
+Canada.data <- eco.turnover.df[eco.turnover.df$Glacier == "Canada", ] 
+
+  Canada.data <- Canada.data %>%
+group_by(process) %>%
+  dplyr::summarize(n_sites = n(),
+                   perc=(n()/nrow(Canada.data))*100) %>%
+  as.data.frame
+  
+  Taylor.data <- eco.turnover.df[eco.turnover.df$Glacier == "Taylor", ] 
+
+    Taylor.data <- Taylor.data %>%
+group_by(process) %>%
+  dplyr::summarize(n_sites = n(),
+                   perc=(n()/nrow(Taylor.data))*100) %>%
+  as.data.frame
+
+    Taylor.data$Glacier <- "Taylor"
+    Canada.data$Glacier <- "Canada"
+    final.data <- rbind(Canada.data, Taylor.data)
+  
+  
+  
+
+sum.eco.turnover.df
+## Fix the look of some of the variable names for the figure. This is purely asthetic
+# sum.eco.turnover.mod.df = sum.eco.turnover.df %>%
+#   mutate(process = gsub(" S", "\ns", process)) %>%
+#   mutate(process = gsub(" D", "\nd", process)) %>%
+#   mutate(process = gsub("Drift", "Drift alone\n ", process))
+
+# sum.eco.turnover.mod.df$process = factor(sum.eco.turnover.mod.df$process, 
+#                                         levels = c("Drift alone\n ",
+#                                                    "Homogenizing\ndispersal", 
+#                                                    "Variable\nselection", 
+#                                                    "Homogeneous\nselection"))
+
+eco.turnover.plot = ggplot(final.data, aes(x=Glacier, y=perc, fill=process)) +
+  geom_bar(stat="identity", color="black") +
+  scale_fill_manual(values = c("white", "grey75", "grey50", "grey30", "black")) + 
+  labs(x="Glacier", y="Percent of site pairs", fill="Process") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.text = element_text(size=12),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(size=14),
+        legend.key.size = unit(10, "mm"),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14))
+
+# Merge the plots
+eco.plot = cowplot::plot_grid(eco.bNTI.plot, eco.turnover.plot, 
+                   rel_widths=c(0.6, 1), labels=c("A", "B"))
+eco.plot
+ggsave("../Outputs/Sommers2020/graphs/null-model-results-total.pdf", width=8, height=4)
+```
+
+###ABUNDANT TAXA
+```{r}
+# bNTI data
+# Import bNTI data
+bNTI.df = read.table("../Outputs/Sommers2020/full_bNTI-abundant.txt") #read in BNTI results
+
+# RCbray data
+RCb.df = read.table(file="../Outputs/Sommers2020/RCb_df-abundant.txt") %>%
+  mutate(Sample_1 = Site2, Sample_2 = Site1) #and match up sample names with BNTI results
+
+x.1 = data.frame(sample_data(my.ps.rar.abun)) %>%
+  select(Run, Glacier) %>%
+  rename(Sample_1 = Run, Glacier_1 = Glacier) #get the corresponding glacier for each sample in sample_1
+
+x.2 = data.frame(sample_data(my.ps.rar.abun)) %>%
+  select(Run, Glacier) %>%
+  rename(Sample_2 = Run, Glacier_2 = Glacier) #get the corresponding glacier for each sample in sample_2
+
+#create dataframes 
+
+bNTI.df = inner_join(bNTI.df, x.1) %>% #join the BNTI results with the right glacier names for samples1 and sample 2
+  inner_join(x.2)
+# Merge both datasets
+turnover.df = inner_join(bNTI.df, RCb.df) #match the BNTI and RCbray results by sample name and merge
+head(turnover.df)
+```
+
+```{r}
+#We need to assign each BNTI result to a particular glacier
+# Make bNTI figure
+within.bNTI.df = bNTI.df %>% #so get your BNTI dataframe
+  filter(Glacier_1 == Glacier_2) %>% ##where the glaciers are the sample (i.e. the BNTI results are from samples within the same glacier)
+  mutate(Glacier = Glacier_1) #give it an overall glacier name of that glacier. So this omits comparisons with samples from different sites
+# 
+#within.bNTI.df$Glacier = factor(within.bNTI.df$Glacier, levels = c("Canada", "Taylor"))
+
+#plot the results!
+eco.bNTI.plot = ggplot(within.bNTI.df, aes(x=Glacier, y=bNTI)) +
+  geom_boxplot(outlier.shape=1) +
+  geom_hline(yintercept = 2, linetype=2, size=0.5) +
+  geom_hline(yintercept = -2, linetype=2, size=0.5) +
+  labs(x="Glacier", y="βNTI") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text = element_text(size=12),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(size=14))
+
+eco.bNTI.plot
+```
+
+```{r}
+#Make the community analysis plot
+#do the same as with did with JUST the BNTI dataframe with the BNTI and RCb dataframe
+eco.turnover.df = turnover.df %>%
+  filter(Glacier_1 == Glacier_2) %>%
+  mutate(Glacier = Glacier_1)
+
+#eco.turnover.df = left_join(eco.turnover.df, ecosystem.conv)
+
+#eco.turnover.df$Glacier2 = factor(eco.turnover.df$Glacier2, levels = c("Canada", "Taylor"))
+eco.turnover.df$Glacier = factor(eco.turnover.df$Glacier, levels=c("Canada", "Taylor"))
+
+## Calculate the relative influence of each process
+# eco.turnover.df = eco.turnover.df %>%
+#   mutate(process = ifelse(abs(bNTI) < 2,
+#                           ifelse(abs(RCb) < 0.95, "Drift",
+#                                  ifelse(RCb >= 0.95, "Dispersal Limited",
+#                                         ifelse(RCb <= -0.95, "Homogenizing Dispersal", "ERROR"))),
+#                           ifelse(bNTI >= 2, "Variable Selection",
+#                                  ifelse(bNTI <= -2, "Homogeneous Selection", "ERROR"))))
+
+eco.turnover.df = eco.turnover.df %>%
+  mutate(process = ifelse(abs(bNTI) < 2, #if absolute value of BNTI is less than 2
+                          ifelse(abs(RCb) < 0.95, "Drift", #and absolute value of RCb is less than 0.95 = Drift
+                                 ifelse(RCb >= 0.95, "Dispersal Limited", #if RCb is > 0.95 = Dispersal limited
+                                        ifelse(RCb <= -0.95, "Homogenizing Dispersal", "ERROR"))), #< -0.95 = homo disp
+                          ifelse(bNTI >= 2, "Variable Selection", #more than 2 = variable selection
+                                 ifelse(bNTI <= -2, "Homogeneous Selection", "ERROR")))) #< -2 = homogenous selection
+
+eco.turnover.df$process = factor(eco.turnover.df$process, levels = c("Drift", 
+                                                           "Dispersal Limited", "Homogenizing Dispersal", 
+                                                              "Variable Selection", "Homogeneous Selection"))
+# sum.eco.turnover.df = eco.turnover.df %>%
+#   group_by(Glacier_2, process) %>%
+#   dplyr::summarize(n_sites = n(),
+#                    perc=(n()*100) %>%
+#     as.data.frame
+    
+sum.eco.turnover.df = eco.turnover.df %>%
+  group_by(Glacier, process) %>%
+  dplyr::summarize(n_sites = n(),
+                   perc=(n()/154)*100) %>%
+  as.data.frame
+  
+  eco.turnover.df$Glacier
+  #for each glacier
+  #find the number of number of site pairs
+  #and the percentage of those pairs that shows that process
+    
+Canada.data <- eco.turnover.df[eco.turnover.df$Glacier == "Canada", ] 
+
+  Canada.data <- Canada.data %>%
+group_by(process) %>%
+  dplyr::summarize(n_sites = n(),
+                   perc=(n()/nrow(Canada.data))*100) %>%
+  as.data.frame
+  
+  Taylor.data <- eco.turnover.df[eco.turnover.df$Glacier == "Taylor", ] 
+
+    Taylor.data <- Taylor.data %>%
+group_by(process) %>%
+  dplyr::summarize(n_sites = n(),
+                   perc=(n()/nrow(Taylor.data))*100) %>%
+  as.data.frame
+
+    Taylor.data$Glacier <- "Taylor"
+    Canada.data$Glacier <- "Canada"
+    final.data <- rbind(Canada.data, Taylor.data)
+  
+  
+  
+
+sum.eco.turnover.df
+
+eco.turnover.plot = ggplot(final.data, aes(x=Glacier, y=perc, fill=process)) +
+  geom_bar(stat="identity", color="black") +
+  scale_fill_manual(values = c("white", "grey75", "grey50", "grey30", "black")) + 
+  labs(x="Glacier", y="Percent of site pairs", fill="Process") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.text = element_text(size=12),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(size=14),
+        legend.key.size = unit(10, "mm"),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14))
+
+# Merge the plots
+eco.plot.abun = cowplot::plot_grid(eco.bNTI.plot, eco.turnover.plot, 
+                   rel_widths=c(0.6, 1), labels=c("A", "B"))
+eco.plot.abun
+ggsave("../Outputs/Sommers2020/graphs/null-model-results-abundant.pdf", width=8, height=4)
+```
+###RARE TAXA
+```{r}
+# bNTI data
+# Import bNTI data
+bNTI.df = read.table("../Outputs/Sommers2020/full_bNTI-rare.txt") #read in BNTI results
+
+# RCbray data
+RCb.df = read.table(file="../Outputs/Sommers2020/RCb_df-rare.txt") %>%
+  mutate(Sample_1 = Site2, Sample_2 = Site1) #and match up sample names with BNTI results
+
+x.1 = data.frame(sample_data(my.ps.rar.rare)) %>%
+  select(Run, Glacier) %>%
+  rename(Sample_1 = Run, Glacier_1 = Glacier) #get the corresponding glacier for each sample in sample_1
+
+x.2 = data.frame(sample_data(my.ps.rar.rare)) %>%
+  select(Run, Glacier) %>%
+  rename(Sample_2 = Run, Glacier_2 = Glacier) #get the corresponding glacier for each sample in sample_2
+
+#create dataframes 
+
+bNTI.df = inner_join(bNTI.df, x.1) %>% #join the BNTI results with the right glacier names for samples1 and sample 2
+  inner_join(x.2)
+# Merge both datasets
+turnover.df = inner_join(bNTI.df, RCb.df) #match the BNTI and RCbray results by sample name and merge
+head(turnover.df)
+
+turnover.df <- turnover.df[complete.cases(turnover.df), ]
+```
+
+```{r}
+#We need to assign each BNTI result to a particular glacier
+# Make bNTI figure
+within.bNTI.df = bNTI.df %>% #so get your BNTI dataframe
+  filter(Glacier_1 == Glacier_2) %>% ##where the glaciers are the sample (i.e. the BNTI results are from samples within the same glacier)
+  mutate(Glacier = Glacier_1) #give it an overall glacier name of that glacier. So this omits comparisons with samples from different sites
+# 
+#within.bNTI.df$Glacier = factor(within.bNTI.df$Glacier, levels = c("Canada", "Taylor"))
+
+#plot the results!
+eco.bNTI.plot = ggplot(within.bNTI.df, aes(x=Glacier, y=bNTI)) +
+  geom_boxplot(outlier.shape=1) +
+  geom_hline(yintercept = 2, linetype=2, size=0.5) +
+  geom_hline(yintercept = -2, linetype=2, size=0.5) +
+  labs(x="Glacier", y="βNTI") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text = element_text(size=12),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(size=14))
+
+eco.bNTI.plot
+```
+
+```{r}
+#Make the community analysis plot
+#do the same as with did with JUST the BNTI dataframe with the BNTI and RCb dataframe
+eco.turnover.df = turnover.df %>%
+  filter(Glacier_1 == Glacier_2) %>%
+  mutate(Glacier = Glacier_1)
+
+#eco.turnover.df = left_join(eco.turnover.df, ecosystem.conv)
+
+#eco.turnover.df$Glacier2 = factor(eco.turnover.df$Glacier2, levels = c("Canada", "Taylor"))
+eco.turnover.df$Glacier = factor(eco.turnover.df$Glacier, levels=c("Canada", "Taylor"))
+
+## Calculate the relative influence of each process
+# eco.turnover.df = eco.turnover.df %>%
+#   mutate(process = ifelse(abs(bNTI) < 2,
+#                           ifelse(abs(RCb) < 0.95, "Drift",
+#                                  ifelse(RCb >= 0.95, "Dispersal Limited",
+#                                         ifelse(RCb <= -0.95, "Homogenizing Dispersal", "ERROR"))),
+#                           ifelse(bNTI >= 2, "Variable Selection",
+#                                  ifelse(bNTI <= -2, "Homogeneous Selection", "ERROR"))))
+
+eco.turnover.df = eco.turnover.df %>%
+  mutate(process = ifelse(abs(bNTI) < 2, #if absolute value of BNTI is less than 2
+                          ifelse(abs(RCb) < 0.95, "Drift", #and absolute value of RCb is less than 0.95 = Drift
+                                 ifelse(RCb >= 0.95, "Dispersal Limited", #if RCb is > 0.95 = Dispersal limited
+                                        ifelse(RCb <= -0.95, "Homogenizing Dispersal", "ERROR"))), #< -0.95 = homo disp
+                          ifelse(bNTI >= 2, "Variable Selection", #more than 2 = variable selection
+                                 ifelse(bNTI <= -2, "Homogeneous Selection", "ERROR")))) #< -2 = homogenous selection
+
+eco.turnover.df$process = factor(eco.turnover.df$process, levels = c("Drift", 
+                                                           "Dispersal Limited", "Homogenizing Dispersal", 
+                                                              "Variable Selection", "Homogeneous Selection"))
+# sum.eco.turnover.df = eco.turnover.df %>%
+#   group_by(Glacier_2, process) %>%
+#   dplyr::summarize(n_sites = n(),
+#                    perc=(n()*100) %>%
+#     as.data.frame
+    
+sum.eco.turnover.df = eco.turnover.df %>%
+  group_by(Glacier, process) %>%
+  dplyr::summarize(n_sites = n(),
+                   perc=(n()/154)*100) %>%
+  as.data.frame
+  
+  eco.turnover.df$Glacier
+  #for each glacier
+  #find the number of number of site pairs
+  #and the percentage of those pairs that shows that process
+    
+Canada.data <- eco.turnover.df[eco.turnover.df$Glacier == "Canada", ] 
+
+  Canada.data <- Canada.data %>%
+group_by(process) %>%
+  dplyr::summarize(n_sites = n(),
+                   perc=(n()/nrow(Canada.data))*100) %>%
+  as.data.frame
+  
+  Taylor.data <- eco.turnover.df[eco.turnover.df$Glacier == "Taylor", ] 
+
+    Taylor.data <- Taylor.data %>%
+group_by(process) %>%
+  dplyr::summarize(n_sites = n(),
+                   perc=(n()/nrow(Taylor.data))*100) %>%
+  as.data.frame
+
+    Taylor.data$Glacier <- "Taylor"
+    Canada.data$Glacier <- "Canada"
+    final.data <- rbind(Canada.data, Taylor.data)
+  
+  
+  
+
+sum.eco.turnover.df
+
+eco.turnover.plot = ggplot(final.data, aes(x=Glacier, y=perc, fill=process)) +
+  geom_bar(stat="identity", color="black") +
+  scale_fill_manual(values = c("white", "grey75", "grey50", "grey30", "black")) + 
+  labs(x="Glacier", y="Percent of site pairs", fill="Process") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.text = element_text(size=12),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(size=14),
+        legend.key.size = unit(10, "mm"),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14))
+
+# Merge the plots
+eco.plot.rare = cowplot::plot_grid(eco.bNTI.plot, eco.turnover.plot, 
+                   rel_widths=c(0.6, 1), labels=c("A", "B"))
+eco.plot.rare
+ggsave("../Outputs/Sommers2020/graphs/null-model-results-rare.pdf", width=8, height=4)
+```

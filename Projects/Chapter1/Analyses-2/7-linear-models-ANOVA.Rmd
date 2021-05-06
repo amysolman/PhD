@@ -136,89 +136,166 @@ rare.diversity.data <- read.csv("../Outputs/Sommers2020/rare-diversity-metadata.
 # df <- cbind(Chlorophyll, Depth, DNA_per_g, org_matter, pH, water_content, area, Faith, Richness, Shannon, Simpson, Inv.Simpson, Pilou, Glacier)
 # 
 # my.data.sub.X <- rbind(my.data.sub, df)
-# my.data.sub.X.1 <- my.data.sub.X[,-c(14)] #remove glacier names
-# 
-# my.data.sub <- as.data.frame(lapply(my.data.sub.X.1, function(x) as.numeric(as.character(x))))
-# #re-add glacier names 
-# my.data.sub$Glacier <- as.factor(my.data.sub.X$Glacier)
+
+#####LET'S MAKE SURE OUR NUMBERS ARE NUMERIC AND GLACIER IS A FACTOR
+###TOTAL DATA
+a <- tot.diversity.data[,-c(14)] #remove glacier names
+
+tot.diversity.data.1 <- as.data.frame(lapply(a, function(x) as.numeric(as.character(x))))
+#re-add glacier names
+tot.diversity.data.1$Glacier <- as.factor(tot.diversity.data$Glacier)
+
+tot.diversity.data <- tot.diversity.data.1
+
+###ABUNDANT DATA
+a <- abun.diversity.data[,-c(14)] #remove glacier names
+
+abun.diversity.data.1 <- as.data.frame(lapply(a, function(x) as.numeric(as.character(x))))
+#re-add glacier names
+abun.diversity.data.1$Glacier <- as.factor(abun.diversity.data$Glacier)
+
+abun.diversity.data <- abun.diversity.data.1
+
+###RARE DATA
+a <- rare.diversity.data[,-c(14)] #remove glacier names
+
+rare.diversity.data.1 <- as.data.frame(lapply(a, function(x) as.numeric(as.character(x))))
+#re-add glacier names
+rare.diversity.data.1$Glacier <- as.factor(rare.diversity.data$Glacier)
+
+rare.diversity.data <- rare.diversity.data.1
+```
+#Export the modified dataframes
+```{r}
+write.csv(tot.diversity.data,"../Outputs/Sommers2020/total-diversity-metadata.csv", row.names = FALSE)
+write.csv(abun.diversity.data,"../Outputs/Sommers2020/abundant-diversity-metadata.csv", row.names = FALSE)
+write.csv(rare.diversity.data,"../Outputs/Sommers2020/rare-diversity-metadata.csv", row.names = FALSE)
 ```
 
 #Step Seven: Explore the data with boxplots
 ```{r}
-summary(my.data.sub)
-plot(Richness ~ Glacier, data = my.data.sub)
+# summary(my.data.sub)
+# plot(Richness ~ Glacier, data = my.data.sub)
+# 
+# #let's log richness and re-do our boxplot
+# my.data.sub$logRichness <- log(my.data.sub$Richness)
+# 
+# plot(logRichness ~ Glacier, data = my.data.sub)
+
+###TOTAL TAXA
+summary(tot.diversity.data)
+plot(Richness ~ Glacier, data = tot.diversity.data)
 
 #let's log richness and re-do our boxplot
-my.data.sub$logRichness <- log(my.data.sub$Richness)
+tot.diversity.data$logRichness <- log(tot.diversity.data$Richness)
 
-plot(logRichness ~ Glacier, data = my.data.sub)
+plot(logRichness ~ Glacier, data = tot.diversity.data)
+
+###ABUNDANT TAXA
+summary(abun.diversity.data)
+plot(Richness ~ Glacier, data = abun.diversity.data)
+
+#let's log richness and re-do our boxplot
+abun.diversity.data$logRichness <- log(abun.diversity.data$Richness)
+
+plot(logRichness ~ Glacier, data = abun.diversity.data)
+
+###RARE TAXA
+summary(rare.diversity.data)
+plot(Richness ~ Glacier, data = rare.diversity.data)
+
+#let's log richness and re-do our boxplot
+rare.diversity.data$logRichness <- log(rare.diversity.data$Richness)
+
+plot(logRichness ~ Glacier, data = rare.diversity.data)
 ```
 
 #Step Eight: Let's look at the differences in means with barplots
 #We want to test whether the means are different - how different are the means, given the standard error? Barplots and standard error bars are commonly used to show these differences.
 ```{r}
-#Create function to calculate standard error of the mean
-seMean <- function(x){ # get standard error of the mean from a set of values (x)
-    x <- na.omit(x) # get rid of missing values
-
-    se <- sqrt(var(x)/length(x)) # calculate the standard error
-
-    return(se)  # tell the function to return the standard error
-}
-
-#Get the glacier means
-glacierMeans <- tapply(my.data.sub$logRichness, my.data.sub$Glacier, FUN = mean, na.rm = TRUE)
-print(glacierMeans)
-
-#get the standard error of the means
-glacierSE <- tapply(my.data.sub$logRichness, my.data.sub$Glacier, FUN = seMean)
-print(glacierSE)
-
-#Let's plot these values
-# get the upper and lower limits of the error bars
-upperSE <- glacierMeans + glacierSE
-lowerSE <- glacierMeans - glacierSE
-
-# get a barplot
-# - this function can report where the middle of the bars are on the x-axis
-# - set the y axis limits to contain the error bars
-
-barMids <- barplot(glacierMeans, ylim=c(0, max(upperSE)), ylab = 'log Richness')
-
-# Now use the function to add error bars
-# - draws arrows between the points (x0,y0) and (x1,y1)
-# - arrow heads at each end (code=3) and at 90 degree angles
-
-arrows(barMids, upperSE, barMids, lowerSE, ang=90, code=3)
-
-#There doesn't appear to be a huge amount of different in the means of our glaciers
+# #Create function to calculate standard error of the mean
+# seMean <- function(x){ # get standard error of the mean from a set of values (x)
+#     x <- na.omit(x) # get rid of missing values
+# 
+#     se <- sqrt(var(x)/length(x)) # calculate the standard error
+# 
+#     return(se)  # tell the function to return the standard error
+# }
+# 
+# #Get the glacier means
+# glacierMeans <- tapply(my.data.sub$logRichness, my.data.sub$Glacier, FUN = mean, na.rm = TRUE)
+# print(glacierMeans)
+# 
+# #get the standard error of the means
+# glacierSE <- tapply(my.data.sub$logRichness, my.data.sub$Glacier, FUN = seMean)
+# print(glacierSE)
+# 
+# #Let's plot these values
+# # get the upper and lower limits of the error bars
+# upperSE <- glacierMeans + glacierSE
+# lowerSE <- glacierMeans - glacierSE
+# 
+# # get a barplot
+# # - this function can report where the middle of the bars are on the x-axis
+# # - set the y axis limits to contain the error bars
+# 
+# barMids <- barplot(glacierMeans, ylim=c(0, max(upperSE)), ylab = 'log Richness')
+# 
+# # Now use the function to add error bars
+# # - draws arrows between the points (x0,y0) and (x1,y1)
+# # - arrow heads at each end (code=3) and at 90 degree angles
+# 
+# arrows(barMids, upperSE, barMids, lowerSE, ang=90, code=3)
+# 
+# #There doesn't appear to be a huge amount of different in the means of our glaciers
 ```
 
 #Step Nine: An alternative to barplots 
 #let's use gplots to plot group means and standard errors
 ```{r}
+
+###TOTAL TAXA
 # Get plots of group means and standard errors
-plotmeans(logRichness ~ Glacier, data=my.data.sub, p=0.95, connect=FALSE)
+plotmeans(logRichness ~ Glacier, data=tot.diversity.data, p=0.95, connect=FALSE)
+
+###TOTAL TAXA
+# Get plots of group means and standard errors
+plotmeans(logRichness ~ Glacier, data=abun.diversity.data, p=0.95, connect=FALSE)
+
+###TOTAL TAXA
+# Get plots of group means and standard errors
+plotmeans(logRichness ~ Glacier, data=rare.diversity.data, p=0.95, connect=FALSE)
 
 ```
 
 #Step Ten: Perform Analysis of Variance
 ```{r}
-glacierLM <- lm(logRichness ~ Glacier, data = my.data.sub)
-anova(glacierLM) #p = 0.07
-summary(glacierLM) #overall the model is not significant (p value) and has low explanatory power (R2 = 0.13, adj R2 = 0.09)
+###TOTAL TAXA
+tot.glacierLM <- lm(logRichness ~ Glacier, data = tot.diversity.data)
+anova(tot.glacierLM) #p = 0.0189
+summary(tot.glacierLM) #overall the model is significant (p value) but has low explanatory power (R2 = 0.19, adj R2 = 0.16)
+
+###TOTAL TAXA
+abun.glacierLM <- lm(logRichness ~ Glacier, data = abun.diversity.data)
+anova(abun.glacierLM) #p = 0.02
+summary(abun.glacierLM) #overall the model is significant (p value) but has low explanatory power (R2 = 0.18, adj R2 = 0.15)
+
+###TOTAL TAXA
+rare.glacierLM <- lm(logRichness ~ Glacier, data = rare.diversity.data)
+anova(rare.glacierLM) 
+summary(rare.glacierLM) #overall the model is not significant
 ```
 
 #Step Eleven: Is the model appropriate for our data?
 ```{r}
 par(mfrow=c(2,2), mar=c(5,5,1.5,1.5))
-plot(glacierLM) #looks okay-ish
+plot(tot.glacierLM) #looks okay-ish
 ```
 
 #Step Twelve: Testing pairwise differences between levels
 #We want to test the pairwise differences between our factors, between which glaciers is there a difference? We can do this using a Tukey Honest Significance Difference Test. We have to convert to LM object to an aov object first
 ```{r}
-TukeyGlacier <- TukeyHSD(aov(glacierLM))
+TukeyGlacier <- TukeyHSD(aov(tot.glacierLM))
 print(TukeyGlacier)
 
 #the lower and upper bounds tell us that the difference between each pair of glaciers could be zero - the p values are all > 0.05
@@ -233,10 +310,10 @@ plot(TukeyGlacier)
 
 #Chi squared tests are used to test how likely it is that an observed distribution of values is due to chance. It is also called a goodness-of-fit statistic - it measures how well the observed distribution of data fits with the distribution expected if the variables are independent. I don't have substrate data so I'm going to make some up for demonstration purposes
 ```{r}
-Substrate <- rep(c("Ice", "Snow", "Cryoconite"), 12) 
-Substrate <- c(Substrate, rep("Cryoconite", 4))
-my.data.sub$Substrate <- as.factor(Substrate)
-factorTable <- table(my.data.sub$Glacier, my.data.sub$Substrate)
-print(factorTable)
-chisq.test(factorTable) #p = 0.54 so the variables Glacier and Substrate are independent
+# Substrate <- rep(c("Ice", "Snow", "Cryoconite"), 12) 
+# Substrate <- c(Substrate, rep("Cryoconite", 4))
+# my.data.sub$Substrate <- as.factor(Substrate)
+# factorTable <- table(my.data.sub$Glacier, my.data.sub$Substrate)
+# print(factorTable)
+# chisq.test(factorTable) #p = 0.54 so the variables Glacier and Substrate are independent
 ```

@@ -1,0 +1,838 @@
+---
+title: "Linear Regression Models"
+author: "Amy Solman"
+date: "22/04/2021"
+output: html_document
+---
+
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook (https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/14-regress.ipynb)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#We're going to use linear regression models 
+#Linear regression models are useful, especially if both your response (dependent) and predictor (independent) variables are continuous.
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+# library(dplyr)
+# library(tibble)
+# library(ggpubr)
+# library(phyloseq)
+# library(ape)
+# library(vegan)
+# library(ggrepel)
+# install.packages("repr")
+library(repr) #for plotting our pairs of data
+# library("picante")
+```
+
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+# load("results/cleaned_files/cleanedfiles_3.RData")
+# #hole area - calculate and add to dataframe
+# #Method as per Darcy et al (2018)
+# metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+# metadata$area <- metadata$area*10000
+# 
+# #Let's make our data into a phyloseq object
+# ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+# TAX = tax_table(as.matrix(taxonomy))
+# META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+# my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+my.ps <- readRDS("../Outputs/Sommers2020/my-ps-original.rds") #original full dataset, no rareification, 
+my.ps.rar <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-total.rds") #rarefied dataset, total taxa
+my.ps.rar.rel <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative.rds") #rarefied relative abundance, total taxa
+my.ps.rar.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-abundant.rds") #rarefied abundant taxa ONLY
+my.ps.rar.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-rare.rds") #rarefied rare taxa ONLY
+
+#Load dataframes
+tot.diversity.data <- read.csv("../Outputs/Sommers2020/total-diversity-metadata.csv")
+abun.diversity.data <- read.csv("../Outputs/Sommers2020/abundant-diversity-metadata.csv")
+rare.diversity.data <- read.csv("../Outputs/Sommers2020/rare-diversity-metadata.csv")
+
+#Combine our dataframes
+# tot.diversity.data$Abundance <- "Total"
+# abun.diversity.data$Abundance <- "Abundant"
+# rare.diversity.data$Abundance <- "Rare"
+# combined.diversity.data <- rbind(tot.diversity.data, abun.diversity.data, rare.diversity.data)
+```
+
+#Step Three: Rarefy data and get relative abundances
+```{r}
+# #set a seed so we get the same results each time we run this
+# set.seed(1961)
+# #rarefy the data to equal sampling depths
+# my.ps.rar <- rarefy_even_depth(my.ps)
+# #get relative abundances
+# my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Step Four: Calculate alpha diversity indices
+```{r}
+# #Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+# div_shan <- diversity(t(count_table_clean), index = "shannon")
+# 
+# #Use vegan package to get simpson diversity index of each sample
+# div_simp <- diversity(t(count_table_clean), index = "simpson")
+# 
+# #Use vegan package to get inverted simpson diversity index of each sample
+# div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
+# 
+# #Faith's phylogenetic diversity 
+# asv_tab <- as.data.frame(my.ps@otu_table) #Hellinger transformed asv table
+# 
+# my_tree <- my.ps@phy_tree #get my phylogenetic tree
+# 
+# #Check if the tree is rooted
+# my.ps@phy_tree #Rooted, includes branch lengths
+# 
+# #It is a rooted tree so...
+# df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+# 
+# #Calculate Pilou evenness
+# div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(df.pd$SR) #Here we use the species count we got earlier
+# 
+# #bind alpha diversity indices into a dataframe
+# diversity <- cbind(df.pd, div_shan, div_simp, div_inv_simp, div_pilou)
+# colnames(diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+```
+
+#Step Five: Bind alpha diversity indices with metadata 
+```{r}
+# my.data <- cbind(metadata, diversity)
+# 
+# #remove columns with data we're not interested in
+# my.data.sub <- subset(my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+# rownames(my.data.sub) <- my.data.sub$Run
+# my.data.sub <- subset(my.data.sub, select = -c(1))
+# my.data.sub <- as.data.frame(lapply(my.data.sub, function(x) as.numeric(as.character(x))))
+# my.data.sub$Glacier <- metadata$Glacier
+# my.data.sub <- my.data.sub[complete.cases(my.data.sub), ]
+
+```
+#Step Six: Plot richness with environmental data 
+```{r}
+# #let's start with basic plots of richness with our evironmental variables
+# rich.chlo <- plot(my.data.sub$Chlorophyll, my.data.sub$Richness)
+# rich.depth <- plot(my.data.sub$Depth, my.data.sub$Richness)
+# rich.dna <- plot(my.data.sub$DNA_per_g, my.data.sub$Richness)
+# rich.org <- plot(my.data.sub$org_matter, my.data.sub$Richness)
+# rich.ph <- plot(my.data.sub$pH, my.data.sub$Richness)
+# rich.water <- plot(my.data.sub$water_content, my.data.sub$Richness)
+# rich.area <- plot(my.data.sub$area, my.data.sub$Richness)
+# 
+# #indices of other alpha metrics
+# alpha.met <- c(8, 10, 11, 12, 13, 14)
+# pairs(my.data.sub[, -c(alpha.met)]) #so we can do a pairs plot with just richness and environmental data
+
+#Through visual inspection can we see correlations between ASV richness and any environmental variables?
+###TOTAL TAXA
+tot.rich.chlo <- plot(tot.diversity.data$Chlorophyll, tot.diversity.data$Richness)
+tot.rich.depth <- plot(tot.diversity.data$Depth, tot.diversity.data$Richness)
+tot.rich.dna <- plot(tot.diversity.data$DNA_per_g, tot.diversity.data$Richness)
+tot.rich.org <- plot(tot.diversity.data$org_matter, tot.diversity.data$Richness)
+tot.rich.ph <- plot(tot.diversity.data$pH, tot.diversity.data$Richness)
+tot.rich.water <- plot(tot.diversity.data$water_content, tot.diversity.data$Richness)
+tot.rich.area <- plot(tot.diversity.data$Area, tot.diversity.data$Richness)
+
+###ABUNDANT TAXA
+abun.rich.chlo <- plot(abun.diversity.data$Chlorophyll, abun.diversity.data$Richness)
+abun.rich.depth <- plot(abun.diversity.data$Depth, abun.diversity.data$Richness)
+abun.rich.dna <- plot(abun.diversity.data$DNA_per_g, abun.diversity.data$Richness)
+abun.rich.org <- plot(abun.diversity.data$org_matter, abun.diversity.data$Richness)
+abun.rich.ph <- plot(abun.diversity.data$pH, abun.diversity.data$Richness)
+abun.rich.water <- plot(abun.diversity.data$water_content, abun.diversity.data$Richness)
+abun.rich.area <- plot(abun.diversity.data$Area, abun.diversity.data$Richness)
+
+###RARE TAXA
+rare.rich.chlo <- plot(rare.diversity.data$Chlorophyll, rare.diversity.data$Richness)
+rare.rich.depth <- plot(rare.diversity.data$Depth, rare.diversity.data$Richness)
+rare.rich.dna <- plot(rare.diversity.data$DNA_per_g, rare.diversity.data$Richness)
+rare.rich.org <- plot(rare.diversity.data$org_matter, rare.diversity.data$Richness)
+rare.rich.ph <- plot(rare.diversity.data$pH, rare.diversity.data$Richness)
+rare.rich.water <- plot(rare.diversity.data$water_content, rare.diversity.data$Richness)
+rare.rich.area <- plot(rare.diversity.data$Area, rare.diversity.data$Richness)
+
+```
+
+#Step Seven: Look for correlations between richness and environmental data
+```{r}
+# #cor looks for correlations between pairs of variables using Pearson's correlation coefficient
+# cor(my.data.sub[, -c(alpha.met)], use="pairwise")
+# 
+# #or we can use cor.test to compair a single pair of variables - this also carries out a t.test to see if the correlation is significant
+# cor.test(my.data.sub$Richness, my.data.sub$Chlorophyll, use="pairwise") #p >0.05
+# cor.test(my.data.sub$Richness, my.data.sub$Depth, use="pairwise") #p < 0.05
+# cor.test(my.data.sub$Richness, my.data.sub$DNA_per_g, use="pairwise") #p > 0.05
+# cor.test(my.data.sub$Richness, my.data.sub$org_matter, use="pairwise") #p < 0.05
+# cor.test(my.data.sub$Richness, my.data.sub$pH, use="pairwise") #p > 0.05
+# cor.test(my.data.sub$Richness, my.data.sub$water_content, use="pairwise") #p > 0.05
+# cor.test(my.data.sub$Richness, my.data.sub$area, use="pairwise") #p < 0.05
+# 
+# #only cryoconite hole depth, area and organic matter content are significant correlated with ASV richness
+# 
+# #WARNING The above correlation coefficient calculation assumes a straight line relationship
+```
+
+#Step Eight: Re-run above correlation analysis with log transformed data
+```{r}
+###TOTAL TAXA
+tot.diversity.data$logRichness <- log(tot.diversity.data$Richness)
+tot.diversity.data$logChlorophyll <- log(tot.diversity.data$Chlorophyll)
+tot.diversity.data$logDepth <- log(tot.diversity.data$Depth)
+tot.diversity.data$logDNA_per_g <- log(tot.diversity.data$DNA_per_g)
+tot.diversity.data$logorg_matter <- log(tot.diversity.data$org_matter)
+tot.diversity.data$logpH <- log(tot.diversity.data$pH)
+tot.diversity.data$logwater_content <- log(tot.diversity.data$water_content)
+tot.diversity.data$logArea <- log(tot.diversity.data$Area)
+
+cor.test(tot.diversity.data$logRichness, tot.diversity.data$logChlorophyll, use="pairwise") #p >0.05
+cor.test(tot.diversity.data$logRichness, tot.diversity.data$logDepth, use="pairwise") #p < 0.05
+cor.test(tot.diversity.data$logRichness, tot.diversity.data$logDNA_per_g, use="pairwise") #p < 0.05
+cor.test(tot.diversity.data$logRichness, tot.diversity.data$logorg_matter, use="pairwise") #p < 0.05
+cor.test(tot.diversity.data$logRichness, tot.diversity.data$logpH, use="pairwise") #p > 0.05
+cor.test(tot.diversity.data$logRichness, tot.diversity.data$logwater_content, use="pairwise") #p > 0.05
+cor.test(tot.diversity.data$logRichness, tot.diversity.data$logArea, use="pairwise") #p < 0.05
+
+###ABUNDANT TAXA
+abun.diversity.data$logRichness <- log(abun.diversity.data$Richness)
+abun.diversity.data$logChlorophyll <- log(abun.diversity.data$Chlorophyll)
+abun.diversity.data$logDepth <- log(abun.diversity.data$Depth)
+abun.diversity.data$logDNA_per_g <- log(abun.diversity.data$DNA_per_g)
+abun.diversity.data$logorg_matter <- log(abun.diversity.data$org_matter)
+abun.diversity.data$logpH <- log(abun.diversity.data$pH)
+abun.diversity.data$logwater_content <- log(abun.diversity.data$water_content)
+abun.diversity.data$logArea <- log(abun.diversity.data$Area)
+
+cor.test(abun.diversity.data$logRichness, abun.diversity.data$logChlorophyll, use="pairwise") #p >0.05
+cor.test(abun.diversity.data$logRichness, abun.diversity.data$logDepth, use="pairwise") #p < 0.05
+cor.test(abun.diversity.data$logRichness, abun.diversity.data$logDNA_per_g, use="pairwise") #p < 0.05
+cor.test(abun.diversity.data$logRichness, abun.diversity.data$logorg_matter, use="pairwise") #p < 0.05
+cor.test(abun.diversity.data$logRichness, abun.diversity.data$logpH, use="pairwise") #p > 0.05
+cor.test(abun.diversity.data$logRichness, abun.diversity.data$logwater_content, use="pairwise") #p > 0.05
+cor.test(abun.diversity.data$logRichness, abun.diversity.data$logArea, use="pairwise") #p < 0.05
+
+###RARE TAXA
+rare.diversity.data$logRichness <- log(rare.diversity.data$Richness)
+rare.diversity.data$logChlorophyll <- log(rare.diversity.data$Chlorophyll)
+rare.diversity.data$logDepth <- log(rare.diversity.data$Depth)
+rare.diversity.data$logDNA_per_g <- log(rare.diversity.data$DNA_per_g)
+rare.diversity.data$logorg_matter <- log(rare.diversity.data$org_matter)
+rare.diversity.data$logpH <- log(rare.diversity.data$pH)
+rare.diversity.data$logwater_content <- log(rare.diversity.data$water_content)
+rare.diversity.data$logArea <- log(rare.diversity.data$Area)
+
+cor.test(rare.diversity.data$logRichness, rare.diversity.data$logChlorophyll, use="pairwise") #p >0.05
+cor.test(rare.diversity.data$logRichness, rare.diversity.data$logDepth, use="pairwise") #p < 0.05
+cor.test(rare.diversity.data$logRichness, rare.diversity.data$logDNA_per_g, use="pairwise") #p < 0.05
+cor.test(rare.diversity.data$logRichness, rare.diversity.data$logorg_matter, use="pairwise") #p < 0.05
+cor.test(rare.diversity.data$logRichness, rare.diversity.data$logpH, use="pairwise") #p > 0.05
+cor.test(rare.diversity.data$logRichness, rare.diversity.data$logwater_content, use="pairwise") #p > 0.05
+cor.test(rare.diversity.data$logRichness, rare.diversity.data$logArea, use="pairwise") #p < 0.05
+
+# my.log.alpha <- c(15, 16, 17, 18, 19, 20, 21, 22)
+# pairs(my.data.sub[, (my.log.alpha)])
+# 
+# cor(my.data.sub[, (my.log.alpha)], use="pairwise")
+
+```
+
+#Step Nine: Plot the data 
+```{r}
+
+###TOTAL TAXA
+myColours <- c('red', 'blue')
+mySymbols <- c(1,3)
+
+tot.diversity.data$Glacier <- as.factor(tot.diversity.data$Glacier)
+
+plot(logRichness ~ logArea, data = tot.diversity.data,
+      col = myColours[Glacier], pch=mySymbols[Glacier],
+      xlab = "log(Area)", ylab = "log(ASV Richness)")
+
+legend("topleft", legend=levels(tot.diversity.data$Glacier),
+       col=myColours, pch=mySymbols)
+
+#Visual inspection of the plots shows the glaciers have similar but slightly different relationships between hoel area and log(ASV Richness)
+
+###ABUNDANT TAXA
+myColours <- c('red', 'blue')
+mySymbols <- c(1,3)
+
+#my.data.sub$Glacier <- as.factor(my.data.sub$Glacier)
+abun.diversity.data$Glacier <- as.factor(abun.diversity.data$Glacier)
+
+plot(logRichness ~ logArea, data = abun.diversity.data,
+      col = myColours[Glacier], pch=mySymbols[Glacier],
+      xlab = "log(Area)", ylab = "log(ASV Richness)")
+
+legend("topleft", legend=levels(abun.diversity.data$Glacier),
+       col=myColours, pch=mySymbols)
+
+#Visual inspection of the plots shows the glaciers have similar but slightly different relationships between hoel area and log(ASV Richness)
+
+###RARE TAXA
+myColours <- c('red', 'blue')
+mySymbols <- c(1,3)
+
+#my.data.sub$Glacier <- as.factor(my.data.sub$Glacier)
+rare.diversity.data$Glacier <- as.factor(rare.diversity.data$Glacier)
+
+plot(logRichness ~ logArea, data = rare.diversity.data,
+      col = myColours[Glacier], pch=mySymbols[Glacier],
+      xlab = "log(Area)", ylab = "log(ASV Richness)")
+
+legend("topleft", legend=levels(rare.diversity.data$Glacier),
+       col=myColours, pch=mySymbols)
+
+#Visual inspection of the plots shows the glaciers have similar but slightly different relationships between hoel area and log(ASV Richness)
+
+
+```
+#Step Nine: Create linear models of richness and area
+```{r}
+# #This is a null model of the logRichness relationship on Canada Glacier
+# nullModelRichnessCan <- lm(logRichness ~ 1, data = my.data.sub, subset = Glacier == "Canada")
+# 
+# #This is the linear regression model of the logarea relationship on Canada Glacier
+# RichnessAreaModelCan <- lm(logRichness ~ logarea, data = my.data.sub, subset = Glacier == "Canada")
+# 
+# #let's look at the outputs of our model
+# summary(RichnessAreaModelCan)
+# 
+# #Info we have in this table:
+# #Call - the model description
+# #Residuals - a summary of the residuals
+# #Coefficients - a table of coefficients
+# #Info on residual error
+# #R-squared
+# #F-statistic
+# #P-value
+# 
+# #there are two rows in the coefficients table
+# #these are the two coefficients of our equation y = a + b * x where a is the intercept and b is the slope. We get the estimated value of the intercept and the slope, the standard error pf those estimates, the t test value (and associated p value) of whether the slope and intercept are significantly different from zero.
+
+###TOTAL TAXA
+#This is the linear regression model of the logarea relationship on Canada Glacier
+tot.RichnessAreaModelCan <- lm(logRichness ~ logArea, data = tot.diversity.data, subset = Glacier == "Canada")
+
+#let's look at the outputs of our model
+summary(tot.RichnessAreaModelCan)
+anova(tot.RichnessAreaModelCan)
+#Info we have in this table:
+#Call - the model description
+#Residuals - a summary of the residuals
+#Coefficients - a table of coefficients
+#Info on residual error
+#R-squared
+#F-statistic
+#P-value
+
+#there are two rows in the coefficients table
+#these are the two coefficients of our equation y = a + b * x where a is the intercept and b is the slope. We get the estimated value of the intercept and the slope, the standard error pf those estimates, the t test value (and associated p value) of whether the slope and intercept are significantly different from zero.
+
+###ABUNDANT TAXA
+#This is the linear regression model of the logarea relationship on Canada Glacier
+abun.RichnessAreaModelCan <- lm(logRichness ~ logArea, data = abun.diversity.data, subset = Glacier == "Canada")
+
+#let's look at the outputs of our model
+summary(abun.RichnessAreaModelCan)
+anova(abun.RichnessAreaModelCan)
+
+
+###RARE TAXA
+#This is the linear regression model of the logarea relationship on Canada Glacier
+rare.RichnessAreaModelCan <- lm(logRichness ~ logArea, data = rare.diversity.data, subset = Glacier == "Canada")
+
+#let's look at the outputs of our model
+summary(rare.RichnessAreaModelCan)
+
+
+```
+#Step Ten: Look at the terms of the model using the anova function
+#Anova test how much variation in the response variable (richness) is explained by each explanatory variable (area)
+```{r}
+anova(tot.RichnessAreaModelCan)
+anova(abun.RichnessAreaModelCan)
+anova(rare.RichnessAreaModelCan)
+#So here the ANOVA table is comparing the vairation in log Richness explained by log area to the total variation in log Richness.
+#We want to see how much smaller the residuals are for the area model than the null model in explaining Richness.
+#In the ANOVA table we have:
+#DF: The degrees of freedom, each parameter/coefficient takes up a degree of freedom. This model adds area (1 parameter) to the null model, so has 1 DF
+#Sum Sq: The sums of squares. The top line shows the variation in richness explained by area. The bottom line shows the residual sum of squares for the model.
+#Mean Sq: Sum of squares values divided by the degrees of freedom. So if we explain lots of variation in the model with one coefficient (null model) that's great! If we explain a little variation with a loss of degrees of freedom by adding more parameters that's not so good...
+#F value: Ratio of the mean sq for the variable and residual mean sq. Can show us if the explained variation is large or small. 
+#Pr(>F): The p value shows us how likely the model explained this much variance by chance.
+
+#We can get the sums of squares of the residuals from the null and area model using the function resid, square them and add them
+# sum(resid(nullModelRichnessCan) ^ 2) #0.81
+# sum(resid(RichnessAreaModelCan) ^ 2) #0.28 - is one is the same as seen in our ANOVA table
+
+#TAKE AWAY: P < 0.05 so area explains a large amount of variation in ASV richness
+```
+
+#Step Eleven: Repeat the above for Taylor Glacier
+```{r}
+# #This is a null model of the logRichness relationship on Taylor Glacier
+# nullModelRichnessTay <- lm(logRichness ~ 1, data = my.data.sub, subset = Glacier == "Taylor")
+# 
+# #This is the linear regression model of the logarea relationship on Taylor Glacier
+# RichnessAreaModelTay <- lm(logRichness ~ logarea, data = my.data.sub, subset = Glacier == "Taylor")
+# 
+# #let's look at the outputs of our model
+# summary(RichnessAreaModelTay)
+# 
+# #get ANOVA table
+# anova(RichnessAreaModelTay)
+# 
+# #We can get the sums of squares of the residuals from the null and area model using the function resid, square them and add them
+# sum(resid(nullModelRichnessTay) ^ 2) #0.67
+# sum(resid(RichnessAreaModelTay) ^ 2) #0.10 - is one is the same as seen in our ANOVA table
+# 
+# #TAKE AWAY: P < 0.05 so area explains a large amount of variation in ASV richness
+
+###TOTAL TAXA
+#This is the linear regression model of the logarea relationship on Canada Glacier
+tot.RichnessAreaModelTay <- lm(logRichness ~ logArea, data = tot.diversity.data, subset = Glacier == "Taylor")
+
+#let's look at the outputs of our model
+summary(tot.RichnessAreaModelTay)
+anova(tot.RichnessAreaModelTay)
+
+###ABUNDANT TAXA
+#This is the linear regression model of the logarea relationship on Canada Glacier
+abun.RichnessAreaModelTay <- lm(logRichness ~ logArea, data = abun.diversity.data, subset = Glacier == "Taylor")
+
+#let's look at the outputs of our model
+summary(abun.RichnessAreaModelTay)
+anova(abun.RichnessAreaModelTay)
+
+###RARE TAXA
+#This is the linear regression model of the logarea relationship on Canada Glacier
+rare.RichnessAreaModelTay <- lm(logRichness ~ logArea, data = rare.diversity.data, subset = Glacier == "Taylor")
+
+#let's look at the outputs of our model
+summary(rare.RichnessAreaModelTay)
+anova(rare.RichnessAreaModelTay)
+```
+
+#Step Twelve: Plot the fitted regression model
+```{r}
+myColours <- c('red', 'blue')
+mySymbols <- c(1,3)
+
+###TOTAL TAXA
+tot.diversity.data$Glacier <- as.factor(tot.diversity.data$Glacier)
+
+pdf("../Outputs/Sommers2020/graphs/linear-model-logarea-logrichness-total.pdf", width=6, height=4) 
+plot(logRichness ~ logArea, data = tot.diversity.data,
+      col = myColours[Glacier], pch=mySymbols[Glacier],
+      xlab = "log(Area)", ylab = "log(ASV Richness)")
+abline(tot.RichnessAreaModelCan, col='red')
+abline(tot.RichnessAreaModelTay, col='blue')
+
+legend("topleft", legend=levels(tot.diversity.data$Glacier),
+       col=myColours, pch=mySymbols)
+#ggsave("../Outputs/Sommers2020/graphs/linear-model-logarea-logrichness-total.pdf", width=6, height=4)
+dev.off()
+
+###ABUNDANT TAXA
+abun.diversity.data$Glacier <- as.factor(abun.diversity.data$Glacier)
+
+pdf("../Outputs/Sommers2020/graphs/linear-model-logarea-logrichness-abundant.pdf", width=6, height=4) 
+plot(logRichness ~ logArea, data = abun.diversity.data,
+      col = myColours[Glacier], pch=mySymbols[Glacier],
+      xlab = "log(Area)", ylab = "log(ASV Richness)")
+abline(abun.RichnessAreaModelCan, col='red')
+abline(abun.RichnessAreaModelTay, col='blue')
+
+legend("topleft", legend=levels(abun.diversity.data$Glacier),
+       col=myColours, pch=mySymbols)
+#ggsave("../Outputs/Sommers2020/graphs/linear-model-logarea-logrichness-abundant.pdf", width=6, height=4)
+dev.off()
+
+###RARE TAXA
+rare.diversity.data$Glacier <- as.factor(rare.diversity.data$Glacier)
+
+pdf("../Outputs/Sommers2020/graphs/linear-model-logarea-logrichness-rare.pdf", width=6, height=4) 
+plot(logRichness ~ logArea, data = rare.diversity.data,
+      col = myColours[Glacier], pch=mySymbols[Glacier],
+      xlab = "log(Area)", ylab = "log(ASV Richness)")
+abline(rare.RichnessAreaModelCan, col='red')
+abline(rare.RichnessAreaModelTay, col='blue')
+
+legend("topleft", legend=levels(rare.diversity.data$Glacier),
+       col=myColours, pch=mySymbols)
+
+#ggsave("../Outputs/Sommers2020/graphs/linear-model-logarea-logrichness-rare.pdf", width=6, height=4)
+dev.off()
+```
+
+#Step Thirteen: Model Diagnostics
+#We need to check that our models are appropriate for our data
+#We will use diagnostic plots to do this.
+```{r}
+# par(mfrow=c(2,2), mar=c(5,5,1.5,1.5))
+# plot(RichnessAreaModelCan)
+# 
+# par(mfrow=c(2,2), mar=c(5,5,1.5,1.5))
+# plot(RichnessAreaModelTay)
+
+#Residuals vs Fitted: This plot looks to see if the distribution of the residuals has a similar variance for different predited values. We want NO obvious pattern or big gaps. 
+#Normal Q-Q: This shows if the residuals are normally distributed. We want the points as close to a straight line as possible.
+#Scale-Location: x axis is the fitted values, y axis is the square root of the standardized residuals. Basically we want the red line to be relatively flat.
+#Residuals vs Leverage: This shows the standardized residuals against leverage - leverage means how much eaxch data point influences the linear model's coefficient estimates. Numbered points are those to pay special attention to. They are potential outliers
+
+```
+
+#Step Fourteen: Repeat the above using Faith's diversity metric
+```{r}
+
+###TOTAL TAXA 
+#First get logs of our diversity metrics
+tot.diversity.data$logFaith <- log(tot.diversity.data$Faith)
+tot.diversity.data$logShannon <- log(tot.diversity.data$Shannon)
+tot.diversity.data$logSimpson <- log(tot.diversity.data$Simpson)
+tot.diversity.data$logInvSimp <- log(tot.diversity.data$Inv.Simpson)
+tot.diversity.data$logPilou <- log(tot.diversity.data$Pilou)
+
+#Linear Regression
+tot.FaithAreaModelCan <- lm(logFaith ~ logArea, data = tot.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(tot.FaithAreaModelCan)
+#get ANOVA table
+anova(tot.FaithAreaModelCan)
+
+#Linear Regression
+tot.FaithAreaModelTay <- lm(logFaith ~ logArea, data = tot.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(tot.FaithAreaModelTay)
+#get ANOVA table
+anova(tot.FaithAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logFaith ~ logArea, data = tot.diversity.data, col=myCol[Glacier], xlab='log(Area)', ylab = 'log(Faith)')
+abline(tot.FaithAreaModelCan, col='red')
+abline(tot.FaithAreaModelTay, col='blue')
+
+###ABUNDANT TAXA 
+#First get logs of our diversity metrics
+abun.diversity.data$logFaith <- log(abun.diversity.data$Faith)
+abun.diversity.data$logShannon <- log(abun.diversity.data$Shannon)
+abun.diversity.data$logSimpson <- log(abun.diversity.data$Simpson)
+abun.diversity.data$logInvSimp <- log(abun.diversity.data$Inv.Simpson)
+abun.diversity.data$logPilou <- log(abun.diversity.data$Pilou)
+
+#Linear Regression
+abun.FaithAreaModelCan <- lm(logFaith ~ logArea, data = abun.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(abun.FaithAreaModelCan)
+#get ANOVA table
+anova(abun.FaithAreaModelCan)
+
+#Linear Regression
+abun.FaithAreaModelTay <- lm(logFaith ~ logArea, data = abun.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(abun.FaithAreaModelTay)
+#get ANOVA table
+anova(abun.FaithAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logFaith ~ logArea, data = abun.diversity.data, col=myCol[Glacier], xlab='log(Area)', ylab = 'log(Faith)')
+abline(abun.FaithAreaModelCan, col='red')
+abline(abun.FaithAreaModelTay, col='blue')
+
+###RARE TAXA 
+#First get logs of our diversity metrics
+rare.diversity.data$logFaith <- log(rare.diversity.data$Faith)
+rare.diversity.data$logShannon <- log(rare.diversity.data$Shannon)
+rare.diversity.data$logSimpson <- log(rare.diversity.data$Simpson)
+rare.diversity.data$logInvSimp <- log(rare.diversity.data$Inv.Simpson)
+rare.diversity.data$logPilou <- log(rare.diversity.data$Pilou)
+
+#Linear Regression
+rare.FaithAreaModelCan <- lm(logFaith ~ logArea, data = rare.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(rare.FaithAreaModelCan)
+#get ANOVA table
+anova(rare.FaithAreaModelCan)
+
+#Linear Regression
+rare.FaithAreaModelTay <- lm(logFaith ~ logArea, data = rare.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(rare.FaithAreaModelTay)
+#get ANOVA table
+anova(rare.FaithAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logFaith ~ logArea, data = rare.diversity.data, col=myCol[Glacier], xlab='log(Area)', ylab = 'log(Faith)')
+abline(rare.FaithAreaModelCan, col='red')
+abline(rare.FaithAreaModelTay, col='blue')
+```
+
+#Step Fifteen: Repeat using Shannon
+```{r}
+###TOTAL TAXA
+#Linear Regression
+tot.ShanAreaModelCan <- lm(logShannon ~ logArea, data = tot.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(tot.ShanAreaModelCan)
+#get ANOVA table
+anova(tot.ShanAreaModelCan)
+
+#Linear Regression
+tot.ShanAreaModelTay <- lm(logShannon ~ logArea, data = tot.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(tot.ShanAreaModelTay)
+#get ANOVA table
+anova(tot.ShanAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logShannon ~ logArea, data = tot.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Shannon')
+abline(tot.ShanAreaModelCan, col='red')
+abline(tot.ShanAreaModelTay, col='blue')
+
+###ABUNDANT TAXA
+#Linear Regression
+abun.ShanAreaModelCan <- lm(logShannon ~ logArea, data = abun.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(abun.ShanAreaModelCan)
+#get ANOVA table
+anova(abun.ShanAreaModelCan)
+
+#Linear Regression
+abun.ShanAreaModelTay <- lm(logShannon ~ logArea, data = abun.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(abun.ShanAreaModelTay)
+#get ANOVA table
+anova(abun.ShanAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logShannon ~ logArea, data = abun.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Shannon')
+abline(abun.ShanAreaModelCan, col='red')
+abline(abun.ShanAreaModelTay, col='blue')
+
+###RARE TAXA
+#Linear Regression
+rare.ShanAreaModelCan <- lm(logShannon ~ logArea, data = rare.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(rare.ShanAreaModelCan)
+#get ANOVA table
+anova(rare.ShanAreaModelCan)
+
+#Linear Regression
+rare.ShanAreaModelTay <- lm(logShannon ~ logArea, data = rare.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(rare.ShanAreaModelTay)
+#get ANOVA table
+anova(rare.ShanAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logShannon ~ logArea, data = rare.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Shannon')
+abline(rare.ShanAreaModelCan, col='red')
+abline(rare.ShanAreaModelTay, col='blue')
+
+
+```
+
+#Step Fifteen: Repeat using Simpson
+```{r}
+###TOTAL TAXA
+#Linear Regression
+tot.SimpAreaModelCan <- lm(logSimpson ~ logArea, data = tot.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(tot.SimpAreaModelCan)
+#get ANOVA table
+anova(tot.SimpAreaModelCan)
+
+#Linear Regression
+tot.SimpAreaModelTay <- lm(logSimpson ~ logArea, data = tot.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(tot.SimpAreaModelTay)
+#get ANOVA table
+anova(tot.SimpAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logSimpson ~ logArea, data = tot.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Simpson')
+abline(tot.SimpAreaModelCan, col='red')
+abline(tot.SimpAreaModelTay, col='blue')
+
+###TOTAL ABUNDANT
+#Linear Regression
+abun.SimpAreaModelCan <- lm(logSimpson ~ logArea, data = abun.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(abun.SimpAreaModelCan)
+#get ANOVA table
+anova(abun.SimpAreaModelCan)
+
+#Linear Regression
+abun.SimpAreaModelTay <- lm(logSimpson ~ logArea, data = abun.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(abun.SimpAreaModelTay)
+#get ANOVA table
+anova(abun.SimpAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logSimpson ~ logArea, data = abun.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Simpson')
+abline(abun.SimpAreaModelCan, col='red')
+abline(abun.SimpAreaModelTay, col='blue')
+
+###TOTAL RARE
+#Linear Regression
+rare.SimpAreaModelCan <- lm(logSimpson ~ logArea, data = rare.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(rare.SimpAreaModelCan)
+#get ANOVA table
+anova(rare.SimpAreaModelCan)
+
+#Linear Regression
+rare.SimpAreaModelTay <- lm(logSimpson ~ logArea, data = rare.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(rare.SimpAreaModelTay)
+#get ANOVA table
+anova(rare.SimpAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logSimpson ~ logArea, data = rare.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Simpson')
+abline(rare.SimpAreaModelCan, col='red')
+abline(rare.SimpAreaModelTay, col='blue')
+```
+
+#Step Fifteen: Repeat using Inv Simpson
+```{r}
+###TOTAL TAXA
+#Linear Regression
+tot.InvSimpAreaModelCan <- lm(logInvSimp ~ logArea, data = tot.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(tot.InvSimpAreaModelCan)
+#get ANOVA table
+anova(tot.InvSimpAreaModelCan)
+
+#Linear Regression
+tot.InvSimpAreaModelTay <- lm(logInvSimp ~ logArea, data = tot.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(tot.InvSimpAreaModelTay)
+#get ANOVA table
+anova(tot.InvSimpAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logInvSimp ~ logArea, data = tot.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Inv Simpson')
+abline(tot.InvSimpAreaModelCan, col='red')
+abline(tot.InvSimpAreaModelTay, col='blue')
+
+###ABUNDANT TAXA
+#Linear Regression
+abun.InvSimpAreaModelCan <- lm(logInvSimp ~ logArea, data = abun.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(abun.InvSimpAreaModelCan)
+#get ANOVA table
+anova(abun.InvSimpAreaModelCan)
+
+#Linear Regression
+abun.InvSimpAreaModelTay <- lm(logInvSimp ~ logArea, data = abun.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(abun.InvSimpAreaModelTay)
+#get ANOVA table
+anova(abun.InvSimpAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logInvSimp ~ logArea, data = abun.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Inv Simpson')
+abline(abun.InvSimpAreaModelCan, col='red')
+abline(abun.InvSimpAreaModelTay, col='blue')
+
+###RARE TAXA
+#Linear Regression
+rare.InvSimpAreaModelCan <- lm(logInvSimp ~ logArea, data = rare.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(rare.InvSimpAreaModelCan)
+#get ANOVA table
+anova(rare.InvSimpAreaModelCan)
+
+#Linear Regression
+rare.InvSimpAreaModelTay <- lm(logInvSimp ~ logArea, data = rare.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(rare.InvSimpAreaModelTay)
+#get ANOVA table
+anova(rare.InvSimpAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logInvSimp ~ logArea, data = rare.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Inv Simpson')
+abline(rare.InvSimpAreaModelCan, col='red')
+abline(rare.InvSimpAreaModelTay, col='blue')
+```
+
+#Step Fifteen: Repeat using Pilou
+```{r}
+###TOTAL TAXA
+#Linear Regression
+tot.PilouAreaModelCan <- lm(logPilou ~ logArea, data = tot.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(tot.PilouAreaModelCan)
+#get ANOVA table
+anova(tot.PilouAreaModelCan)
+
+#Linear Regression
+tot.PilouAreaModelTay <- lm(logPilou ~ logArea, data = tot.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(tot.PilouAreaModelTay)
+#get ANOVA table
+anova(tot.PilouAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logPilou ~ logArea, data = tot.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Pilou')
+abline(tot.PilouAreaModelCan, col='red')
+abline(tot.PilouAreaModelTay, col='blue')
+
+###ABUNDANT TAXA
+#Linear Regression
+abun.PilouAreaModelCan <- lm(logPilou ~ logArea, data = abun.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(abun.PilouAreaModelCan)
+#get ANOVA table
+anova(abun.PilouAreaModelCan)
+
+#Linear Regression
+abun.PilouAreaModelTay <- lm(logPilou ~ logArea, data = abun.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(abun.PilouAreaModelTay)
+#get ANOVA table
+anova(abun.PilouAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logPilou ~ logArea, data = abun.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Pilou')
+abline(abun.PilouAreaModelCan, col='red')
+abline(abun.PilouAreaModelTay, col='blue')
+
+###RARE TAXA
+#Linear Regression
+rare.PilouAreaModelCan <- lm(logPilou ~ logArea, data = rare.diversity.data, subset = Glacier == "Canada")
+#Summary
+summary(rare.PilouAreaModelCan)
+#get ANOVA table
+anova(rare.PilouAreaModelCan)
+
+#Linear Regression
+rare.PilouAreaModelTay <- lm(logPilou ~ logArea, data = rare.diversity.data, subset = Glacier == "Taylor")
+#Summary
+summary(rare.PilouAreaModelTay)
+#get ANOVA table
+anova(rare.PilouAreaModelTay)
+
+myCol <- c('red', 'blue')
+plot(logPilou ~ logArea, data = rare.diversity.data, col=myCol[Glacier], xlab='log Area', ylab = 'log Pilou')
+abline(rare.PilouAreaModelCan, col='red')
+abline(rare.PilouAreaModelTay, col='blue')
+```
+
+#Let's export our dataframes because they've got some useful stuff in them
+```{r}
+write.csv(tot.diversity.data,"../Outputs/Sommers2020/total-diversity-metadata.csv", row.names = FALSE)
+write.csv(abun.diversity.data,"../Outputs/Sommers2020/abundant-diversity-metadata.csv", row.names = FALSE)
+write.csv(rare.diversity.data,"../Outputs/Sommers2020/rare-diversity-metadata.csv", row.names = FALSE)
+```

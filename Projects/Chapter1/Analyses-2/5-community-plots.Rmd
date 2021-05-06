@@ -1,0 +1,42 @@
+---
+title: "Community Plotting"
+author: "Amy Solman"
+date: "30/04/2021"
+output: html_document
+---
+###Following this tutorial: https://chiliubio.github.io/microeco/
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Clear workspace and load packages
+```{r}
+rm(list=ls())
+# load package microeco
+install.packages("microeco")
+library(microeco)
+```
+
+```{r}
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+
+#Phyloseq objects
+my.ps <- readRDS("../Outputs/Sommers2020/my-ps-original.rds") #original full dataset, no rareification, 
+my.ps.rar <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-total.rds") #rarefied dataset, total taxa
+my.ps.rar.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-abundant.rds") #rarefied abundant taxa ONLY
+my.ps.rar.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-rare.rds") #rarefied rare taxa ONLY
+my.ps.rar.rel <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative.rds") #rarefied relative abundance, total taxa
+my.ps.rar.rel.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative-abundant.rds")#rarefied relative abundance abundant taxa ONLY
+my.ps.rar.rel.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative-rare.rds") #rarefied relative abundance rare taxa ONLY
+
+#Load dataframes
+tot.diversity.data <- read.csv("../Outputs/Sommers2020/total-diversity-metadata.csv")
+abun.diversity.data <- read.csv("../Outputs/Sommers2020/abundant-diversity-metadata.csv")
+rare.diversity.data <- read.csv("../Outputs/Sommers2020/rare-diversity-metadata.csv")
+```
+
+```{r}
+class(count_table_clean.tax)
+
+```

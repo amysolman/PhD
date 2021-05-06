@@ -1,0 +1,435 @@
+---
+title: "Model Simplification"
+author: "Amy Solman"
+date: "23/04/2021"
+output: html_document
+---
+#This script will follow the tutorials set out in the Multilingual Quantitative Biologist notebook
+https://nbviewer.jupyter.org/github/mhasoba/TheMulQuaBio/blob/master/content/notebooks/18-ModelSimp.ipynb
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#This script will look at MODEL SIMPLIFICATION
+#Basically, we want to find our which terms or variables in our model are best at describing our data in the least amount of pvariables.
+#So we start with a MAXIMAL model (one that contains everything that might be important) and simplifying it toward the NULL model (the one that says none of the variables are important). There should be a point in between the MAXIMAL MODEL and the NULL MODEL where we can't make the model simpler without making it worse = MINIMUM ADEQUATE MODEL
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+
+# library(dplyr)
+# library(tibble)
+# library(ggpubr)
+# library(phyloseq)
+# library(ape)
+library(vegan)
+# library(ggrepel)
+# install.packages("repr")
+# library(repr) #for plotting our pairs of data
+library("picante")
+#library(gplots)
+#library(lattice)
+```
+
+#Step Two: Load Data and make into phyloseq object 
+```{r}
+# load("../Analyses/results/cleaned_files/cleanedfiles_3.RData")
+# #hole area - calculate and add to dataframe
+# #Method as per Darcy et al (2018)
+# metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+# metadata$area <- metadata$area*10000
+# 
+# #Let's make our data into a phyloseq object
+# ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+# TAX = tax_table(as.matrix(taxonomy))
+# META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+# my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+my.ps <- readRDS("../Outputs/Sommers2020/my-ps-original.rds") #original full dataset, no rareification, 
+my.ps.rar <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-total.rds") #rarefied dataset, total taxa
+my.ps.rar.rel <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative.rds") #rarefied relative abundance, total taxa
+my.ps.rar.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-abundant.rds") #rarefied abundant taxa ONLY
+my.ps.rar.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-rare.rds") #rarefied rare taxa ONLY
+
+#Load dataframes
+tot.diversity.data <- read.csv("../Outputs/Sommers2020/total-diversity-metadata.csv")
+abun.diversity.data <- read.csv("../Outputs/Sommers2020/abundant-diversity-metadata.csv")
+rare.diversity.data <- read.csv("../Outputs/Sommers2020/rare-diversity-metadata.csv")
+```
+
+#Step Three: Rarefy data and get relative abundances
+```{r}
+# #set a seed so we get the same results each time we run this
+# set.seed(1961)
+# #rarefy the data to equal sampling depths
+# my.ps.rar <- rarefy_even_depth(my.ps)
+# #get relative abundances
+# my.ps.rar.rel <- transform_sample_counts(my.ps.rar, function(x) x/sum(x))
+```
+
+#Step Four: Calculate alpha diversity indices
+```{r}
+# #Use vegan package to get shannon diversity index of each sample (remember to transpose the dataframe because it expects samples as rows and species as columns)
+# div_shan <- diversity(t(count_table_clean), index = "shannon")
+# 
+# #Use vegan package to get simpson diversity index of each sample
+# div_simp <- diversity(t(count_table_clean), index = "simpson")
+# 
+# #Use vegan package to get inverted simpson diversity index of each sample
+# div_inv_simp <- diversity(t(count_table_clean), index = "invsimpson")
+# 
+# #Faith's phylogenetic diversity 
+# asv_tab <- as.data.frame(my.ps@otu_table) #Hellinger transformed asv table
+# 
+# my_tree <- my.ps@phy_tree #get my phylogenetic tree
+# 
+# #Check if the tree is rooted
+# my.ps@phy_tree #Rooted, includes branch lengths
+# 
+# #It is a rooted tree so...
+# df.pd <- pd(t(asv_tab), my_tree, include.root = TRUE) #find faiths diversity metric for each sample.
+# 
+# #Calculate Pilou evenness
+# div_pilou <- diversity(t(count_table_clean), index = "simpson")/log(df.pd$SR) #Here we use the species count we got earlier
+# 
+# #bind alpha diversity indices into a dataframe
+# diversity <- cbind(df.pd, div_shan, div_simp, div_inv_simp, div_pilou)
+# colnames(diversity) <- c("Faith", "Richness", "Shannon", "Simpson", "Inv Simpson", "Pilou")
+
+```
+
+#Step Five: Bind alpha diversity indices with metadata 
+```{r}
+# my.data <- cbind(metadata, diversity)
+# 
+# #remove columns with data we're not interested in
+# my.data.sub <- subset(my.data, select = c(1, 10, 16, 19, 34, 36, 48, 50, 51, 52, 53, 54, 55, 56))
+# rownames(my.data.sub) <- my.data.sub$Run
+# my.data.sub <- subset(my.data.sub, select = -c(1))
+# my.data.sub <- as.data.frame(lapply(my.data.sub, function(x) as.numeric(as.character(x))))
+# my.data.sub$Glacier <- metadata$Glacier
+# my.data.sub <- my.data.sub[complete.cases(my.data.sub), ]
+
+```
+
+#Step Six: Prepare our data
+```{r}
+# #get logs of the continuous variables we are interested in
+# my.data.sub$logChlo <- log(my.data.sub$Chlorophyll)
+# my.data.sub$logDepth <- log(my.data.sub$Depth)
+# my.data.sub$logDNA <- log(my.data.sub$DNA_per_g)
+# my.data.sub$logOrg <- log(my.data.sub$org_matter)
+# my.data.sub$logpH <- log(my.data.sub$pH)
+# my.data.sub$logArea <- log(my.data.sub$area)
+# my.data.sub$logRich <- log(my.data.sub$Richness)
+# my.data.sub$logWat <- log(my.data.sub$water_content)
+```
+
+#Step Seven: Maximal Model
+```{r}
+# model <- lm(formula = logRich ~ logChlo * logDepth * logArea * logpH * logOrg * logDNA * logWat * Glacier, data = my.data.sub)
+# 
+# model <- lm(formula = logRich ~ logArea * logpH * logOrg * logWat * Glacier, data = my.data.sub)
+# 
+# summary(model)
+# 
+# anova(model)
+
+#As we can see here, starting with all possible variables in the model doesn't work very well. It's difficult to interpret these results. Instead we can consider two way interactions - how do pairs of variables affect each other?
+
+#Let's try this again!
+
+#model <- lm(logRich ~ (logChlo + logDepth + logArea + logpH + logOrg + logDNA + as.factor(Glacier))^2, data = my.data.sub)
+#model <- lm(logRich ~ (logChlo + logArea + logpH + logOrg + Glacier)^2, data = my.data.sub)
+# model <- lm(logRich ~ (logArea + logpH + logOrg + logWat + Glacier)^2, data = my.data.sub)
+# 
+# anova(model)
+#The first lines here are our main effects, followed by the paired interactions
+#We can see that area, organic matter and glacier are significant as main effects (pH might also be somewhat significant), whilst the slope of log Richness with organic matter differs with area (maybe, this significance is weak)
+
+###TOTAL TAXA
+tot.model <- lm(logRichness ~ (logArea + logorg_matter + logDepth + logDNA_per_g + logwater_content + Glacier)^2, data = tot.diversity.data)
+
+anova(tot.model)
+summary(tot.model)
+
+###ABUNDANT TAXA
+abun.model <- lm(logRichness ~ (logArea + logorg_matter + logDepth + logDNA_per_g + logwater_content + Glacier)^2, data = abun.diversity.data)
+
+anova(abun.model)
+summary(abun.model)
+
+###RARE TAXA
+rare.model <- lm(logRichness ~ (logArea + logorg_matter + logDepth + logDNA_per_g + logwater_content + Glacier)^2, data = rare.diversity.data)
+
+anova(rare.model)
+summary(rare.model)
+```
+
+#Step Eight: Simplify the model!
+#We can use F-tests to compare a model with a simplified model - significance of the F test is BAD, the model has got SIGNIFICANTLY worse
+#So which terms can we remove from the model?
+```{r}
+drop.scope(tot.model) #tells you what you can drop from a model
+
+#Instead of re-typing the model we can use the update function to change it, for example...
+
+# a simple model
+#f <- y ~ a + b + c + b:c
+# remove b:c from the current model
+#update(f, . ~ . - b:c)
+# model g as a response using the same explanatory variables.
+#update(f, g ~ .)
+
+#from the ANOVA output I can see that the term logArea:Glacier is not significant (the drop output showed me that this was a valid term in the model)
+tot.model2 <- update(tot.model, . ~ . - logorg_matter:Glacier)
+
+#we can use ANOVA to compare the two models
+anova(tot.model, tot.model2) #the p value = 0.58 so we know model 2 is not significantly worse that model
+
+#let's get an anova table for model 2 to pick the next variable to remove!
+anova(tot.model2)
+
+tot.model3 <- update(tot.model2, . ~ . - logorg_matter:logDNA_per_g)
+anova(tot.model2, tot.model3) #p = 0.46
+
+anova(tot.model3)
+summary(tot.model3)
+
+tot.model4 <- update(tot.model3, . ~ . - logDepth:logDNA_per_g)
+anova(tot.model3, tot.model4) #p = 0.16
+
+anova(tot.model4)
+summary(tot.model4)
+
+tot.model5 <- update(tot.model4, . ~ . - logDNA_per_g:logwater_content)
+anova(tot.model4, tot.model5) #p = 0.77
+
+anova(tot.model5)
+summary(tot.model5)
+tot.model6 <- update(tot.model5, . ~ . - logArea:logDNA_per_g)
+anova(tot.model5, tot.model6) #p = 0.58
+
+anova(tot.model6)
+summary(tot.model6)
+tot.model7 <- update(tot.model6, . ~ . - logDepth:logwater_content)
+anova(tot.model6, tot.model7) #p = 0.49
+
+anova(tot.model7)
+summary(tot.model7)
+tot.model8 <- update(tot.model7, . ~ . - logDNA_per_g:Glacier)
+anova(tot.model7, tot.model8) #p = 0.43
+
+anova(tot.model8)
+summary(tot.model8)
+tot.model9 <- update(tot.model8, . ~ . - logwater_content:Glacier)
+anova(tot.model8, tot.model9) #p = 0.78
+
+anova(tot.model9)
+summary(tot.model9)
+tot.model10 <- update(tot.model9, . ~ . - logDepth:Glacier)
+anova(tot.model9, tot.model10) #p = 0.53
+
+anova(tot.model10)
+summary(tot.model10)
+tot.model11 <- update(tot.model10, . ~ . - logorg_matter:logwater_content)
+anova(tot.model10, tot.model11) #p = 0.49
+
+anova(tot.model11)
+summary(tot.model11)
+tot.model12 <- update(tot.model11, . ~ . - logorg_matter:logDepth)
+anova(tot.model11, tot.model12) #p = 0.11
+
+anova(tot.model12)
+summary(tot.model12)
+tot.model13 <- update(tot.model12, . ~ . - logArea:Glacier)
+anova(tot.model12, tot.model13) #p = 0.21
+
+anova(tot.model13)
+summary(tot.model13)
+tot.model14 <- update(tot.model13, . ~ . - logArea:logwater_content)
+anova(tot.model13, tot.model14) #p = 0.17
+
+anova(tot.model14)
+summary(tot.model14)
+tot.model15 <- update(tot.model14, . ~ . - Glacier)
+anova(tot.model14, tot.model15) #p = 0.11
+
+anova(tot.model15)
+summary(tot.model15)
+tot.model16 <- update(tot.model15, . ~ . - logwater_content)
+anova(tot.model15, tot.model16) #p = 0.64
+
+anova(tot.model16)
+summary(tot.model16)
+tot.model17 <- update(tot.model16, . ~ . - logArea:logDepth)
+anova(tot.model16, tot.model17) #p = 0.64
+
+
+###I CAN'T REMOVE ANYTHING ELSE HERE WITHOUT MAKING THE MODEL WORSE
+anova(tot.model16) #< FINAL MODEL = MINIMUM ADEQUATE MODEL
+summary(tot.model16)
+
+```
+
+#REPEAT ABOVE FOR ABUNDANT TAXA
+```{r}
+#from the ANOVA output I can see that the term logArea:Glacier is not significant (the drop output showed me that this was a valid term in the model)
+abun.model2 <- update(abun.model, . ~ . - logorg_matter:Glacier)
+
+#we can use ANOVA to compare the two models
+anova(abun.model, abun.model2) #the p value > 0.05
+
+#let's get an anova table for model 2 to pick the next variable to remove!
+anova(abun.model2)
+
+abun.model3 <- update(abun.model2, . ~ . - logorg_matter:logDNA_per_g)
+anova(abun.model2, abun.model3) #the p value > 0.05
+
+anova(abun.model3)
+summary(abun.model3)
+
+abun.model4 <- update(abun.model3, . ~ . - logDepth:Glacier)
+anova(abun.model3, abun.model4) #the p value > 0.05
+
+anova(abun.model4)
+summary(abun.model4)
+
+abun.model5 <- update(abun.model4, . ~ . - logDepth:logwater_content)
+anova(abun.model4, abun.model5) #the p value > 0.05
+
+anova(abun.model5)
+summary(abun.model5)
+abun.model6 <- update(abun.model5, . ~ . - logorg_matter:logDepth)
+anova(abun.model5, abun.model6) #the p value > 0.05
+
+anova(abun.model6)
+summary(abun.model6)
+abun.model7 <- update(abun.model6, . ~ . - logArea:logDNA_per_g)
+anova(abun.model6, abun.model7) #the p value > 0.05
+
+anova(abun.model7)
+summary(abun.model7)
+abun.model8 <- update(abun.model7, . ~ . - logArea:Glacier)
+anova(abun.model7, abun.model8) #the p value > 0.05
+
+anova(abun.model8)
+summary(abun.model8)
+abun.model9 <- update(abun.model8, . ~ . - logArea)
+anova(abun.model8, abun.model9) #the p value < 0.05
+
+###I CAN'T REMOVE ANYTHING ELSE HERE WITHOUT MAKING THE MODEL WORSE
+anova(abun.model8) #< FINAL MODEL = MINIMUM ADEQUATE MODEL
+summary(abun.model8)
+```
+
+```{r}
+rare.model2 <- update(rare.model, . ~ . - logorg_matter:Glacier)
+
+#we can use ANOVA to compare the two models
+anova(rare.model, rare.model2) #the p value > 0.05
+
+#let's get an anova table for model 2 to pick the next variable to remove!
+anova(rare.model2)
+
+rare.model3 <- update(rare.model2, . ~ . - logorg_matter:logDNA_per_g)
+anova(rare.model2, rare.model3) #the p value > 0.05
+
+anova(rare.model3)
+summary(rare.model3)
+
+rare.model4 <- update(rare.model3, . ~ . - logDepth:logDNA_per_g)
+anova(rare.model3, rare.model4) #the p value > 0.05
+
+anova(rare.model4)
+summary(rare.model4)
+
+rare.model5 <- update(rare.model4, . ~ . - logDNA_per_g:logwater_content)
+anova(rare.model4, rare.model5) #the p value > 0.05
+
+anova(rare.model5)
+summary(rare.model5)
+rare.model6 <- update(rare.model5, . ~ . - logArea:logDNA_per_g)
+anova(rare.model5, rare.model6) #the p value > 0.05
+
+anova(rare.model6)
+summary(rare.model6)
+rare.model7 <- update(rare.model6, . ~ . - logDepth:logwater_content)
+anova(rare.model6, rare.model7) #the p value > 0.05
+
+anova(rare.model7)
+summary(rare.model7)
+rare.model8 <- update(rare.model7, . ~ . - logDNA_per_g:Glacier)
+anova(rare.model7, rare.model8) #the p value > 0.05
+
+anova(rare.model8)
+summary(rare.model8)
+rare.model9 <- update(rare.model8, . ~ . - logwater_content:Glacier)
+anova(rare.model8, rare.model9) #the p value > 0.05
+
+anova(rare.model9)
+summary(rare.model9)
+rare.model10 <- update(rare.model9, . ~ . - logDepth:Glacier)
+anova(rare.model9, rare.model10) #the p value > 0.05
+
+anova(rare.model10)
+summary(rare.model10)
+rare.model11 <- update(rare.model10, . ~ . - logorg_matter:logwater_content)
+anova(rare.model10, rare.model11) #the p value > 0.05
+
+anova(rare.model11)
+summary(rare.model11)
+rare.model12 <- update(rare.model11, . ~ . - logorg_matter:logDepth)
+anova(rare.model11, rare.model12) #the p value > 0.05
+
+anova(rare.model12)
+summary(rare.model12)
+rare.model13 <- update(rare.model12, . ~ . - logArea:Glacier)
+anova(rare.model12, rare.model13) #the p value > 0.05
+
+anova(rare.model13)
+summary(rare.model13)
+rare.model14 <- update(rare.model13, . ~ . - logArea:logwater_content)
+anova(rare.model13, rare.model14) #the p value > 0.05
+
+anova(rare.model14)
+summary(rare.model14)
+rare.model15 <- update(rare.model14, . ~ . - Glacier)
+anova(rare.model14, rare.model15) #the p value > 0.05
+
+anova(rare.model15)
+summary(rare.model15)
+rare.model16 <- update(rare.model15, . ~ . - logwater_content)
+anova(rare.model15, rare.model16) #the p value > 0.05
+
+anova(rare.model16)
+summary(rare.model16)
+rare.model17 <- update(rare.model16, . ~ . - logDNA_per_g)
+anova(rare.model16, rare.model17) #the p value > 0.05
+
+anova(rare.model17)
+summary(rare.model17)
+rare.model18 <- update(rare.model17, . ~ . - logArea:logorg_matter)
+anova(rare.model17, rare.model18) #the p value > 0.05
+
+anova(rare.model18)
+summary(rare.model18)
+rare.model19 <- update(rare.model18, . ~ . - logArea:logDepth)
+anova(rare.model18, rare.model19) #the p value > 0.05
+
+anova(rare.model19)
+summary(rare.model19)
+rare.model20 <- update(rare.model19, . ~ . - logDepth)
+anova(rare.model19, rare.model20) #the p value > 0.05
+
+anova(rare.model20)
+summary(rare.model20)
+rare.model21 <- update(rare.model20, . ~ . - logorg_matter)
+anova(rare.model20, rare.model21) #the p value > 0.05
+
+###I CAN'T REMOVE ANYTHING ELSE HERE WITHOUT MAKING THE MODEL WORSE
+anova(rare.model21) #< FINAL MODEL = MINIMUM ADEQUATE MODEL
+summary(rare.model21)
+```

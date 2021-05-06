@@ -1,0 +1,168 @@
+---
+title: "Indirect or Unconstrained Ordination"
+author: "Amy Solman"
+date: "23/04/2021"
+output: html_document
+---
+#This code will follow the tutorial and notes from Applied Quantitative Methods
+(http://dmcglinn.github.io/quant_methods/lessons/multivariate_models.html)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#MULTIVARIATE ORDINATION ANALYSIS
+#Two types of ordination:
+#Indirect or unconstrained ordination in which only a single matrix is analyzed
+#Direct on constrained ordination in which one matrix is used to explain the variance of another matrix
+
+#Ordination is frequently used when exploring patterns in datasets graphically. It can also be used in hypothesis testing.
+#The term ordination derives from the idea to ordinate or put things into order. With ordination approaches we are attempting to take a high-dimensional data matrix and explain its patterns with a small number of axis.
+
+#Ordination is close to multiple regression. The key difference is that the response variable is multivariate rather than univariate.
+
+#Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(vegan)
+```
+
+#Load Data and make into phyloseq object 
+```{r}
+# load("results/cleaned_files/cleanedfiles_3.RData")
+# 
+# #hole area - calculate and add to dataframe
+# #Method as per Darcy et al (2018)
+# metadata$area <- pi*(as.numeric(metadata$diameter1)/2)*(as.numeric(metadata$diameter2)/2)
+# metadata$area <- metadata$area*10000
+# 
+# #Let's make our data into a phyloseq object
+# ASV = otu_table(data.frame(count_table_clean), taxa_are_rows = TRUE)
+# TAX = tax_table(as.matrix(taxonomy))
+# META	=	sample_data(data.frame(metadata, row.names = metadata$Run))
+# my.ps <- phyloseq(ASV, TAX, META, tree_clean)
+
+#Load data files
+load("../Outputs/Sommers2020/cleanedfiles-abundance.RData")
+my.ps <- readRDS("../Outputs/Sommers2020/my-ps-original.rds") #original full dataset, no rareification, 
+my.ps.rar <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-total.rds") #rarefied dataset, total taxa
+my.ps.rar.rel <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-relative.rds") #rarefied relative abundance, total taxa
+my.ps.rar.abun <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-abundant.rds") #rarefied abundant taxa ONLY
+my.ps.rar.rare <- readRDS("../Outputs/Sommers2020/my-ps-rarefied-rare.rds") #rarefied rare taxa ONLY
+
+#Load dataframes
+tot.diversity.data <- read.csv("../Outputs/Sommers2020/total-diversity-metadata.csv")
+abun.diversity.data <- read.csv("../Outputs/Sommers2020/abundant-diversity-metadata.csv")
+rare.diversity.data <- read.csv("../Outputs/Sommers2020/rare-diversity-metadata.csv")
+```
+
+#Transpose count table to that ASVs are columns and samples are rows
+```{r}
+#comm <- t(count_table_clean)
+comm <- t(otu_table(my.ps.rar))
+
+```
+
+#Visually explore our data
+```{r}
+uni_sp = unique(colnames(comm)) #get our unique species IDs
+sp_sum <- apply(comm, 2, sum) #get the sum of each column (asv - how many individuals of the ASV are found across all samples)
+site_sum <- apply(comm, 1, sum) #get the sum of each row (sample - how many individuals are there across all ASVs in the sample)
+par(mfrow=c(2,2))
+hist(sp_sum) #histogram of total ASV abundances
+col=colorRamp(c('red', 'orange', 'blue'))
+pc_cols = col(length(uni_sp))
+plot(sp_sum[order(sp_sum, decreasing=T)], type='o', col='red', lwd=2, xlab='Sp Rank', ylab='Sum Cover') #plot the total ASV abundances by order
+hist(site_sum) #histogram of total abundances across all samples
+plot(site_sum[order(site_sum, decreasing=T)], type='o', col='red', lwd=2, xlab='Site Rank', ylab='Sum Cover') #plot total abundances per sample by order
+
+#We can see from the upper right hand graph that most species have low sum cover (total covers), so most species are rare
+
+#These plots are not terribly helpful at understanding the variability in the community matrix so let’s get our enviornmental variables ready to use and start to conduct some actual analyses.
+```
+
+#Create an explanatory matrix
+#We know that each sample has an accompanying set of environmental measurements!
+#Let's pull out the environmental data that we need
+```{r}
+cols_to_keep = c('Chlorophyll', 'Depth', 'DNA_per_g', 'org_matter', 'pH', 'water_content', 'area')
+env = aggregate(metadata[ , cols_to_keep], by = list(metadata$Run), function(x) x[1])
+# aggregate does have a side effect of adding a column to the output which 
+# is the unique plotID in this case. We just need to move that so it is a 
+# row name instead. 
+row.names(env) = env[ , 1]
+env = env[ , -1]
+head(env)
+
+#Let's check to make sure our explanatory matrix has the same sample names as our count table
+
+all.equal(rownames(comm), rownames(env)) #TRUE!
+
+#Now we can rename the samples names to something simpler 
+rownames(comm) = 1:nrow(comm)
+rownames(env) = 1:nrow(env)
+```
+
+#INDIRECT OR UNCONSTRAINED ORDINATION
+#PRINCIPAL COMPONENTS ANALYSIS (PCA)
+#PCA is a useful tool for:
+#Examining correlations between the columns of a matrix
+#Potentially reducing the set of explanatory variables included in a model
+#PCA may also be known as Reciprocal Averaging
+#Simplified description of PCA algorithm (from Zelený 2018):
+#Use the matrix of samples x species (or, generally, samples x descriptors), and display each sample into the multidimensional space where each dimension is defined by an abundance of one species (or descriptor). In this way, the samples will produce a cloud located in the multidimensional space.
+#Calculate the centroid of the cloud.
+#Move the centres of axes to this centroid.
+#Rotate the axes in such a way that the first axis goes through the cloud in the direction of the highest variance, the second is perpendicular to the first and goes in the direction of the second highest variance, and so on. The position of samples on resulting rotated axes are sample scores on ordination axes.
+
+#Let's start by using PCA to examine the correlations in ASV covers that are contained in the community matrix
+```{r}
+cryo_pca = rda(comm, scale=TRUE)
+cryo_pca #this gives us a named list of results
+
+#we can look at the structure of the list as so
+str(cryo_pca)
+
+#We can access each of the objects stored in a named list as we would reference columns in a dataframe using $
+cryo_pca$tot.chi #NULL
+cryo_pca$CA$eig #this gives us the eigenvalues of the analysis
+
+sum(cryo_pca$CA$eig) #2150 the sum of the eigenvalues is equal to the total inerti or total variance of the data
+
+#the ratio of the eigenvalue to the total variance is the amount of variance explained by each PCA axis
+round(cryo_pca$CA$eig/cryo_pca$tot.chi, 2)
+#we can see from this that PC1 captures about 10% of the total variance in the community matrix
+```
+
+#Graph the PCA to get a sense of the correlation structure
+```{r}
+plot(cryo_pca)
+
+biplot(cryo_pca)
+
+ordiplot(cryo_pca, display = 'sp')
+#orditorp(x, display = 'sp')
+```
+#We can also do correspondance analysis (CA), detrended coresspondance analysis (DCA) and NMDS
+```{r}
+# each of these different indirect ordination approaches
+# has different strenghts and weaknesses
+# Correspondance analysis  (CA) examines differences on weighted
+# averages of the columns (i.e., species in this case)
+cryo_ca = cca(comm)
+
+# Detrended correspondance analysis (DCA) is identical except it attempts
+# to account for a well known artefact of CA known as the arch-effect 
+# by detrending subsequent axes from previous axes. 
+cryo_dca = decorana(comm)
+         
+# Non-metric multidimenstional scaling (MDS) is unique in that you may 
+# specify one of a number of different distance metrics to use. By 
+# default the Bray-Curtis distance is used by metaMDS. 
+cryo_mds = metaMDS(comm)
+
+plot(cryo_ca)
+plot(cryo_dca)
+plot(cryo_mds)
+```
