@@ -26,54 +26,43 @@ graphics.off()
 library(ggpubr) #for making my boxplots
 library(FSA) #for dunn's test
 #library(vegan) #for diversity indices
+library(car)
 ```
 
 Step Two: Load data 
 ```{r}
 #TOTAL DATASET
-ps <- readRDS("../output/16S-phyloseq-object-rarefied.rds")
+ps <- readRDS("../../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds")
 
 #Total Abundant
-ps.abun <- readRDS("../output/16S-total-abundant.rds")
+ps.abun <- readRDS("../../results/16S/phylo-objects/16S-total-abundant.rds")
 #Total Intermediate
-ps.int <- readRDS("../output/16S-total-intermediate.rds")
+ps.int <- readRDS("../../results/16S/phylo-objects/16S-total-intermediate.rds")
 #Total Rare
-ps.rare <- readRDS("../output/16S-total-rare.rds")
-```
-
-Step Three: Remove any samples with zero counts from each of our communities
-```{r}
-#Total
-ps.prune <- prune_samples(sample_sums(ps) > 0, ps)
-#Abundant
-abun.prune <- prune_samples(sample_sums(ps.abun) > 0, ps.abun)
-#Intermediate
-int.prune <- prune_samples(sample_sums(ps.int) > 0, ps.int)
-#Rare
-rare.prune <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
+ps.rare <- readRDS("../../results/16S/phylo-objects/16S-total-rare.rds")
 ```
 
 Step Four: Combine our data for plotting
 ```{r}
-tot_rich <- estimate_richness(ps.prune)
-tot_rich$SampleID <- as.character(data.frame(sample_data(ps.prune))$SampleID)
-tot_rich$Glacier <- data.frame(sample_data(ps.prune))$Glacier
-tot_rich$Pole <- data.frame(sample_data(ps.prune))$Pole
+tot_rich <- estimate_richness(ps)
+tot_rich$SampleID <- as.character(data.frame(sample_data(ps))$SampleID)
+tot_rich$Glacier <- data.frame(sample_data(ps))$Glacier
+tot_rich$Pole <- data.frame(sample_data(ps))$Pole
 tot_rich$Abundance <- "Total"
-abun_rich <- estimate_richness(abun.prune)
-abun_rich$SampleID <- as.character(data.frame(sample_data(abun.prune))$SampleID)
-abun_rich$Glacier <- data.frame(sample_data(abun.prune))$Glacier
-abun_rich$Pole <- data.frame(sample_data(abun.prune))$Pole
+abun_rich <- estimate_richness(ps.abun)
+abun_rich$SampleID <- as.character(data.frame(sample_data(ps.abun))$SampleID)
+abun_rich$Glacier <- data.frame(sample_data(ps.abun))$Glacier
+abun_rich$Pole <- data.frame(sample_data(ps.abun))$Pole
 abun_rich$Abundance <- "Abundant"
-int_rich <- estimate_richness(int.prune)
-int_rich$SampleID <- as.character(data.frame(sample_data(int.prune))$SampleID)
-int_rich$Glacier <- data.frame(sample_data(int.prune))$Glacier
-int_rich$Pole <- data.frame(sample_data(int.prune))$Pole
+int_rich <- estimate_richness(ps.int)
+int_rich$SampleID <- as.character(data.frame(sample_data(ps.int))$SampleID)
+int_rich$Glacier <- data.frame(sample_data(ps.int))$Glacier
+int_rich$Pole <- data.frame(sample_data(ps.int))$Pole
 int_rich$Abundance <- "Intermediate"
-rare_rich <- estimate_richness(rare.prune)
-rare_rich$SampleID <- as.character(data.frame(sample_data(rare.prune))$SampleID)
-rare_rich$Glacier <- data.frame(sample_data(rare.prune))$Glacier
-rare_rich$Pole <- data.frame(sample_data(rare.prune))$Pole
+rare_rich <- estimate_richness(ps.rare)
+rare_rich$SampleID <- as.character(data.frame(sample_data(ps.rare))$SampleID)
+rare_rich$Glacier <- data.frame(sample_data(ps.rare))$Glacier
+rare_rich$Pole <- data.frame(sample_data(ps.rare))$Pole
 rare_rich$Abundance <- "Rare"
 
 data <- rbind(tot_rich, abun_rich, int_rich, rare_rich)
@@ -87,19 +76,22 @@ data_stack <- data[!(data$Abundance=="Total"), ]
 # Stacked + percent
 ggplot(data_stack, aes(fill=Abundance, y=Observed, x=SampleID)) + 
     geom_bar(position="fill", stat="identity")+
-  ggtitle("Stacked Barplot of Abundance Richness Across All Samples")+
+  ggtitle("16S: Stacked Barplot of Abundance Richness Across All Samples")+
     theme(axis.text.x = element_text(angle=90, hjust=1))
+ggsave("../../results/16S/graphs/alpha-diversity/stacked-sample.pdf")
 
 # Stacked + percent
 ggplot(data_stack, aes(fill=Abundance, y=Observed, x=Glacier)) + 
     geom_bar(position="fill", stat="identity")+
-  ggtitle("Stacked Barplot of Abundance Richness Between Glaciers")+
+  ggtitle("16S: Stacked Barplot of Abundance Richness Between Glaciers")+
   theme(axis.text.x = element_text(angle=90, hjust=1))
+ggsave("../../results/16S/graphs/alpha-diversity/stacked-glacier.pdf")
 
 # Stacked + percent
 ggplot(data_stack, aes(fill=Abundance, y=Observed, x=Pole)) + 
     geom_bar(position="fill", stat="identity")+
-  ggtitle("Stacked Barplot of Abundance Richness Between Poles")
+  ggtitle("16S: Stacked Barplot of Abundance Richness Between Poles")
+ggsave("../../results/16S/graphs/alpha-diversity/stacked-poles.pdf")
 
 ```
 
@@ -118,31 +110,33 @@ ggplot(data=data1, aes(x=SampleID, y=Observed, fill=Glacier)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Total Community Richness")+
+  ggtitle("16S: Total Community Richness")+
   geom_bar(data=subset(data1, Observed==min(Observed)), aes(SampleID, Observed),
               color="black", stat="identity") +
   geom_bar(data=subset(data1, Observed==max(Observed)), aes(SampleID, Observed),
               color="black", stat="identity")+
   geom_text(aes(label=Observed), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/richness-sample.pdf")
 
 #barplot of species richness 
 ggplot(data=data1, aes(x=SampleID, y=Shannon, fill=Glacier)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Total Community Shannon Diversity")+
+  ggtitle("16S: Total Community Shannon Diversity")+
   geom_bar(data=subset(data1, Shannon==min(Shannon)), aes(SampleID, Shannon),
               color="black", stat="identity") +
   geom_bar(data=subset(data1, Shannon==max(Shannon)), aes(SampleID, Shannon),
               color="black", stat="identity")+
   geom_text(aes(label=round(Shannon, digits=2)), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/shannon-sample.pdf")
 
 ```
 
 Step Seven: Total Observed ASVs/Shannon Index by glacier
 ```{r}
 #merge data to glacier level
-ps.merged1 <- merge_samples(ps.prune, "Glacier")
+ps.merged1 <- merge_samples(ps, "Glacier")
 tot_glacier <- estimate_richness(ps.merged1)
 tot_glacier$Glacier <- row.names(tot_glacier)
 tot_glacier$Pole <- c("Antarctic", "Antarctic", "Arctic", "Antarctic", "Antarctic", "Arctic", "Antarctic", "Antarctic", "Arctic", "Arctic","Antarctic", "Arctic", "Antarctic", "Antarctic", "Antarctic", "Antarctic")
@@ -155,13 +149,14 @@ ggplot(data=tot_glacier, aes(x=Glacier, y=Observed, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Total Community Richness by Glacier")+
+  ggtitle("16: Total Community Richness by Glacier")+
           geom_bar(data=subset(tot_glacier, Observed==min(Observed)), aes(Glacier, Observed),
               color="black", stat="identity") +
   geom_bar(data=subset(tot_glacier, Observed==max(Observed)), aes(Glacier, Observed),
               color="black", stat="identity")+
   geom_text(aes(label=Observed), vjust=1.6, color="white", size=3)+
     geom_text(aes(label=Observed), vjust=1.6, color="white", size=3)
+ggsave("../../results/16S/graphs/alpha-diversity/richness-glacier.pdf")
 
 #Are there significant differences in species richness for each glacier?
 #Test for significant differences between glacier asv richness
@@ -187,12 +182,13 @@ ggplot(data=tot_glacier, aes(x=Glacier, y=Shannon, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Total Community Shannon Diversity by Glacier")+
+  ggtitle("16: Total Community Shannon Diversity by Glacier")+
   geom_bar(data=subset(tot_glacier, Shannon==min(Shannon)), aes(Glacier, Shannon),
               color="black", stat="identity") +
   geom_bar(data=subset(tot_glacier, Shannon==max(Shannon)), aes(Glacier, Shannon),
               color="black", stat="identity")+
   geom_text(aes(label=round(Shannon, digits=2)), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/shannon-glacier.pdf")
 
 #Set order of boxplot
 newSTorder = c("Canada", "Commonwealth", "Diamond", 
@@ -200,12 +196,14 @@ newSTorder = c("Canada", "Commonwealth", "Diamond",
                "Taylor", "Upper Koettlitz", "Upper Wright", "Usteinen Scoop", "Core", "Kangerlussuaq", "Margin", "Midre Lovenbreen", "Storglaciären")
 
 #Total by glacier
-p = plot_richness(ps.prune, x="Glacier", color="Pole", measures=c("Observed", "Shannon")) + geom_boxplot()+
-  ggtitle("Total Community Richness and Shannon Diversity Boxplots")
+p = plot_richness(ps, x="Glacier", color="Pole", measures=c("Observed", "Shannon")) + geom_boxplot()+
+  ggtitle("16S: Total Community Richness and Shannon Diversity Boxplots")
+
 
 p$data$Glacier <- as.character(p$data$Glacier)
 p$data$Glacier <- factor(p$data$Glacier, levels=newSTorder)
 print(p)
+ggsave("../../results/16S/graphs/alpha-diversity/shannon-richness-glacier-boxplot.pdf")
 
 #Are there significant differences in Shannon diversity for each glacier?
 #Test for significant differences between glacier asv richness
@@ -241,7 +239,8 @@ ggplot(data1, aes(x=Pole, y=Observed, fill=Pole)) +
                 outlier.size=4)+
   geom_jitter(shape=16, position=position_jitter(0.2))+
   theme_classic()+
-  ggtitle("Total Community Observed ASVs by Pole")
+  ggtitle("16S: Total Community Observed ASVs by Pole")
+ggsave("../../results/16S/graphs/alpha-diversity/richness-pole-boxplot.pdf")
 
 #boxplot of shannon index species by pole
 ggplot(data1, aes(x=Pole, y=Shannon, fill=Pole)) + 
@@ -249,12 +248,13 @@ ggplot(data1, aes(x=Pole, y=Shannon, fill=Pole)) +
                 outlier.size=4)+
   geom_jitter(shape=16, position=position_jitter(0.2))+
   theme_classic()+
-  ggtitle("Total Community Shannon Index by Pole")
+  ggtitle("16S: Total Community Shannon Index by Pole")
+ggsave("../../results/16S/graphs/alpha-diversity/shannon-pole-boxplot.pdf")
 
 
 #Total
 #merge the phyloseq object by pole
-ps.merged2 = merge_samples(ps.prune, "Pole")
+ps.merged2 = merge_samples(ps, "Pole")
 tot_pole <- estimate_richness(ps.merged2)
 tot_pole$Pole <- row.names(tot_pole)
 
@@ -263,16 +263,17 @@ ggplot(data=tot_pole, aes(x=Pole, y=Observed, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Total Community Richness by Pole")+
+  ggtitle("16S: Total Community Richness by Pole")+
     geom_text(aes(label=Observed), vjust=1.6, color="white", size=5)
+ggsave("../../results/16S/graphs/alpha-diversity/richness-pole-barplot.pdf")
 
 #differences in observed ASVs
 #check normality of data
 with(data1, shapiro.test(Observed[Pole == "Arctic"]))# p > 0.05 so normally distributed
 with(data1, shapiro.test(Observed[Pole == "Antarctic"])) #p < 0.05 not normally distributed
 #NEED NON-PARAMETRIC TEST
-res <- wilcox.test(Observed ~ Pole, data = data1, exact = FALSE)
-res # p < 0.05 the median Richness between poles are significantly different
+wilcox.test(Observed ~ Pole, data = data1, exact = FALSE)
+ # p > 0.05 the median Richness between poles are not significantly different
 
 #differences in shannon diversity
 #check normality of data
@@ -280,7 +281,7 @@ with(data1, shapiro.test(Shannon[Pole == "Arctic"]))# p > 0.05 so normally distr
 with(data1, shapiro.test(Shannon[Pole == "Antarctic"])) #p > 0.05 normally distributed
 var.test(Shannon ~ Pole, data = data1) #p > 0.05 variances not significantly different
 #NEED PARAMETRIC TEST
-t.test(Shannon ~ Pole, data = data1, var.equal = TRUE) #p < 0.05 significant difference
+t.test(Shannon ~ Pole, data = data1, var.equal = TRUE) #p > 0.05 no significant difference
 ```
 
 Step Nine: Abundant Observed ASVs/Shannon Index by Sample
@@ -298,30 +299,32 @@ ggplot(data=data2, aes(x=SampleID, y=Observed, fill=Glacier)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Abundant Community Richness")+
+  ggtitle("16S: Abundant Community Richness")+
   geom_bar(data=subset(data2, Observed==min(Observed)), aes(SampleID, Observed),
               color="black", stat="identity") +
   geom_bar(data=subset(data2, Observed==max(Observed)), aes(SampleID, Observed),
               color="black", stat="identity")+
   geom_text(aes(label=Observed), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/abundant-richness-sample.pdf")
 
 #barplot of species richness 
 ggplot(data=data2, aes(x=SampleID, y=Shannon, fill=Glacier)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Abundant Community Shannon Diversity")+
+  ggtitle("16S: Abundant Community Shannon Diversity")+
   geom_bar(data=subset(data2, Shannon==min(Shannon)), aes(SampleID, Shannon),
               color="black", stat="identity") +
   geom_bar(data=subset(data2, Shannon==max(Shannon)), aes(SampleID, Shannon),
               color="black", stat="identity")+
   geom_text(aes(label=round(Shannon, digits=2)), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/abundant-shannon-sample.pdf")
 ```
 
 Step Ten: Abundant Observed ASVs/Shannon Index by Glacier
 ```{r}
 #merge data to glacier level
-ps.merged2 <- merge_samples(abun.prune, "Glacier")
+ps.merged2 <- merge_samples(ps.abun, "Glacier")
 abun_glacier <- estimate_richness(ps.merged2)
 abun_glacier$Glacier <- row.names(abun_glacier)
 abun_glacier$Pole <- tot_glacier$Pole
@@ -334,13 +337,14 @@ ggplot(data=abun_glacier, aes(x=Glacier, y=Observed, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Abundant Community Richness by Glacier")+
+  ggtitle("16S: Abundant Community Richness by Glacier")+
           geom_bar(data=subset(abun_glacier, Observed==min(Observed)), aes(Glacier, Observed),
               color="black", stat="identity") +
   geom_bar(data=subset(abun_glacier, Observed==max(Observed)), aes(Glacier, Observed),
               color="black", stat="identity")+
   geom_text(aes(label=Observed), vjust=1.6, color="white", size=3)+
     geom_text(aes(label=Observed), vjust=1.6, color="white", size=3)
+ggsave("../../results/16S/graphs/alpha-diversity/abundant-richness-glacier.pdf")
 
 #Are there significant differences in species richness for each glacier?
 #Test for significant differences between glacier asv richness
@@ -357,7 +361,6 @@ shapiro.test(x=anov_res2a) #p > 0.05 which suggests the data are normally distri
 #Which glaciers are different?
 pairwise.wilcox.test(data2$Observed, data2$Glacier,
                   p.adjust.method = "BH")
-#Taylor and Upper Koettlitz sign dif
 
 ##############################SHANNON DIVERSITY################################
 
@@ -366,20 +369,22 @@ ggplot(data=abun_glacier, aes(x=Glacier, y=Shannon, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Abundant Community Shannon Diversity by Glacier")+
+  ggtitle("16S: Abundant Community Shannon Diversity by Glacier")+
   geom_bar(data=subset(abun_glacier, Shannon==min(Shannon)), aes(Glacier, Shannon),
               color="black", stat="identity") +
   geom_bar(data=subset(abun_glacier, Shannon==max(Shannon)), aes(Glacier, Shannon),
               color="black", stat="identity")+
   geom_text(aes(label=round(Shannon, digits=2)), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/abundant-shannon-glacier.pdf")
 
 #Total by glacier
-p2 = plot_richness(abun.prune, x="Glacier", color="Pole", measures=c("Observed", "Shannon")) + geom_boxplot()+
-  ggtitle("abundant Community Richness and Shannon Diversity Boxplots")
+p2 = plot_richness(ps.abun, x="Glacier", color="Pole", measures=c("Observed", "Shannon")) + geom_boxplot()+
+  ggtitle("16S: Abundant Community Richness and Shannon Diversity Boxplots")
 
 p2$data$Glacier <- as.character(p2$data$Glacier)
 p2$data$Glacier <- factor(p2$data$Glacier, levels=newSTorder)
 print(p2)
+ggsave("../../results/16S/graphs/alpha-diversity/abundant-shannon-richness-glacier-boxplot.pdf")
 
 #Are there significant differences in Shannon diversity for each glacier?
 #Test for significant differences between glacier asv richness
@@ -397,13 +402,16 @@ leveneTest(Shannon ~ Glacier, data = data2) #p > 0.05 so no evidence to suggest 
 anov_res2b <- residuals(object = res2b)
 
 #Run shapiro-wilk test
-shapiro.test(x=anov_res2b) #p < 0.05 which suggests the data are not normally distributed
+shapiro.test(x=anov_res2b) #p > 0.05 which suggests the data are not normally distributed
 
-#ANOVA vinalid!
+#ANOVA valid!
 
-kruskal.test(Shannon ~ Glacier, data = data2) #p < 0.05 so the differences between the medians are statistically significant
+pairwise.wilcox.test(data2$Shannon, data2$Glacier,
+                  p.adjust.method = "BH")
 
-dunnTest(Shannon ~ Glacier, data=data2, method="bh") #no signif with adjusted p values
+# kruskal.test(Shannon ~ Glacier, data = data2) #p < 0.05 so the differences between the medians are statistically significant
+# 
+# dunnTest(Shannon ~ Glacier, data=data2, method="bh") #no signif with adjusted p values
 ```
 
 Step Eleven: Abundant Observed ASVs/Shannon Index by Pole
@@ -414,7 +422,8 @@ ggplot(data2, aes(x=Pole, y=Observed, fill=Pole)) +
                 outlier.size=4)+
   geom_jitter(shape=16, position=position_jitter(0.2))+
   theme_classic()+
-  ggtitle("Abundant Community Observed ASVs by Pole")
+  ggtitle("16S: Abundant Community Observed ASVs by Pole")
+ggsave("../../results/16S/graphs/alpha-diversity/abundant-richness-pole-boxplot.pdf")
 
 #boxplot of shannon index species by pole
 ggplot(data2, aes(x=Pole, y=Shannon, fill=Pole)) + 
@@ -422,12 +431,12 @@ ggplot(data2, aes(x=Pole, y=Shannon, fill=Pole)) +
                 outlier.size=4)+
   geom_jitter(shape=16, position=position_jitter(0.2))+
   theme_classic()+
-  ggtitle("Abundant Community Shannon Index by Pole")
-
+  ggtitle("16S: Abundant Community Shannon Index by Pole")
+ggsave("../../results/16S/graphs/alpha-diversity/abundant-shannon-pole-boxplot.pdf")
 
 #Total
 #merge the phyloseq object by pole
-ps.merged3 = merge_samples(abun.prune, "Pole")
+ps.merged3 = merge_samples(ps.abun, "Pole")
 abun_pole <- estimate_richness(ps.merged3)
 abun_pole$Pole <- row.names(abun_pole)
 
@@ -436,24 +445,25 @@ ggplot(data=abun_pole, aes(x=Pole, y=Observed, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Abundant Community Richness by Pole")+
+  ggtitle("16S: Abundant Community Richness by Pole")+
     geom_text(aes(label=Observed), vjust=1.6, color="white", size=5)
+ggsave("../../results/16S/graphs/alpha-diversity/abundant-richness-pole-barplot.pdf")
 
 #differences in observed ASVs
 #check normality of data
-with(data2, shapiro.test(Observed[Pole == "Arctic"]))# p > 0.05 so normally distributed
+with(data2, shapiro.test(Observed[Pole == "Arctic"]))# p < 0.05 not normally distributed
 with(data2, shapiro.test(Observed[Pole == "Antarctic"])) #p < 0.05 not normally distributed
 #NEED NON-PARAMETRIC TEST
-res <- wilcox.test(Observed ~ Pole, data = data2, exact = FALSE)
-res # p < 0.05 the median Richness between poles are significantly different
+wilcox.test(Observed ~ Pole, data = data2, exact = FALSE)
+# p > 0.05 the median Richness between poles are significantly different
 
 #differences in shannon diversity
 #check normality of data
-with(data2, shapiro.test(Shannon[Pole == "Arctic"]))# p < 0.05 not normally distributed
-with(data2, shapiro.test(Shannon[Pole == "Antarctic"])) #p < 0.05 not normally distributed
+with(data2, shapiro.test(Shannon[Pole == "Arctic"]))# p > 0.05 normally distributed
+with(data2, shapiro.test(Shannon[Pole == "Antarctic"])) #p > 0.05 normally distributed
 var.test(Shannon ~ Pole, data = data2) #p > 0.05 variances not significantly different
-#NEED NONPARAMETRIC TEST
-wilcox.test(Shannon ~ Pole, data = data2, exact = FALSE)# p > 0.05 the median Shannon Index between poles not signif dif
+#NEED PARAMETRIC TEST
+t.test(Shannon ~ Pole, data = data1, var.equal = TRUE) #p > 0.05 no significant differences
 ```
 
 Step Twelve: Intermediate Observed ASVs/Shannon Index by Sample
@@ -471,30 +481,32 @@ ggplot(data=data3, aes(x=SampleID, y=Observed, fill=Glacier)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Intermediate Community Richness")+
+  ggtitle("16S: Intermediate Community Richness")+
   geom_bar(data=subset(data3, Observed==min(Observed)), aes(SampleID, Observed),
               color="black", stat="identity") +
   geom_bar(data=subset(data3, Observed==max(Observed)), aes(SampleID, Observed),
               color="black", stat="identity")+
   geom_text(aes(label=Observed), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/intermediate-richness-sample.pdf")
 
 #barplot of species richness 
 ggplot(data=data3, aes(x=SampleID, y=Shannon, fill=Glacier)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Intermediate Community Shannon Diversity")+
+  ggtitle("16S: Intermediate Community Shannon Diversity")+
   geom_bar(data=subset(data3, Shannon==min(Shannon)), aes(SampleID, Shannon),
               color="black", stat="identity") +
   geom_bar(data=subset(data3, Shannon==max(Shannon)), aes(SampleID, Shannon),
               color="black", stat="identity")+
   geom_text(aes(label=round(Shannon, digits=2)), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/intermediate-shannon-sample.pdf")
 ```
 
 Step Thirteen: Intermediate Observed ASVs/Shannon Index by Glacier
 ```{r}
 #merge data to glacier level
-ps.merged4 <- merge_samples(int.prune, "Glacier")
+ps.merged4 <- merge_samples(ps.int, "Glacier")
 int_glacier <- estimate_richness(ps.merged4)
 int_glacier$Glacier <- row.names(int_glacier)
 int_glacier$Pole <- tot_glacier$Pole
@@ -507,13 +519,14 @@ ggplot(data=int_glacier, aes(x=Glacier, y=Observed, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Intermediate Community Richness by Glacier")+
+  ggtitle("16S: Intermediate Community Richness by Glacier")+
           geom_bar(data=subset(int_glacier, Observed==min(Observed)), aes(Glacier, Observed),
               color="black", stat="identity") +
   geom_bar(data=subset(int_glacier, Observed==max(Observed)), aes(Glacier, Observed),
               color="black", stat="identity")+
   geom_text(aes(label=Observed), vjust=1.6, color="white", size=3)+
     geom_text(aes(label=Observed), vjust=1.6, color="white", size=3)
+ggsave("../../results/16S/graphs/alpha-diversity/intermediate-richness-glacier.pdf")
 
 #Are there significant differences in species richness for each glacier?
 #Test for significant differences between glacier asv richness
@@ -527,9 +540,6 @@ shapiro.test(x=anov_res3a) #p > 0.05 which suggests the data are normally distri
 #ANOVA valid!
 #Which glaciers are different?
 pairwise.wilcox.test(data3$Observed, data3$Glacier, p.adjust.method = "BH")
-#Taylor and Upper Koettlitz sign dif
-#Taylor and Upper Wright signif dif
-#Taylor and Lower Koettlitzsignif dif
 
 ##############################SHANNON DIVERSITY################################
 
@@ -538,20 +548,22 @@ ggplot(data=int_glacier, aes(x=Glacier, y=Shannon, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Intermediate Community Shannon Diversity by Glacier")+
+  ggtitle("16S: Intermediate Community Shannon Diversity by Glacier")+
   geom_bar(data=subset(int_glacier, Shannon==min(Shannon)), aes(Glacier, Shannon),
               color="black", stat="identity") +
   geom_bar(data=subset(int_glacier, Shannon==max(Shannon)), aes(Glacier, Shannon),
               color="black", stat="identity")+
   geom_text(aes(label=round(Shannon, digits=2)), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/intermediate-shannon-glacier.pdf")
 
 #Total by glacier
-p3 = plot_richness(int.prune, x="Glacier", color="Pole", measures=c("Observed", "Shannon")) + geom_boxplot()+
-  ggtitle("Intermediate Community Richness and Shannon Diversity Boxplots")
+p3 = plot_richness(ps.int, x="Glacier", color="Pole", measures=c("Observed", "Shannon")) + geom_boxplot()+
+  ggtitle("16S: Intermediate Community Richness and Shannon Diversity Boxplots")
 
 p3$data$Glacier <- as.character(p3$data$Glacier)
 p3$data$Glacier <- factor(p3$data$Glacier, levels=newSTorder)
 print(p3)
+ggsave("../../results/16S/graphs/alpha-diversity/intermediate-shannon-richness-glacier-boxplot.pdf")
 
 #Are there significant differences in Shannon diversity for each glacier?
 #Test for significant differences between glacier asv richness
@@ -569,21 +581,17 @@ leveneTest(Shannon ~ Glacier, data = data3) #p > 0.05 so no evidence to suggest 
 anov_res3b <- residuals(object = res3b)
 
 #Run shapiro-wilk test
-shapiro.test(x=anov_res3b) #p < 0.05 which suggests the data are not normally distributed
+shapiro.test(x=anov_res3b) #p > 0.05 which suggests the data are normally distributed
 
-#ANOVA invalid!
+#ANOVA valid!
 
-kruskal.test(Shannon ~ Glacier, data = data3) #p < 0.05 so the differences between the medians are statistically significant
+#Which glaciers are different?
+pairwise.wilcox.test(data3$Shannon, data3$Glacier, p.adjust.method = "BH") #p>0.05 no significant differences
 
-dunnTest(Shannon ~ Glacier, data=data3, method="bh")
-#Commonwealth - Storglaciären
-#Core - Taylor
-#Lower Koettlitz - Taylor
-#Lower Wright - Taylor
-#Midre Lovenbreen - Taylor
-#Storglaciären - Taylor
-#Taylor - Upper Koettlitz
-#Taylor - Upper Wright
+# kruskal.test(Shannon ~ Glacier, data = data3) #p < 0.05 so the differences between the medians are statistically significant
+# 
+# dunnTest(Shannon ~ Glacier, data=data3, method="bh")
+
 ```
 
 Step Fourteen: Intermediate Observed ASVs/Shannon Index by Pole
@@ -594,7 +602,8 @@ ggplot(data3, aes(x=Pole, y=Observed, fill=Pole)) +
                 outlier.size=4)+
   geom_jitter(shape=16, position=position_jitter(0.2))+
   theme_classic()+
-  ggtitle("Intermediate Community Observed ASVs by Pole")
+  ggtitle("16S: Intermediate Community Observed ASVs by Pole")
+ggsave("../../results/16S/graphs/alpha-diversity/intermediate-richness-pole-boxplot.pdf")
 
 #boxplot of shannon index species by pole
 ggplot(data3, aes(x=Pole, y=Shannon, fill=Pole)) + 
@@ -602,12 +611,13 @@ ggplot(data3, aes(x=Pole, y=Shannon, fill=Pole)) +
                 outlier.size=4)+
   geom_jitter(shape=16, position=position_jitter(0.2))+
   theme_classic()+
-  ggtitle("Intermediate Community Shannon Index by Pole")
+  ggtitle("16S: Intermediate Community Shannon Index by Pole")
+ggsave("../../results/16S/graphs/alpha-diversity/intermediate-shannon-pole-boxplot.pdf")
 
 
 #Total
 #merge the phyloseq object by pole
-ps.merged5 = merge_samples(int.prune, "Pole")
+ps.merged5 = merge_samples(ps.int, "Pole")
 int_pole <- estimate_richness(ps.merged5)
 int_pole$Pole <- row.names(int_pole)
 
@@ -616,23 +626,24 @@ ggplot(data=int_pole, aes(x=Pole, y=Observed, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Intermediate Community Richness by Pole")+
+  ggtitle("16S: Intermediate Community Richness by Pole")+
     geom_text(aes(label=Observed), vjust=1.6, color="white", size=5)
+ggsave("../../results/16S/graphs/alpha-diversity/intermediate-richness-pole-barplot.pdf")
 
 #differences in observed ASVs
 #check normality of data
-with(data3, shapiro.test(Observed[Pole == "Arctic"]))# p < 0.05 so not normally distributed
+with(data3, shapiro.test(Observed[Pole == "Arctic"]))# p > 0.05 so normally distributed
 with(data3, shapiro.test(Observed[Pole == "Antarctic"])) #p < 0.05 not normally distributed
 #NEED NON-PARAMETRIC TEST
-wilcox.test(Observed ~ Pole, data = data3, exact = FALSE) # p < 0.05 the median between poles are significantly different
+wilcox.test(Observed ~ Pole, data = data3, exact = FALSE) # p > 0.05 the median between poles are significantly different
 
 #differences in shannon diversity
 #check normality of data
-with(data3, shapiro.test(Shannon[Pole == "Arctic"]))# p > 0.05 normally distributed
+with(data3, shapiro.test(Shannon[Pole == "Arctic"]))# p < 0.05 not normally distributed
 with(data3, shapiro.test(Shannon[Pole == "Antarctic"])) #p < 0.05 not normally distributed
 var.test(Shannon ~ Pole, data = data3) #p > 0.05 variances not significantly different
 #NEED NONPARAMETRIC TEST
-wilcox.test(Shannon ~ Pole, data = data3, exact = FALSE)# p < 0.05 the median Shannon Index between poles signif dif
+wilcox.test(Shannon ~ Pole, data = data3, exact = FALSE)# p > 0.05 no signifi difference
 ```
 
 Step Fifteen: Rare Observed ASVs/Shannon Index by Sample
@@ -650,30 +661,32 @@ ggplot(data=data4, aes(x=SampleID, y=Observed, fill=Glacier)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Rare Community Richness")+
+  ggtitle("16S: Rare Community Richness")+
   geom_bar(data=subset(data4, Observed==min(Observed)), aes(SampleID, Observed),
               color="black", stat="identity") +
   geom_bar(data=subset(data4, Observed==max(Observed)), aes(SampleID, Observed),
               color="black", stat="identity")+
   geom_text(aes(label=Observed), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/rare-richness-sample.pdf")
 
 #barplot of species richness 
 ggplot(data=data4, aes(x=SampleID, y=Shannon, fill=Glacier)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Rare Community Shannon Diversity")+
+  ggtitle("16S: Rare Community Shannon Diversity")+
   geom_bar(data=subset(data4, Shannon==min(Shannon)), aes(SampleID, Shannon),
               color="black", stat="identity") +
   geom_bar(data=subset(data4, Shannon==max(Shannon)), aes(SampleID, Shannon),
               color="black", stat="identity")+
   geom_text(aes(label=round(Shannon, digits=2)), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/rare-shannon-sample.pdf")
 ```
 
 Step Sixteen: Rare Observed ASVs/Shannon Index by Glacier
 ```{r}
 #merge data to glacier level
-ps.merged6 <- merge_samples(rare.prune, "Glacier")
+ps.merged6 <- merge_samples(ps.rare, "Glacier")
 rare_glacier <- estimate_richness(ps.merged6)
 rare_glacier$Glacier <- row.names(rare_glacier)
 rare_glacier$Pole <- tot_glacier$Pole
@@ -686,26 +699,27 @@ ggplot(data=rare_glacier, aes(x=Glacier, y=Observed, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Rare Community Richness by Glacier")+
+  ggtitle("16S: Rare Community Richness by Glacier")+
           geom_bar(data=subset(rare_glacier, Observed==min(Observed)), aes(Glacier, Observed),
               color="black", stat="identity") +
   geom_bar(data=subset(rare_glacier, Observed==max(Observed)), aes(Glacier, Observed),
               color="black", stat="identity")+
   geom_text(aes(label=Observed), vjust=1.6, color="white", size=3)+
     geom_text(aes(label=Observed), vjust=1.6, color="white", size=3)
+ggsave("../../results/16S/graphs/alpha-diversity/rare-richness-glacier.pdf")
 
 #Are there significant differences in species richness for each glacier?
 #Test for significant differences between glacier asv richness
 #ANOVA
 res4a <- aov(Observed ~ Glacier, data = data4)
-summary(res4a) #p value < 0.05 significant difference between glaciers
+summary(res4a) #p value > 0.05 no significant difference between glaciers
 leveneTest(Observed ~ Glacier, data = data3) #p > 0.05 no evidence to suggest variance is significantly different
 anov_res4a <- residuals(object = res4a)
 #Run shapiro-wilk test
 shapiro.test(x=anov_res4a) #p < 0.05 which suggests the data are not normally distributed
-#ANOVA valid!
+#ANOVA invalid!
 #Which glaciers are different?
-kruskal.test(Observed ~ Glacier, data = data4) #p < 0.05 so the differences between the medians are statistically significant
+kruskal.test(Observed ~ Glacier, data = data4) #p > 0.05 so the differences between the medians are not statistically significant
 dunnTest(Observed ~ Glacier, data=data4, method="bh") #no signficiant differences between glaciers
 
 ##############################SHANNON DIVERSITY################################
@@ -715,27 +729,29 @@ ggplot(data=rare_glacier, aes(x=Glacier, y=Shannon, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Rare Community Shannon Diversity by Glacier")+
+  ggtitle("16S: Rare Community Shannon Diversity by Glacier")+
   geom_bar(data=subset(rare_glacier, Shannon==min(Shannon)), aes(Glacier, Shannon),
               color="black", stat="identity") +
   geom_bar(data=subset(rare_glacier, Shannon==max(Shannon)), aes(Glacier, Shannon),
               color="black", stat="identity")+
   geom_text(aes(label=round(Shannon, digits=2)), vjust=1.6, color="white", size=2)
+ggsave("../../results/16S/graphs/alpha-diversity/rare-shannon-glacier.pdf")
 
 #Total by glacier
-p4 = plot_richness(rare.prune, x="Glacier", color="Pole", measures=c("Observed", "Shannon")) + geom_boxplot()+
-  ggtitle("Rare Community Richness and Shannon Diversity Boxplots")
+p4 = plot_richness(ps.rare, x="Glacier", color="Pole", measures=c("Observed", "Shannon")) + geom_boxplot()+
+  ggtitle("16S: Rare Community Richness and Shannon Diversity Boxplots")
 
 p4$data$Glacier <- as.character(p4$data$Glacier)
 p4$data$Glacier <- factor(p4$data$Glacier, levels=newSTorder)
 print(p4)
+ggsave("../../results/16S/graphs/alpha-diversity/rare-shannon-richness-glacier-boxplot.pdf")
 
 #Are there significant differences in Shannon diversity for each glacier?
 #Test for significant differences between glacier asv richness
 #ANOVA
 res4b <- aov(Shannon ~ Glacier, data = data4)
 #Summary of analysis
-summary(res4b) #p value < 0.05 significant difference between glaciers
+summary(res4b) #p value > 0.05 no significant difference between glaciers
 
 #test validity of ANOVA
 #use levene's test to check homogeny of variances
@@ -749,7 +765,7 @@ anov_res4b <- residuals(object = res4b)
 shapiro.test(x=anov_res4b) #p > 0.05 which suggests the data are normally distributed
 
 #ANOVA valid!
-pairwise.wilcox.test(data4$Shannon, data4$Glacier, p.adjust.method = "BH") #no significant differences with adjusted p
+#pairwise.wilcox.test(data4$Shannon, data4$Glacier, p.adjust.method = "BH") #no significant differences with adjusted p
 ```
 
 Step Seventeen: Rare Observed ASVs/Shannon Index by Pole
@@ -760,7 +776,8 @@ ggplot(data4, aes(x=Pole, y=Observed, fill=Pole)) +
                 outlier.size=4)+
   geom_jitter(shape=16, position=position_jitter(0.2))+
   theme_classic()+
-  ggtitle("Rare Community Observed ASVs by Pole")
+  ggtitle("16S: Rare Community Observed ASVs by Pole")
+ggsave("../../results/16S/graphs/alpha-diversity/rare-richness-pole-boxplot.pdf")
 
 #boxplot of shannon index species by pole
 ggplot(data4, aes(x=Pole, y=Shannon, fill=Pole)) + 
@@ -768,12 +785,13 @@ ggplot(data4, aes(x=Pole, y=Shannon, fill=Pole)) +
                 outlier.size=4)+
   geom_jitter(shape=16, position=position_jitter(0.2))+
   theme_classic()+
-  ggtitle("Rare Community Shannon Index by Pole")
+  ggtitle("16S: Rare Community Shannon Index by Pole")
+ggsave("../../results/16S/graphs/alpha-diversity/rare-shannon-pole-boxplot.pdf")
 
 
 #Total
 #merge the phyloseq object by pole
-ps.merged7 = merge_samples(rare.prune, "Pole")
+ps.merged7 = merge_samples(ps.rare, "Pole")
 rare_pole <- estimate_richness(ps.merged7)
 rare_pole$Pole <- row.names(rare_pole)
 
@@ -782,21 +800,22 @@ ggplot(data=rare_pole, aes(x=Pole, y=Observed, fill=Pole)) +
   geom_bar(stat="identity")+
   theme_minimal()+
   theme(axis.text.x = element_text(angle=90, hjust=1))+
-  ggtitle("Rare Community Richness by Pole")+
+  ggtitle("16S: Rare Community Richness by Pole")+
     geom_text(aes(label=Observed), vjust=1.6, color="white", size=5)
+ggsave("../../results/16S/graphs/alpha-diversity/rare-richness-pole-barplot.pdf")
 
 #differences in observed ASVs
 #check normality of data
 with(data4, shapiro.test(Observed[Pole == "Arctic"]))# p < 0.05 so not normally distributed
-with(data4, shapiro.test(Observed[Pole == "Antarctic"])) #p < 0.05 not normally distributed
+with(data4, shapiro.test(Observed[Pole == "Antarctic"])) #p > 0.05 normally distributed
 #NEED NON-PARAMETRIC TEST
-wilcox.test(Observed ~ Pole, data = data4, exact = FALSE) # p < 0.05 the median between poles are significantly different
+wilcox.test(Observed ~ Pole, data = data4, exact = FALSE) # p > 0.05 the median between poles are not significantly different
 
 #differences in shannon diversity
 #check normality of data
-with(data4, shapiro.test(Shannon[Pole == "Arctic"]))# p < 0.05 not normally distributed
-with(data4, shapiro.test(Shannon[Pole == "Antarctic"])) #p < 0.05 not normally distributed
+with(data4, shapiro.test(Shannon[Pole == "Arctic"]))# p > 0.05 normally distributed
+with(data4, shapiro.test(Shannon[Pole == "Antarctic"])) #p > 0.05 normally distributed
 var.test(Shannon ~ Pole, data = data4) #p > 0.05 variances not significantly different
-#NEED NONPARAMETRIC TEST
-wilcox.test(Shannon ~ Pole, data = data4, exact = FALSE)# p > 0.05 the median Shannon Index between poles not signif dif
+#NEED PARAMETRIC TEST
+t.test(Shannon ~ Pole, data = data4, var.equal = TRUE)# p > 0.05 the median Shannon Index between poles not signif dif
 ```

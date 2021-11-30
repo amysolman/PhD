@@ -43,29 +43,17 @@ graphics.off()
 library(plyr)
 ```
 
-Load Data
+Step Two: Load data 
 ```{r}
 #TOTAL DATASET
-ps <- readRDS("../output/16S-phyloseq-object-rarefied.rds")
+ps <- readRDS("../../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds")
 
 #Total Abundant
-ps.abun <- readRDS("../output/16S-total-abundant.rds")
+ps.abun <- readRDS("../../results/16S/phylo-objects/16S-total-abundant.rds")
 #Total Intermediate
-ps.int <- readRDS("../output/16S-total-intermediate.rds")
+ps.int <- readRDS("../../results/16S/phylo-objects/16S-total-intermediate.rds")
 #Total Rare
-ps.rare <- readRDS("../output/16S-total-rare.rds")
-```
-
-Remove any samples with zero counts from each of our communities
-```{r}
-#Total
-ps <- prune_samples(sample_sums(ps) > 0, ps)
-#Abundant
-ps.abun <- prune_samples(sample_sums(ps.abun) > 0, ps.abun)
-#Intermediate
-ps.int <- prune_samples(sample_sums(ps.int) > 0, ps.int)
-#Rare
-ps.rare <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
+ps.rare <- readRDS("../../results/16S/phylo-objects/16S-total-rare.rds")
 ```
 
 1 TOTAL ASVS
@@ -97,29 +85,35 @@ plot_scree(ordUU, "Scree Plot: Unweighted Unifrac MDS")
 # Glacier
 plot_ordination(ps, ordBC, color = "Glacier", shape="Pole") + 
   #geom_point() +
-  ggtitle("PCoA: Total Community Bray-Curtis")
+  ggtitle("16S:PCoA Total Community Bray-Curtis")
+ggsave("../../results/16S/graphs/beta-ordination/PCoA-bray-curtis-glacier.pdf")
 
 plot_ordination(ps, ordWU, color = "Glacier", shape="Pole") + 
   #geom_point() +
-  ggtitle("PCoA: Total Community Weighted Unifrac")
+  ggtitle("16S: PCoA Total Community Weighted Unifrac")
+ggsave("../../results/16S/graphs/beta-ordination/PCoA-wuni-glacier.pdf")
 
 plot_ordination(ps, ordUU, color = "Glacier", shape="Pole") + 
   #geom_point() +
-  ggtitle("PCoA: Total Community Unweighted Unifrac")
+  ggtitle("16S: PCoA Total Community Unweighted Unifrac")
+ggsave("../../results/16S/graphs/beta-ordination/PCoA-bray-uwuni-glacier.pdf")
 
 #Region
 
 plot_ordination(ps, ordBC, color = "Region", shape="Pole") + 
   #geom_point() +
-  ggtitle("PCoA: Total Community Bray-Curtis")
+  ggtitle("16S: PCoA Total Community Bray-Curtis")
+ggsave("../../results/16S/graphs/beta-ordination/PCoA-bray-curtis-region.pdf")
 
 plot_ordination(ps, ordWU, color = "Region", shape="Pole") + 
   #geom_point() +
-  ggtitle("PCoA: Total Community Weighted Unifrac")
+  ggtitle("16S: PCoA Total Community Weighted Unifrac")
+ggsave("../../results/16S/graphs/beta-ordination/PCoA-wuni-region.pdf")
 
 plot_ordination(ps, ordUU, color = "Region", shape="Pole") + 
   #geom_point() +
-  ggtitle("PCoA: Total Community Unweighted Unifrac")
+  ggtitle("16S: PCoA Total Community Unweighted Unifrac")
+ggsave("../../results/16S/graphs/beta-ordination/PCoA-bray-uwuni-region.pdf")
 
 
 #Pole
@@ -127,17 +121,20 @@ plot_ordination(ps, ordUU, color = "Region", shape="Pole") +
 plot_ordination(ps, ordBC, color = "Pole") + 
   #geom_point() +
   stat_ellipse(type="t") +
-  ggtitle("PCoA: Total Community Bray-Curtis")
+  ggtitle("16S: PCoA Total Community Bray-Curtis")
+ggsave("../../results/16S/graphs/beta-ordination/PCoA-bray-curtis-pole.pdf")
 
 plot_ordination(ps, ordWU, color = "Pole") + 
   #geom_point() +
   stat_ellipse() +
-  ggtitle("PCoA: Total Community Weighted Unifrac")
+  ggtitle("16S: PCoA Total Community Weighted Unifrac")
+ggsave("../../results/16S/graphs/beta-ordination/PCoA-wuni-pole.pdf")
 
 plot_ordination(ps, ordUU, color = "Pole") + 
   #geom_point() +
   stat_ellipse() +
-  ggtitle("PCoA: Total Community Unweighted Unifrac")
+  ggtitle("16S: PCoA Total Community Unweighted Unifrac")
+ggsave("../../results/16S/graphs/beta-ordination/PCoA-bray-uwuni-pole.pdf")
 
 ```
 
@@ -158,22 +155,25 @@ plot_ordination(
   physeq = ps,
   ordination = ps_nmds,
   color = "Glacier",
-  title = "NMDS Plot"
+  title = "16S: NMDS Plot by Glacier"
 )
+ggsave("../../results/16S/graphs/beta-ordination/NMDS-glacier.pdf")
 
 plot_ordination(
   physeq = ps,
   ordination = ps_nmds,
   color = "Region",
-  title = "NMDS Plot"
+  title = "16S: NMDS Plot by Region"
 )
+ggsave("../../results/16S/graphs/beta-ordination/NMDS-region.pdf")
 
 plot_ordination(
   physeq = ps,
   ordination = ps_nmds,
   color = "Pole",
-  title = "NMDS Plot"
+  title = "16S: NMDS Plot by Pole"
 )
+ggsave("../../results/16S/graphs/beta-ordination/NMDS-pole.pdf")
 
 ```
 
@@ -184,17 +184,17 @@ my_glaciers = get_variable(ps, "Glacier")
 
 anosim_glaciers_bray = anosim(phyloseq::distance(ps,"bray"),my_glaciers)
 anosim_glaciers_bray # p <0.05 so significant
-#R = 0.27 so low dissimilarity between glaciers
+#R = 0.11 so low dissimilarity between glaciers
 summary(anosim_glaciers_bray)
 
 anosim_glaciers_wuni = anosim(phyloseq::distance(ps,"wuniFrac"),my_glaciers)
 anosim_glaciers_wuni # p <0.05 so significant
-#R = 0.28 low dissimilarity between glaciers
+#R = 0.16 low dissimilarity between glaciers
 summary(anosim_glaciers_wuni)
 
 anosim_glaciers_uni = anosim(phyloseq::distance(ps,"uniFrac"),my_glaciers)
 anosim_glaciers_uni # p <0.05 so significant
-#R = 0.33 low dissimilarity between glaciers
+#R = 0.17 low dissimilarity between glaciers
 summary(anosim_glaciers_uni)
 
 #Regions

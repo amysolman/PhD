@@ -28,61 +28,73 @@ library(dplyr) #for manipulating data where you see %>% and computing summary st
 #library(psadd)
 ```
 
-Load Data
+Step Two: Load data 
 ```{r}
 #TOTAL DATASET
-ps <- readRDS("../output/16S-phyloseq-object-rarefied.rds")
+ps <- readRDS("../../results/18S/phylo-objects/18S-phyloseq-object-rarefied.rds")
 
 #Total Abundant
-ps.abun <- readRDS("../output/16S-total-abundant.rds")
+ps.abun <- readRDS("../../results/18S/phylo-objects/18S-total-abundant.rds")
 #Total Intermediate
-ps.int <- readRDS("../output/16S-total-intermediate.rds")
+ps.int <- readRDS("../../results/18S/phylo-objects/18S-total-intermediate.rds")
 #Total Rare
-ps.rare <- readRDS("../output/16S-total-rare.rds")
-```
-
-Remove any samples with zero counts from each of our communities
-```{r}
-#Total
-ps.prune <- prune_samples(sample_sums(ps) > 0, ps)
-#Abundant
-abun.prune <- prune_samples(sample_sums(ps.abun) > 0, ps.abun)
-#Intermediate
-int.prune <- prune_samples(sample_sums(ps.int) > 0, ps.int)
-#Rare
-rare.prune <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
+ps.rare <- readRDS("../../results/18S/phylo-objects/18S-total-rare.rds")
 ```
 
 1 TOTAL TAXA
 1.1 Abundance Bar Plots
 ```{r}
 #Agglomerate ASVs by phyla into dataframes ready for plotting
-ps.glom <- ps.prune %>%
+ps.glom <- ps %>%
   tax_glom(taxrank = "Phylum", NArm=FALSE) %>%
   psmelt()
 
 #Glacier
-ggplot(ps.glom, aes(x = Glacier, y = Abundance, fill = Phylum)) +
+p1 <- ggplot(ps.glom, aes(x = Glacier, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Glacier")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ggtitle("18S: Phyla Barplot by Glacier")
+print(p1)
+ggsave("../../results/18S/graphs/community-plots/phyla-glacier-barplot.pdf")
 
 #Region
 ggplot(ps.glom, aes(x = Region, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Region")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ggtitle("18S: Phyla Barplot by Region")
+ggsave("../../results/18S/graphs/community-plots/phyla-region-barplot.pdf")
 
 #Pole
 ggplot(ps.glom, aes(x = Pole, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Pole")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ggtitle("18S: Phyla Barplot by Pole")
+ggsave("../../results/18S/graphs/community-plots/phyla-pole-barplot.pdf")
+
+```
+Stats
+```{r}
+#How many/which phyla total dataset? Relative abundance of each phyla.
+#agglomerate data
+my.glom = tax_glom(ps, "Phylum")
+my.glom 
+my.glom.phlum.table <- data.frame(otu_table(my.glom), row.names=unique(data.frame(tax_table(my.glom)))$Phylum)
+total_phyla_table <- data.frame(Phylum=row.names(my.glom.phlum.table), Abundance=rowSums(my.glom.phlum.table), Relative_Abundance=rowSums(my.glom.phlum.table)/sum(rowSums(my.glom.phlum.table)))
+rownames(total_phyla_table) <- c()
+
+total_phyla_table <- total_phyla_table %>% arrange(desc(Relative_Abundance))
+total_phyla_table$Relative_Abundance <- round(total_phyla_table$Relative_Abundance, digits=7)*100
+colnames(total_phyla_table) <- c("Phylum", "Abundance", "Relative Abundance %")
+
+write.csv(total_phyla_table, "../../results/18S/tables/phyla/total-phyla-data.csv")
 ```
 1.2 Another bar plot
 ```{r}
 #convert to relative abundance
-ps_rel_abund = phyloseq::transform_sample_counts(ps.prune, function(x){x / sum(x)})
+ps_rel_abund = phyloseq::transform_sample_counts(ps, function(x){x / sum(x)})
 
 #plot
 #Glacier
@@ -92,7 +104,9 @@ phyloseq::plot_bar(ps_rel_abund, fill = "Phylum") +
   facet_wrap(~ Glacier, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+  ggtitle("18S: Phyla Barplot by Glacier")
+ggsave("../../results/18S/graphs/community-plots/phyla-glacier-barplot-2.pdf")
 
 #Region
 phyloseq::plot_bar(ps_rel_abund, fill = "Phylum") +
@@ -101,7 +115,9 @@ phyloseq::plot_bar(ps_rel_abund, fill = "Phylum") +
   facet_wrap(~ Region, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+  ggtitle("18S: Phyla Barplot by Region")
+ggsave("../../results/18S/graphs/community-plots/phyla-region-barplot-2.pdf")
 
 #Pole
 phyloseq::plot_bar(ps_rel_abund, fill = "Phylum") +
@@ -110,13 +126,15 @@ phyloseq::plot_bar(ps_rel_abund, fill = "Phylum") +
   facet_wrap(~ Pole, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+  ggtitle("18S: Phyla Barplot by Pole")
+ggsave("../../results/18S/graphs/community-plots/phyla-pole-barplot-2.pdf")
 
 ```
 1.3 Comparing phyla for both poles
 ```{r}
 #Agglomerate taxa to phylum level
-ps_phylum <- phyloseq::tax_glom(ps.prune, "Phylum")
+ps_phylum <- phyloseq::tax_glom(ps, "Phylum")
 phyloseq::taxa_names(ps_phylum) <- phyloseq::tax_table(ps_phylum)[, "Phylum"]
 
 #plot
@@ -125,7 +143,9 @@ ggplot(data = ., aes(x = Pole, y = Abundance)) +
   geom_boxplot(outlier.shape  = NA) +
   geom_jitter(aes(color = Phylum), height = 0, width = .2) +
   labs(x = "", y = "Abundance\n") +
-  facet_wrap(~ Phylum, scales = "free")
+  facet_wrap(~ Phylum, scales = "free")+
+  ggtitle("18S: Phyla by pole")
+ggsave("../../results/18S/graphs/community-plots/phyla-pole-scatterplot.pdf")
 
 ```
 1.4 Pie chart
@@ -145,14 +165,16 @@ newdf <- rbind(y, df2)
 newdf$lbls <- paste(newdf$lbls, round(newdf$pct, digits=2)) # add percents to labels
 newdf$lbls <- paste(newdf$lbls,"%",sep="") # ad % to labels 
 #pie(newdf$pct, labels = newdf$lbls, col=rainbow(length(newdf$pct)), radius = 0.9, cex = 0.4)
-pie(newdf$pct, labels = newdf$lbls, col=rainbow(length(newdf$pct)), radius= 1, cex=0.3, main="Total Community Pie Chart")
+pdf("../../results/18S/graphs/community-plots/phyla-pie-chart.pdf")
+pie(newdf$pct, labels = newdf$lbls, col=rainbow(length(newdf$pct)), radius= 1, cex=0.4, main="Total Community Pie Chart")
+dev.off()
 ```
 
 2 ABUNDANT TAXA
 2.1 Abundance Bar Plots
 ```{r}
 #Agglomerate ASVs by phyla into dataframes ready for plotting
-abun.glom <- abun.prune %>%
+abun.glom <- ps.abun %>%
   tax_glom(taxrank = "Phylum", NArm=FALSE) %>%
   psmelt()
 
@@ -160,24 +182,48 @@ abun.glom <- abun.prune %>%
 ggplot(abun.glom, aes(x = Glacier, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Glacier")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    ggtitle("18S: Abundant Phyla Barplot by Glacier")
+ggsave("../../results/18S/graphs/community-plots/abundant-phyla-glacier-barplot.pdf")
 
 #Region
 ggplot(abun.glom, aes(x = Region, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Region")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ggtitle("18S: Abundant Phyla Barplot by Region")
+ggsave("../../results/18S/graphs/community-plots/abundant-phyla-region-barplot.pdf")
 
 #Pole
 ggplot(abun.glom, aes(x = Pole, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Pole")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    ggtitle("18S: Abundant Phyla Barplot by Pole")
+ggsave("../../results/18S/graphs/community-plots/abundant-phyla-pole-barplot.pdf")
 ```
+
+Stats
+```{r}
+#How many/which phyla total dataset? Relative abundance of each phyla.
+#agglomerate data
+my.glom = tax_glom(ps.abun, "Phylum")
+my.glom 
+my.glom.phlum.table <- data.frame(otu_table(my.glom), row.names=unique(data.frame(tax_table(my.glom)))$Phylum)
+total_phyla_table <- data.frame(Phylum=row.names(my.glom.phlum.table), Abundance=rowSums(my.glom.phlum.table), Relative_Abundance=rowSums(my.glom.phlum.table)/sum(rowSums(my.glom.phlum.table)))
+rownames(total_phyla_table) <- c()
+
+abun_phyla_table <- total_phyla_table %>% arrange(desc(Relative_Abundance))
+abun_phyla_table$Relative_Abundance <- round(abun_phyla_table$Relative_Abundance, digits=7)*100
+colnames(abun_phyla_table) <- c("Phylum", "Abundance", "Relative Abundance %")
+
+write.csv(abun_phyla_table, "../../results/18S/tables/phyla/abundant-phyla-data.csv")
+```
+
 2.2 Another bar plot
 ```{r}
 #convert to relative abundance
-ps_rel_abund.ab = phyloseq::transform_sample_counts(abun.prune, function(x){x / sum(x)})
+ps_rel_abund.ab = phyloseq::transform_sample_counts(ps.abun, function(x){x / sum(x)})
 
 #plot
 #Glacier
@@ -187,7 +233,9 @@ phyloseq::plot_bar(ps_rel_abund.ab, fill = "Phylum") +
   facet_wrap(~ Glacier, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+    ggtitle("18S: Abundant Phyla Barplot by Glacier")
+ggsave("../../results/18S/graphs/community-plots/abundant-phyla-glacier-barplot-2.pdf")
 
 #Region
 phyloseq::plot_bar(ps_rel_abund.ab, fill = "Phylum") +
@@ -196,7 +244,9 @@ phyloseq::plot_bar(ps_rel_abund.ab, fill = "Phylum") +
   facet_wrap(~ Region, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+    ggtitle("18S: Abundant Phyla Barplot by Region")
+ggsave("../../results/18S/graphs/community-plots/abundant-phyla-region-barplot-2.pdf")
 
 #Pole
 phyloseq::plot_bar(ps_rel_abund.ab, fill = "Phylum") +
@@ -205,13 +255,16 @@ phyloseq::plot_bar(ps_rel_abund.ab, fill = "Phylum") +
   facet_wrap(~ Pole, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+    ggtitle("18S: Abundant Phyla Barplot by Pole")
+ggsave("../../results/18S/graphs/community-plots/abundant-phyla-pole-barplot-2.pdf")
 
 ```
+
 2.3 Comparing phyla for both poles
 ```{r}
 #Agglomerate taxa to phylum level
-ps_phylum.ab <- phyloseq::tax_glom(abun.prune, "Phylum")
+ps_phylum.ab <- phyloseq::tax_glom(ps.abun, "Phylum")
 phyloseq::taxa_names(ps_phylum.ab) <- phyloseq::tax_table(ps_phylum.ab)[, "Phylum"]
 
 #plot
@@ -220,7 +273,9 @@ ggplot(data = ., aes(x = Pole, y = Abundance)) +
   geom_boxplot(outlier.shape  = NA) +
   geom_jitter(aes(color = Phylum), height = 0, width = .2) +
   labs(x = "", y = "Abundance\n") +
-  facet_wrap(~ Phylum, scales = "free")
+  facet_wrap(~ Phylum, scales = "free")+
+    ggtitle("18S: Abundant Phyla by pole")
+ggsave("../../results/18S/graphs/community-plots/abundant-phyla-pole-scatterplot.pdf")
 
 ```
 
@@ -242,14 +297,16 @@ newdf <- rbind(y, df2)
 newdf$lbls <- paste(newdf$lbls, round(newdf$pct, digits=2)) # add percents to labels
 newdf$lbls <- paste(newdf$lbls,"%",sep="") # ad % to labels 
 #pie(newdf$pct, labels = newdf$lbls, col=rainbow(length(newdf$pct)), radius = 1, cex = 0.3)
+pdf("../../results/18S/graphs/community-plots/abundant-phyla-pie-chart.pdf")
 pie(newdf$pct, labels = newdf$lbls, col=rainbow(length(newdf$pct)), main="Abundant Community Pie Chart")
+dev.off()
 ```
 
 3 INTERMEDIATE TAXA
 3.1 Abundance Bar Plots
 ```{r}
 #Agglomerate ASVs by phyla into dataframes ready for plotting
-ps.int.glom <- int.prune %>%
+ps.int.glom <- ps.int %>%
   tax_glom(taxrank = "Phylum", NArm=FALSE) %>%
   psmelt()
 
@@ -257,25 +314,49 @@ ps.int.glom <- int.prune %>%
 ggplot(ps.int.glom, aes(x = Glacier, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Glacier")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+      ggtitle("18S: Intermediate Phyla Barplot by Glacier")
+ggsave("../../results/18S/graphs/community-plots/intermediate-phyla-glacier-barplot.pdf")
 
 #Region
 ggplot(ps.int.glom, aes(x = Region, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Region")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    ggtitle("18S: Intermediate Phyla Barplot by Region")
+ggsave("../../results/18S/graphs/community-plots/intermediate-phyla-region-barplot.pdf")
 
 #Pole
 ggplot(ps.int.glom, aes(x = Pole, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Pole")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+      ggtitle("18S: Intermediate Phyla Barplot by Pole")
+ggsave("../../results/18S/graphs/community-plots/intermediate-phyla-pole-barplot.pdf")
 
 ```
+
+Stats
+```{r}
+#How many/which phyla total dataset? Relative abundance of each phyla.
+#agglomerate data
+my.glom = tax_glom(ps.int, "Phylum")
+my.glom 
+my.glom.phlum.table <- data.frame(otu_table(my.glom), row.names=unique(data.frame(tax_table(my.glom)))$Phylum)
+total_phyla_table <- data.frame(Phylum=row.names(my.glom.phlum.table), Abundance=rowSums(my.glom.phlum.table), Relative_Abundance=rowSums(my.glom.phlum.table)/sum(rowSums(my.glom.phlum.table)))
+rownames(total_phyla_table) <- c()
+
+int_phyla_table <- total_phyla_table %>% arrange(desc(Relative_Abundance))
+int_phyla_table$Relative_Abundance <- round(int_phyla_table$Relative_Abundance, digits=7)*100
+colnames(int_phyla_table) <- c("Phylum", "Abundance", "Relative Abundance %")
+
+write.csv(int_phyla_table, "../../results/18S/tables/phyla/intermediate-phyla-data.csv")
+```
+
 3.2 Another bar plot
 ```{r}
 #convert to relative abundance
-ps_rel_abund.i = phyloseq::transform_sample_counts(int.prune, function(x){x / sum(x)})
+ps_rel_abund.i = phyloseq::transform_sample_counts(ps.int, function(x){x / sum(x)})
 
 #plot
 #Glacier
@@ -285,7 +366,9 @@ phyloseq::plot_bar(ps_rel_abund.i, fill = "Phylum") +
   facet_wrap(~ Glacier, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+      ggtitle("18S: Intermediate Phyla Barplot by Glacier")
+ggsave("../../results/18S/graphs/community-plots/intermediate-phyla-glacier-barplot-2.pdf")
 
 #Region
 phyloseq::plot_bar(ps_rel_abund.i, fill = "Phylum") +
@@ -294,7 +377,9 @@ phyloseq::plot_bar(ps_rel_abund.i, fill = "Phylum") +
   facet_wrap(~ Region, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+      ggtitle("18S: Intermediate Phyla Barplot by Region")
+ggsave("../../results/18S/graphs/community-plots/intermediate-phyla-region-barplot-2.pdf")
 
 #Pole
 phyloseq::plot_bar(ps_rel_abund.i, fill = "Phylum") +
@@ -303,13 +388,16 @@ phyloseq::plot_bar(ps_rel_abund.i, fill = "Phylum") +
   facet_wrap(~ Pole, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+      ggtitle("18S: Intermediate Phyla Barplot by Pole")
+ggsave("../../results/18S/graphs/community-plots/intermediate-phyla-pole-barplot-2.pdf")
 
 ```
+
 3.3 Comparing phyla for both poles
 ```{r}
 #Agglomerate taxa to phylum level
-ps_phylum.i <- phyloseq::tax_glom(int.prune, "Phylum")
+ps_phylum.i <- phyloseq::tax_glom(ps.int, "Phylum")
 phyloseq::taxa_names(ps_phylum.i) <- phyloseq::tax_table(ps_phylum.i)[, "Phylum"]
 
 #plot
@@ -318,9 +406,12 @@ ggplot(data = ., aes(x = Pole, y = Abundance)) +
   geom_boxplot(outlier.shape  = NA) +
   geom_jitter(aes(color = Phylum), height = 0, width = .2) +
   labs(x = "", y = "Abundance\n") +
-  facet_wrap(~ Phylum, scales = "free")
+  facet_wrap(~ Phylum, scales = "free")+
+      ggtitle("18S: Intermediate Phyla by pole")
+ggsave("../../results/18S/graphs/community-plots/intermediate-phyla-pole-scatterplot.pdf")
 
 ```
+
 3.4 Pie chart
 ```{r}
 counts <- data.frame(t(otu_table(ps_phylum.i)))
@@ -338,14 +429,16 @@ newdf <- rbind(y, df2)
 newdf$lbls <- paste(newdf$lbls, round(newdf$pct, digits=2)) # add percents to labels
 newdf$lbls <- paste(newdf$lbls,"%",sep="") # ad % to labels 
 #pie(newdf$pct, labels = newdf$lbls, col=rainbow(length(newdf$pct)), radius = 0.9, cex = 0.4)
+pdf("../../results/18S/graphs/community-plots/intermediate-phyla-pie-chart.pdf")
 pie(newdf$pct, labels = newdf$lbls, col=rainbow(length(newdf$pct)), cex=0.6, main="Intermediate Community Pie Chart")
+dev.off()
 ```
 
 4 RARE TAXA
 4.1 Abundance Bar Plots
 ```{r}
 #Agglomerate ASVs by phyla into dataframes ready for plotting
-rare.glom <- rare.prune %>%
+rare.glom <- ps.rare %>%
   tax_glom(taxrank = "Phylum", NArm=FALSE) %>%
   psmelt()
 
@@ -353,24 +446,47 @@ rare.glom <- rare.prune %>%
 ggplot(rare.glom, aes(x = Glacier, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Glacier")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+        ggtitle("18S: Rare Phyla Barplot by Glacier")
+ggsave("../../results/18S/graphs/community-plots/rare-phyla-glacier-barplot.pdf")
 
 #Region
 ggplot(rare.glom, aes(x = Region, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Region")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+      ggtitle("18S: Rare Phyla Barplot by Region")
+ggsave("../../results/18S/graphs/community-plots/rare-phyla-region-barplot.pdf")
 
 #Pole
 ggplot(rare.glom, aes(x = Pole, y = Abundance, fill = Phylum)) +
   geom_bar(position="fill", stat="identity") +
   xlab("Pole")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+        ggtitle("18S: Rare Phyla Barplot by Pole")
+ggsave("../../results/18S/graphs/community-plots/rare-phyla-pole-barplot.pdf")
 ```
+Stats
+```{r}
+#How many/which phyla total dataset? Relative abundance of each phyla.
+#agglomerate data
+my.glom = tax_glom(ps.rare, "Phylum")
+my.glom 
+my.glom.phlum.table <- data.frame(otu_table(my.glom), row.names=unique(data.frame(tax_table(my.glom)))$Phylum)
+total_phyla_table <- data.frame(Phylum=row.names(my.glom.phlum.table), Abundance=rowSums(my.glom.phlum.table), Relative_Abundance=rowSums(my.glom.phlum.table)/sum(rowSums(my.glom.phlum.table)))
+rownames(total_phyla_table) <- c()
+
+rare_phyla_table <- total_phyla_table %>% arrange(desc(Relative_Abundance))
+rare_phyla_table$Relative_Abundance <- round(rare_phyla_table$Relative_Abundance, digits=7)*100
+colnames(rare_phyla_table) <- c("Phylum", "Abundance", "Relative Abundance %")
+
+write.csv(rare_phyla_table, "../../results/18S/tables/phyla/rare-phyla-data.csv")
+```
+
 4.2 Another bar plot
 ```{r}
 #convert to relative abundance
-ps_rel_abund.ra = phyloseq::transform_sample_counts(rare.prune, function(x){x / sum(x)})
+ps_rel_abund.ra = phyloseq::transform_sample_counts(ps.rare, function(x){x / sum(x)})
 
 #plot
 #Glacier
@@ -380,7 +496,9 @@ phyloseq::plot_bar(ps_rel_abund.ra, fill = "Phylum") +
   facet_wrap(~ Glacier, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+        ggtitle("18S: Rare Phyla Barplot by Glacier")
+ggsave("../../results/18S/graphs/community-plots/rare-phyla-glacier-barplot-2.pdf")
 
 #Region
 phyloseq::plot_bar(ps_rel_abund.ra, fill = "Phylum") +
@@ -389,7 +507,9 @@ phyloseq::plot_bar(ps_rel_abund.ra, fill = "Phylum") +
   facet_wrap(~ Region, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+        ggtitle("18S: Rare Phyla Barplot by Region")
+ggsave("../../results/18S/graphs/community-plots/rare-phyla-region-barplot-2.pdf")
 
 #Pole
 phyloseq::plot_bar(ps_rel_abund.ra, fill = "Phylum") +
@@ -398,13 +518,15 @@ phyloseq::plot_bar(ps_rel_abund.ra, fill = "Phylum") +
   facet_wrap(~ Pole, scales = "free") +
   theme(panel.background = element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank())+
+        ggtitle("18S: Rare Phyla Barplot by Pole")
+ggsave("../../results/18S/graphs/community-plots/rare-phyla-pole-barplot-2.pdf")
 
 ```
 4.3 Comparing phyla for both poles
 ```{r}
 #Agglomerate taxa to phylum level
-ps_phylum.ra <- phyloseq::tax_glom(rare.prune, "Phylum")
+ps_phylum.ra <- phyloseq::tax_glom(ps.rare, "Phylum")
 phyloseq::taxa_names(ps_phylum.ra) <- phyloseq::tax_table(ps_phylum.ra)[, "Phylum"]
 
 #plot
@@ -413,7 +535,9 @@ ggplot(data = ., aes(x = Pole, y = Abundance)) +
   geom_boxplot(outlier.shape  = NA) +
   geom_jitter(aes(color = Phylum), height = 0, width = .2) +
   labs(x = "", y = "Abundance\n") +
-  facet_wrap(~ Phylum, scales = "free")
+  facet_wrap(~ Phylum, scales = "free")+
+        ggtitle("18S: Rare Phyla by pole")
+ggsave("../../results/18S/graphs/community-plots/rare-phyla-pole-scatterplot.pdf")
 
 ```
 4.4 Pie chart
@@ -434,5 +558,7 @@ newdf <- rbind(y, df2)
 newdf$lbls <- paste(newdf$lbls, round(newdf$pct, digits=2)) # add percents to labels
 newdf$lbls <- paste(newdf$lbls,"%",sep="") # ad % to labels 
 #pie(newdf$pct, labels = newdf$lbls, col=rainbow(length(newdf$pct)), radius = 1, cex = 0.3)
+pdf("../../results/18S/graphs/community-plots/rare-phyla-pie-chart.pdf")
 pie(newdf$pct, labels = newdf$lbls, col=rainbow(length(newdf$pct)), radius=1, cex=0.5)
+dev.off()
 ```

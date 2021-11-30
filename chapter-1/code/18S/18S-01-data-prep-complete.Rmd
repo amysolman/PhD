@@ -159,10 +159,12 @@ ps.ambig
 ```{r}
 #how many reads do we have per sample
 sample_sums(ps.ambig) 
+unique(data.frame(sample_data(ps.ambig)$Glacier))
 
 # Remove samples with less than 10000 reads 
 ps.prune <- prune_samples(sample_sums(ps.ambig) >= 12000, ps.ambig) 
 ps.prune
+unique(data.frame(sample_data(ps.prune)$Glacier))
 
 ```
 

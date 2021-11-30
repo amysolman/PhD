@@ -145,9 +145,9 @@ ps.rare <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
 saveRDS(ps.rar, "../../results/18S/phylo-objects/18S-phyloseq-object-rarefied.rds")
 #Now I'm going to export my phyloseq objects
 #Total rare
-saveRDS(ps.rare, "../../results/18S/phylo-objects/16S-total-rare.rds")
+saveRDS(ps.rare, "../../results/18S/phylo-objects/18S-total-rare.rds")
 #Total Abundant
-saveRDS(ps.abun, "../../results/18S/phylo-objects/16S-total-abundant.rds")
+saveRDS(ps.abun, "../../results/18S/phylo-objects/18S-total-abundant.rds")
 #Total Intermediate 
-saveRDS(ps.int, "../../results/18S/phylo-objects/16S-total-intermediate.rds")
+saveRDS(ps.int, "../../results/18S/phylo-objects/18S-total-intermediate.rds")
 ```
