@@ -1,0 +1,208 @@
+---
+title: "16S-differential-abundance-testing"
+author: "Amy Solman"
+date: "06/10/2021"
+output: html_document
+---
+This script will carry out differential abundance testing (DAT)
+The goal of DAT is to identify taxa associated with variables of interest
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+library(dplyr) #for manipulating data where you see %>% and computing summary stats
+# library(dendextend) #for hierchical clustering
+library(tidyr) #nest function
+library(purrr) #map function
+library(tidyverse) #rownames_to_column function
+library(phyloseq)
+```
+
+Load Data
+```{r}
+#TOTAL DATASET
+ps <- readRDS("../output/16S-phyloseq-object-rarefied.rds")
+
+#Total Abundant
+ps.abun <- readRDS("../output/16S-total-abundant.rds")
+#Total Intermediate
+ps.int <- readRDS("../output/16S-total-intermediate.rds")
+#Total Rare
+ps.rare <- readRDS("../output/16S-total-rare.rds")
+```
+
+Remove any samples with zero counts from each of our communities
+```{r}
+#Total
+ps <- prune_samples(sample_sums(ps) > 0, ps)
+#Abundant
+ps.abun <- prune_samples(sample_sums(ps.abun) > 0, ps.abun)
+#Intermediate
+ps.int <- prune_samples(sample_sums(ps.int) > 0, ps.int)
+#Rare
+ps.rare <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
+```
+
+Following code taken from: https://www.nicholas-ollberding.com/post/introduction-to-the-statistical-analysis-of-microbiome-data-in-r/ 
+
+Total
+```{r}
+#Generate dataframe with avs and metadata
+df <- data.frame(t(data.frame(phyloseq::otu_table(ps))), check.names = FALSE)
+df$Pole <- phyloseq::sample_data(ps)$Pole
+
+#Define functions to pass to map
+wilcox_model <- function(my_df){
+  wilcox.test(abund ~ Pole, data = my_df) #non parametric test to see if the abundance of poles differ
+}
+
+wilcox_pval <- function(my_df){
+  wilcox.test(abund ~ Pole, data = my_df)$p.value #get p value of test
+}
+
+#Create nested data frames by asv and loop over each using map 
+wilcox_results <- df %>%
+  gather(key = OTU, value = abund, -Pole) %>%
+  group_by(OTU) %>%
+  nest() %>%
+  mutate(wilcox_test = map(data, wilcox_model),
+         p_value = map(data, wilcox_pval)) #run the test for each ASV     
+
+#Show nests results
+head(wilcox_results) 
+
+head(wilcox_results$data[[1]]) #for the first ASV show abundance in samples
+
+wilcox_results$wilcox_test[[1]]
+
+wilcox_results$p_value[[1]] #p value of test
+
+#Unnesting
+wilcox_results <- wilcox_results %>%
+  dplyr::select(OTU, p_value) %>%
+  unnest(cols=c(p_value))
+
+head(wilcox_results) #give p values for each ASV
+
+#Adding taxonomic labels
+taxa_info <- data.frame(tax_table(ps)) #get taxonomic info of each ASV
+taxa_info <- taxa_info %>% rownames_to_column(var = "OTU") #make taxa info into columns
+
+#Computing FDR corrected p-values
+wilcox_results <- wilcox_results %>%
+  full_join(taxa_info) %>%
+  arrange(p_value) %>%
+  mutate(BH_FDR = p.adjust(p_value, "BH")) %>%
+  filter(BH_FDR < 0.05) %>%
+  dplyr::select(OTU, p_value, BH_FDR, everything())
+
+#Printing results
+print.data.frame(wilcox_results)   #these are the ASVs that are significantly differentially abundant between poles
+```
+
+Abundant
+```{r}
+#Generate dataframe with avs and metadata
+df2 <- data.frame(t(data.frame(phyloseq::otu_table(ps.abun))), check.names = FALSE)
+df2$Pole <- phyloseq::sample_data(ps.abun)$Pole
+
+#Create nested data frames by asv and loop over each using map 
+wilcox_results2 <- df2 %>%
+  gather(key = OTU, value = abund, -Pole) %>%
+  group_by(OTU) %>%
+  nest() %>%
+  mutate(wilcox_test = map(data, wilcox_model),
+         p_value = map(data, wilcox_pval)) #run the test for each ASV     
+
+#Unnesting
+wilcox_results2 <- wilcox_results2 %>%
+  dplyr::select(OTU, p_value) %>%
+  unnest(cols=c(p_value))
+
+#Adding taxonomic labels
+taxa_info2 <- data.frame(tax_table(ps.abun)) #get taxonomic info of each ASV
+taxa_info2 <- taxa_info2 %>% rownames_to_column(var = "OTU") #make taxa info into columns
+
+#Computing FDR corrected p-values
+wilcox_results2 <- wilcox_results2 %>%
+  full_join(taxa_info2) %>%
+  arrange(p_value) %>%
+  mutate(BH_FDR = p.adjust(p_value, "BH")) %>%
+  filter(BH_FDR < 0.05) %>%
+  dplyr::select(OTU, p_value, BH_FDR, everything())
+```
+
+Intermediate
+```{r}
+#Generate dataframe with avs and metadata
+df3 <- data.frame(t(data.frame(phyloseq::otu_table(ps.int))), check.names = FALSE)
+df3$Pole <- phyloseq::sample_data(ps.int)$Pole
+
+#Create nested data frames by asv and loop over each using map 
+wilcox_results3 <- df3 %>%
+  gather(key = OTU, value = abund, -Pole) %>%
+  group_by(OTU) %>%
+  nest() %>%
+  mutate(wilcox_test = map(data, wilcox_model),
+         p_value = map(data, wilcox_pval)) #run the test for each ASV     
+
+#Unnesting
+wilcox_results3 <- wilcox_results3 %>%
+  dplyr::select(OTU, p_value) %>%
+  unnest(cols=c(p_value))
+
+#Adding taxonomic labels
+taxa_info3 <- data.frame(tax_table(ps.int)) #get taxonomic info of each ASV
+taxa_info3 <- taxa_info3 %>% rownames_to_column(var = "OTU") #make taxa info into columns
+
+#Computing FDR corrected p-values
+wilcox_results3 <- wilcox_results3 %>%
+  full_join(taxa_info3) %>%
+  arrange(p_value) %>%
+  mutate(BH_FDR = p.adjust(p_value, "BH")) %>%
+  filter(BH_FDR < 0.05) %>%
+  dplyr::select(OTU, p_value, BH_FDR, everything())
+```
+
+Rare
+```{r}
+#Generate dataframe with avs and metadata
+df4 <- data.frame(t(data.frame(phyloseq::otu_table(ps.rare))), check.names = FALSE)
+df4$Pole <- phyloseq::sample_data(ps.rare)$Pole
+
+#Create nested data frames by asv and loop over each using map 
+wilcox_results4 <- df4 %>%
+  gather(key = OTU, value = abund, -Pole) %>%
+  group_by(OTU) %>%
+  nest() %>%
+  mutate(wilcox_test = map(data, wilcox_model),
+         p_value = map(data, wilcox_pval)) #run the test for each ASV     
+
+#Unnesting
+wilcox_results4 <- wilcox_results4 %>%
+  dplyr::select(OTU, p_value) %>%
+  unnest(cols=c(p_value))
+
+#Adding taxonomic labels
+taxa_info4 <- data.frame(tax_table(ps.rare)) #get taxonomic info of each ASV
+taxa_info4 <- taxa_info4 %>% rownames_to_column(var = "OTU") #make taxa info into columns
+
+#Computing FDR corrected p-values
+wilcox_results4 <- wilcox_results4 %>%
+  full_join(taxa_info4) %>%
+  arrange(p_value) %>%
+  mutate(BH_FDR = p.adjust(p_value, "BH")) %>%
+  filter(BH_FDR < 0.05) %>%
+  dplyr::select(OTU, p_value, BH_FDR, everything())
+```

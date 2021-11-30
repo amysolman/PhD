@@ -1,0 +1,476 @@
+---
+title: "Distance-Decay Analysis"
+author: "Amy Solman"
+date: "08/10/2021"
+output: html_document
+---
+This script will look at the correlation between geographic distance and community dissimilarity.
+
+I will achieve this by:
+1) Calculating community dissimilarities
+2) Calculating community distances (using lat and long coords)
+3) Mantel tests for correlation between the matrices
+4) Carry out linear regression of distances and dissimilarities
+5) Plot the linear regressions
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+# library(dplyr) #for manipulating data where you see %>% and computing summary stats
+# install.packages("dendextend")
+# library(dendextend) #for hierchical clustering
+# install.packages("indicspecies")
+# library(indicspecies) #for indicator species analysis
+# library(stringr) #for removing characters from string
+# library(fossil) #for creating distance matrix
+# # install.packages("betapart")
+# library(betapart) #for didtance decay analysis
+ library(ade4) #mantel tests
+```
+
+Load data 
+```{r}
+#Load data files
+load("../data-output/18S-my-sequence-data.RData") #load all our pre-processed data files
+
+#load phyloseq object
+##################################################BOTH POLES#################################################
+ps <- readRDS("../data-output/18S-my-phyloseq-object.rds") #load unrarefied phyloseq object
+ps.rar <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq objectcol
+
+# #Global abundances i.e. globally abundant, globally rare, globally intermediate
+# ps.global.RA <- readRDS("../data-output/18S-all-rarefied-abundant.rds") #load rarefied globally abundant phyloseq object
+# ps.global.RR <- readRDS("../data-output/18S-all-rarefied-rare.rds") #load rarefied globally rare phyloseq object
+# ps.global.I <- readRDS("../data-output/18S-all-rarefied-intermediate.rds") #load rarefied globally abundant phyloseq object
+# 
+# #Both poles merged regional abundances
+# ps.both.merged.RA <- readRDS("../data-output/18S-all-merged-rarefied-abundant.rds") #merged poles abundant phyloseq object
+# ps.both.merged.RR <- readRDS("../data-output/18S-all-merged-rarefied-rare.rds") #merged poles rare phyloseq object
+# ps.both.merged.I <- readRDS("../data-output/18S-all-merged-rarefied-intermediate.rds") #merged poles intermediate phyloseq object
+
+#All glaciers merged abundances
+ps.glaciers.merged.RA <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-abundant.rds") #merged glaciers abundant phyloseq object
+ps.glaciers.merged.RR <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-rare.rds") #merged glaciers rare phyloseq object
+ps.glaciers.merged.I <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds") #merged glaciers intermediate phyloseq object
+
+# ##################################################ARCTIC#################################################
+# ps.arc <- readRDS("../data-output/18S-arctic-rarefied.rds")
+# ps.arc.RA <- readRDS("../data-output/18S-arctic-rarefied-abundant.rds") #load rarefied arctic abundant phyloseq object
+# ps.arc.RR <- readRDS("../data-output/18S-arctic-rarefied-rare.rds") #load rarefied arctic rare phyloseq object
+# ps.arc.I <- readRDS("../data-output/18S-arctic-rarefied-intermediate.rds") #load rarefied arctic intermediate phyloseq object
+# 
+# ##################################################ANTARCTIC#################################################
+# ps.ant <- readRDS("../data-output/18S-antarctic-rarefied.rds")
+# ps.ant.RA <- readRDS("../data-output/18S-antarctic-rarefied-abundant.rds") #load rarefied antarctic abundant phyloseq object
+# ps.ant.RR <- readRDS("../data-output/18S-antarctic-rarefied-rare.rds") #load rarefied antarctic rare phyloseq object
+# ps.ant.I <- readRDS("../data-output/18S-antarctic-rarefied-intermediate.rds") #load rarefied antarctic intermediate phyloseq object
+```
+
+1 TOTAL TAXA
+
+1.1 Calculate community dissimilarities
+```{r}
+DistWU <- distance(ps.rar, method="wUniFrac")
+DistUU <- distance(ps.rar, method="UniFrac")
+DistBray <- distance(ps.rar, method="bray")
+DistCan <- distance(ps.rar, method="canberra")
+```
+
+1.2 Calculate community distances
+```{r}
+#get metadata
+meta <- data.frame(sample_data(ps.rar))
+
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta)){
+  if (meta$Pole[i] == "Antarctic"){
+    meta$Glacier_Latitude[i] <- c(paste0("-", meta$Glacier_Latitude[i]))
+    meta$Cryoconite_Latitude[i] <- c(paste0("-", meta$Cryoconite_Latitude[i]))
+  }
+}
+
+#get latitude of each sample
+lat <- as.numeric(meta$Cryoconite_Latitude)
+#get longitude of each sample
+long <- as.numeric(meta$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta$Glacier_Latitude <- as.numeric(str_sub(meta$Glacier_Latitude,1,nchar(meta$Glacier_Latitude)-1))
+meta$Glacier_Longitude <- as.numeric(str_sub(meta$Glacier_Longitude,1,nchar(meta$Glacier_Longitude)-1))
+
+lat[4:6] <- meta$Glacier_Latitude[4:6]
+lat[8] <- meta$Glacier_Latitude[8]
+lat[14:18] <- meta$Glacier_Latitude[14:18]
+lat[21] <- meta$Glacier_Latitude[21]
+lat[24:25] <- meta$Glacier_Latitude[24:25]
+lat[34:42] <- meta$Glacier_Latitude[34:42]
+lat[50:53] <- meta$Glacier_Latitude[50:53]
+
+long[4:6] <- meta$Glacier_Longitude[4:6]
+long[8] <- meta$Glacier_Longitude[8]
+long[14:18] <- meta$Glacier_Longitude[14:18]
+long[21] <- meta$Glacier_Longitude[21]
+long[24:25] <- meta$Glacier_Longitude[24:25]
+long[34:42] <- meta$Glacier_Longitude[34:42]
+long[50:53] <- meta$Glacier_Longitude[50:53]
+
+#put into matrix
+long.lat <- as.matrix(cbind(long, lat))
+
+geo.dist <- earth.dist(long.lat, dist=TRUE) #a matrix of distances in kilometers between a list of longitudes and latitudes
+```
+
+1.3 Mantel tests for correlation between geographic distance and community dissimilarity
+```{r}
+#Weighted UniFrac Distances
+mantel.rtest(geo.dist, DistWU, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+
+#Unweighted UniFrac Distances
+mantel.rtest(geo.dist, DistUU, nrepet = 9999) #p < 0.05 so there is a significant positive correlation between distance and community dissimilarity
+
+#Bray-Curtis Distances
+mantel.rtest(geo.dist, DistBray, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+
+#Canberra Distances
+mantel.rtest(geo.dist, DistCan, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+```
+
+1.4 Linear regression of community and distances
+```{r}
+DDR.wuni <- lm(DistWU ~ geo.dist)
+summary(DDR.wuni) #p < 0.05 z = 0.000000147
+
+DDR.uni <- lm(DistUU ~ geo.dist)
+summary(DDR.uni) #p < 0.05 z = 0.000004975
+
+DDR.bray <- lm(DistBray ~ geo.dist)
+summary(DDR.bray) #p > 0.05
+
+DDR.can <- lm(DistCan ~ geo.dist)
+summary(DDR.can) #p > 0.05
+```
+
+1.5 Plot significant linear regression
+```{r}
+#Weighted Unifrac
+plot(geo.dist, DistWU, pch = 16, col = "blue",
+     xlab="Distance (km)", ylab="Weighted Unifrac") #Plot the results
+abline(DDR.wuni) #Add a regression line
+title(main="Total Taxa: DDR by Weighted Unifrac Distances") 
+
+#Unweighted Unifrac
+plot(geo.dist, DistUU, pch = 16, col = "blue",
+     xlab="Distance (km)", ylab="Unweighted Unifrac") #Plot the results
+abline(DDR.uni) #Add a regression line
+title(main="Total Taxa: DDR by Unweighted Unifrac Distances")
+```
+
+2 ABUNDANT TAXA
+
+2.1 Calculate community dissimilarities
+```{r}
+DistWU.ab <- distance(ps.glaciers.merged.RA, method="wUniFrac")
+DistUU.ab <- distance(ps.glaciers.merged.RA, method="UniFrac")
+DistBray.ab <- distance(ps.glaciers.merged.RA, method="bray")
+DistCan.ab <- distance(ps.glaciers.merged.RA, method="canberra")
+```
+
+2.2 Calculate community distances
+```{r}
+#get metadata
+meta.ab <- data.frame(sample_data(ps.glaciers.merged.RA))
+
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta.ab)){
+  if (meta.ab$Pole[i] == "Antarctic"){
+    meta.ab$Glacier_Latitude[i] <- c(paste0("-", meta.ab$Glacier_Latitude[i]))
+    meta.ab$Cryoconite_Latitude[i] <- c(paste0("-", meta.ab$Cryoconite_Latitude[i]))
+  }
+}
+
+#get latitude of each sample
+lat <- as.numeric(meta.ab$Cryoconite_Latitude)
+#get longitude of each sample
+long <- as.numeric(meta.ab$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta.ab$Glacier_Latitude <- as.numeric(str_sub(meta.ab$Glacier_Latitude,1,nchar(meta.ab$Glacier_Latitude)-1))
+meta.ab$Glacier_Longitude <- as.numeric(str_sub(meta.ab$Glacier_Longitude,1,nchar(meta.ab$Glacier_Longitude)-1))
+
+lat[4:6] <- meta.ab$Glacier_Latitude[4:6]
+lat[8] <- meta.ab$Glacier_Latitude[8]
+lat[14:18] <- meta.ab$Glacier_Latitude[14:18]
+lat[21] <- meta.ab$Glacier_Latitude[21]
+lat[24:25] <- meta.ab$Glacier_Latitude[24:25]
+lat[34:42] <- meta.ab$Glacier_Latitude[34:42]
+lat[50:53] <- meta.ab$Glacier_Latitude[50:53]
+
+long[4:6] <- meta.ab$Glacier_Longitude[4:6]
+long[8] <- meta.ab$Glacier_Longitude[8]
+long[14:18] <- meta.ab$Glacier_Longitude[14:18]
+long[21] <- meta.ab$Glacier_Longitude[21]
+long[24:25] <- meta.ab$Glacier_Longitude[24:25]
+long[34:42] <- meta.ab$Glacier_Longitude[34:42]
+long[50:53] <- meta.ab$Glacier_Longitude[50:53]
+
+#put into matrix
+long.lat.ab <- as.matrix(cbind(long, lat))
+
+geo.dist.ab <- earth.dist(long.lat.ab, dist=TRUE) #a matrix of distances in kilometers between a list of longitudes and latitudes
+```
+
+2.3 Mantel tests for correlation between geographic distance and community dissimilarity
+```{r}
+#Weighted UniFrac Distances
+mantel.rtest(geo.dist.ab, DistWU.ab, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+
+#Unweighted UniFrac Distances
+mantel.rtest(geo.dist.ab, DistUU.ab, nrepet = 9999) #p < 0.05 so there is a significant positive correlation between distance and community dissimilarity
+
+#Bray-Curtis Distances
+mantel.rtest(geo.dist.ab, DistBray.ab, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+
+#Canberra Distances
+mantel.rtest(geo.dist.ab, DistCan.ab, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+```
+
+2.4 Linear regression of community and distances
+```{r}
+DDR.wuni.ab <- lm(DistWU.ab ~ geo.dist.ab)
+summary(DDR.wuni.ab) #p < 0.05 z = 0.000000147
+
+DDR.uni.ab <- lm(DistUU.ab ~ geo.dist.ab)
+summary(DDR.uni.ab) #p < 0.05 z = 0.000004975
+
+DDR.bray.ab <- lm(DistBray.ab ~ geo.dist.ab)
+summary(DDR.bray.ab) #p > 0.05
+
+DDR.can.ab <- lm(DistCan.ab ~ geo.dist.ab)
+summary(DDR.can.ab) #p > 0.05
+```
+
+2.5 Plot significant linear regression
+```{r}
+#Weighted Unifrac
+plot(geo.dist.ab, DistWU.ab, pch = 16, col = "blue",
+     xlab="Distance (km)", ylab="Weighted Unifrac") #Plot the results
+abline(DDR.wuni.ab) #Add a regression line
+title(main="Abundant Taxa: DDR by Weighted Unifrac Distances") 
+
+#Unweighted Unifrac
+plot(geo.dist.ab, DistUU.ab, pch = 16, col = "blue",
+     xlab="Distance (km)", ylab="Unweighted Unifrac") #Plot the results
+abline(DDR.uni.ab) #Add a regression line
+title(main="Abundant Taxa: DDR  by Unweighted Unifrac Distances")
+```
+
+3 INTERMEDIATE TAXA
+
+3.1 Calculate community dissimilarities
+```{r}
+DistWU.i <- distance(ps.glaciers.merged.I, method="wUniFrac")
+DistUU.i <- distance(ps.glaciers.merged.I, method="UniFrac")
+DistBray.i <- distance(ps.glaciers.merged.I, method="bray")
+DistCan.i <- distance(ps.glaciers.merged.I, method="canberra")
+```
+
+3.2 Calculate community distances
+```{r}
+#get metadata
+meta.i <- data.frame(sample_data(ps.glaciers.merged.I))
+
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta.i)){
+  if (meta.i$Pole[i] == "Antarctic"){
+    meta.i$Glacier_Latitude[i] <- c(paste0("-", meta.i$Glacier_Latitude[i]))
+    meta.i$Cryoconite_Latitude[i] <- c(paste0("-", meta.i$Cryoconite_Latitude[i]))
+  }
+}
+
+#get latitude of each sample
+lat <- as.numeric(meta.i$Cryoconite_Latitude)
+#get longitude of each sample
+long <- as.numeric(meta.i$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta.i$Glacier_Latitude <- as.numeric(str_sub(meta.i$Glacier_Latitude,1,nchar(meta.i$Glacier_Latitude)-1))
+meta.i$Glacier_Longitude <- as.numeric(str_sub(meta.i$Glacier_Longitude,1,nchar(meta.i$Glacier_Longitude)-1))
+
+lat[4:6] <- meta.i$Glacier_Latitude[4:6]
+lat[8] <- meta.i$Glacier_Latitude[8]
+lat[14:18] <- meta.i$Glacier_Latitude[14:18]
+lat[21] <- meta.i$Glacier_Latitude[21]
+lat[24:25] <- meta.i$Glacier_Latitude[24:25]
+lat[34:42] <- meta.i$Glacier_Latitude[34:42]
+lat[50:53] <- meta.i$Glacier_Latitude[50:53]
+
+long[4:6] <- meta.i$Glacier_Longitude[4:6]
+long[8] <- meta.i$Glacier_Longitude[8]
+long[14:18] <- meta.i$Glacier_Longitude[14:18]
+long[21] <- meta.i$Glacier_Longitude[21]
+long[24:25] <- meta.i$Glacier_Longitude[24:25]
+long[34:42] <- meta.i$Glacier_Longitude[34:42]
+long[50:53] <- meta.i$Glacier_Longitude[50:53]
+
+#put into matrix
+long.lat.i <- as.matrix(cbind(long, lat))
+
+geo.dist.i <- earth.dist(long.lat.i, dist=TRUE) #a matrix of distances in kilometers between a list of longitudes and latitudes
+```
+
+3.3 Mantel tests for correlation between geographic distance and community dissimilarity
+```{r}
+#Weighted UniFrac Distances
+mantel.rtest(geo.dist.i, DistWU.i, nrepet = 9999) #p < 0.05 so there is significant correlation between distance and community dissimilarity
+
+#Unweighted UniFrac Distances
+mantel.rtest(geo.dist.i, DistUU.i, nrepet = 9999) #p < 0.05 so there is a significant positive correlation between distance and community dissimilarity
+
+#Bray-Curtis Distances
+mantel.rtest(geo.dist.i, DistBray.i, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+
+#Canberra Distances
+mantel.rtest(geo.dist.i, DistCan.i, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+```
+
+3.4 Linear regression of community and distances
+```{r}
+DDR.wuni.i <- lm(DistWU.i ~ geo.dist.i)
+summary(DDR.wuni.i) #p < 0.05
+
+DDR.uni.i <- lm(DistUU.i ~ geo.dist.i)
+summary(DDR.uni.i) #p < 0.05 
+
+DDR.bray.i <- lm(DistBray.i ~ geo.dist.i)
+summary(DDR.bray.i) #p > 0.05
+
+DDR.can.i <- lm(DistCan.i ~ geo.dist.i)
+summary(DDR.can.i) #p > 0.05
+```
+
+3.5 Plot significant linear regression
+```{r}
+#Weighted Unifrac
+plot(geo.dist.i, DistWU.i, pch = 16, col = "blue",
+     xlab="Distance (km)", ylab="Weighted Unifrac") #Plot the results
+abline(DDR.wuni.i) #Add a regression line
+title(main="Intermediate Taxa: DDR by Weighted Unifrac Distances") 
+
+#Unweighted Unifrac
+plot(geo.dist.i, DistUU.i, pch = 16, col = "blue",
+     xlab="Distance (km)", ylab="Unweighted Unifrac") #Plot the results
+abline(DDR.uni.i) #Add a regression line
+title(main="Intermediate Taxa: DDR by Unweighted Unifrac Distances")
+```
+
+4 RARE TAXA
+
+4.1 Calculate community dissimilarities
+```{r}
+DistWU.ra <- distance(ps.glaciers.merged.RR, method="wUniFrac")
+DistUU.ra <- distance(ps.glaciers.merged.RR, method="UniFrac")
+DistBray.ra <- distance(ps.glaciers.merged.RR, method="bray")
+DistCan.ra <- distance(ps.glaciers.merged.RR, method="canberra")
+```
+
+4.2 Calculate community distances
+```{r}
+#get metadata
+meta.ra <- data.frame(sample_data(ps.glaciers.merged.RR))
+
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta.ra)){
+  if (meta.ra$Pole[i] == "Antarctic"){
+    meta.ra$Glacier_Latitude[i] <- c(paste0("-", meta.ra$Glacier_Latitude[i]))
+    meta.ra$Cryoconite_Latitude[i] <- c(paste0("-", meta.ra$Cryoconite_Latitude[i]))
+  }
+}
+
+#get latitude of each sample
+lat <- as.numeric(meta.ra$Cryoconite_Latitude)
+#get longitude of each sample
+long <- as.numeric(meta.ra$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta.ra$Glacier_Latitude <- as.numeric(str_sub(meta.ra$Glacier_Latitude,1,nchar(meta.ra$Glacier_Latitude)-1))
+meta.ra$Glacier_Longitude <- as.numeric(str_sub(meta.ra$Glacier_Longitude,1,nchar(meta.ra$Glacier_Longitude)-1))
+
+lat[4:6] <- meta.ra$Glacier_Latitude[4:6]
+lat[8] <- meta.ra$Glacier_Latitude[8]
+lat[14:18] <- meta.ra$Glacier_Latitude[14:18]
+lat[23:24] <- meta.ra$Glacier_Latitude[23:24]
+lat[33:41] <- meta.ra$Glacier_Latitude[33:41]
+lat[49:52] <- meta.ra$Glacier_Latitude[49:52]
+
+long[4:6] <- meta.ra$Glacier_Longitude[4:6]
+long[8] <- meta.ra$Glacier_Longitude[8]
+long[14:18] <- meta.ra$Glacier_Longitude[14:18]
+long[23:24] <- meta.ra$Glacier_Longitude[23:24]
+long[33:41] <- meta.ra$Glacier_Longitude[33:41]
+long[49:52] <- meta.ra$Glacier_Longitude[49:52]
+
+#put into matrix
+long.lat.ra <- as.matrix(cbind(long, lat))
+
+geo.dist.ra <- earth.dist(long.lat.ra, dist=TRUE) #a matrix of distances in kilometers between a list of longitudes and latitudes
+```
+
+4.3 Mantel tests for correlation between geographic distance and community dissimilarity
+```{r}
+#Weighted UniFrac Distances
+mantel.rtest(geo.dist.ra, DistWU.ra, nrepet = 9999) #p < 0.05 so there is significant correlation between distance and community dissimilarity
+
+#Unweighted UniFrac Distances
+mantel.rtest(geo.dist.ra, DistUU.ra, nrepet = 9999) #p < 0.05 so there is a significant positive correlation between distance and community dissimilarity
+
+#Bray-Curtis Distances
+mantel.rtest(geo.dist.ra, DistBray.ra, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+
+#Canberra Distances
+mantel.rtest(geo.dist.ra, DistCan.ra, nrepet = 9999) #p > 0.05 so there is no significant correlation between distance and community dissimilarity
+```
+
+4.4 Linear regression of community and distances
+```{r}
+DDR.wuni.ra <- lm(DistWU.ra ~ geo.dist.ra)
+summary(DDR.wuni.ra) #p < 0.05
+
+DDR.uni.ra <- lm(DistUU.ra ~ geo.dist.ra)
+summary(DDR.uni.ra) #p < 0.05 
+
+DDR.bray.ra <- lm(DistBray.ra ~ geo.dist.ra)
+summary(DDR.bray.ra) #p > 0.05
+
+DDR.can.ra <- lm(DistCan.ra ~ geo.dist.ra)
+summary(DDR.can.ra) #p > 0.05
+```
+
+4.5 Plot significant linear regression
+```{r}
+#Weighted Unifrac
+plot(geo.dist.ra, DistWU.ra, pch = 16, col = "blue",
+     xlab="Distance (km)", ylab="Weighted Unifrac") #Plot the results
+abline(DDR.wuni.ra) #Add a regression line
+title(main="Rare Taxa: DDR by Weighted Unifrac Distances") 
+
+#Unweighted Unifrac
+plot(geo.dist.ra, DistUU.ra, pch = 16, col = "blue",
+     xlab="Distance (km)", ylab="Unweighted Unifrac") #Plot the results
+abline(DDR.uni.ra) #Add a regression line
+title(main="Rare Taxa: DDR by Unweighted Unifrac Distances")
+```
+

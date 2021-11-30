@@ -1,0 +1,373 @@
+---
+title: "Island Species-Area Relationship"
+author: "Amy Solman"
+date: "07/10/2021"
+output: html_document
+---
+This script will look for a significant correlation between cryoconite hole area and species richness/Shannon/ diversity.
+
+I'm going to plot hole area against diversity in a scatter plot.
+
+I'm going to carry out linear regression of log10(Diversity) against log10(Area) to estimate the c and z coefficients (where z is the strength of the relationship).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+# library(dplyr) #for manipulating data where you see %>% and computing summary stats
+# install.packages("dendextend")
+# library(dendextend) #for hierchical clustering
+# install.packages("indicspecies")
+# library(indicspecies) #for indicator species analysis
+
+```
+
+Load Data
+```{r}
+#TOTAL DATASET
+ps <- readRDS("../output/16S-phyloseq-object-rarefied.rds")
+
+#Total Abundant
+ps.abun <- readRDS("../output/16S-total-abundant.rds")
+#Total Intermediate
+ps.int <- readRDS("../output/16S-total-intermediate.rds")
+#Total Rare
+ps.rare <- readRDS("../output/16S-total-rare.rds")
+```
+
+Remove any samples with zero counts from each of our communities
+```{r}
+#Total
+ps <- prune_samples(sample_sums(ps) > 0, ps)
+#Abundant
+ps.abun <- prune_samples(sample_sums(ps.abun) > 0, ps.abun)
+#Intermediate
+ps.int <- prune_samples(sample_sums(ps.int) > 0, ps.int)
+#Rare
+ps.rare <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
+```
+
+Function to return the p-value (https://gettinggeneticsdone.blogspot.com/2011/01/rstats-function-for-extracting-f-test-p.html)
+```{r}
+lmp <- function (modelobject) {
+    if (class(modelobject) != "lm") stop("Not an object of class 'lm' ")
+    f <- summary(modelobject)$fstatistic
+    p <- pf(f[1],f[2],f[3],lower.tail=F)
+    attributes(p) <- NULL
+    return(p)
+}
+
+```
+1 TOTAL TAXA
+
+1.1 Get hole area and diversity data
+```{r}
+#get our ASV count table
+asv_counts <- as.data.frame(otu_table(ps))
+
+#get sample data from ps.rar 
+samp_data <- data.frame(sample_data(ps))
+
+#find the asv richness of each sample
+#first convert to presence/absence table
+asv_counts_pa <- asv_counts
+asv_counts_pa[asv_counts_pa != 0] = 1
+asv_rich <- colSums(asv_counts_pa)
+
+#get shannon diversity
+data = t(otu_table(ps))
+shannon <- diversity(data, index="shannon")
+
+#Calculate hole areas
+#Method as per Darcy et al (2018)
+hole_area_cm2 <- pi*(samp_data$NS/2)*(samp_data$EW/2)
+
+#put into dataframe
+tot_data <- cbind(samp_data$SampleID, samp_data$Glacier, samp_data$Region, samp_data$Pole, asv_rich, shannon, hole_area_cm2)
+colnames(tot_data) <- c("SampleID", "Glacier", "Region", "Pole", "Richness", "Shannon","Area")
+tot_data <- as.data.frame(tot_data)
+
+#remove samples without area data
+tot_data <- tot_data[complete.cases(tot_data$Area), ]
+
+#make sure data is numeric
+tot_data$Richness <- as.numeric(tot_data$Richness)
+tot_data$Shannon <- as.numeric(tot_data$Shannon)
+tot_data$Area <- as.numeric(tot_data$Area)
+
+#add log10 transformtions
+tot_data$log10Rich <- log10(tot_data$Richness)
+tot_data$log10Shan <- log10(tot_data$Shannon)
+tot_data$log10Area <- log10(tot_data$Area)
+
+```
+
+1.2  regression on log transformed data
+Linear regession is a statistical model that analyzes the relationship between a response variable (richness) and explanatory variables (area).
+```{r}
+#RICHNESS
+#Linear regression model of richness and area
+lm_ISAR <- lm(log10Rich ~ log10Area, data = tot_data)
+
+summary(lm_ISAR) #c = 2.14, z=0.15
+
+#Plot the fit
+ggplot(tot_data, aes(x=log10Area, y=log10Rich)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  annotate(geom="text", x=3, y=2.5, label=paste0("p=", as.numeric(round(lmp(lm_ISAR), 3)), " z=", as.numeric(round(lm_ISAR$coefficients[2], 3))),
+              color="red")+
+  ggtitle("Total Taxa: ASV Richness")
+
+#SHANNON
+lm_ISAR_shan <- lm(log10Shan ~ log10Area, data = tot_data)
+
+summary(lm_ISAR_shan) #c = 0.50, z=0.04
+
+#Plot the fit
+ggplot(tot_data, aes(x=log10Area, y=log10Shan)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  annotate(geom="text", x=3, y=0.75, label=paste0("p=", as.numeric(round(lmp(lm_ISAR_shan), 3)), " z=", as.numeric(round(lm_ISAR_shan$coefficients[2], 3))),
+              color="red")+
+  ggtitle("Total Taxa: Shannon Index")
+
+lmp(lm_ISAR_shan)
+```
+
+2 ABUNDANT TAXA
+
+2.1 Get hole area and diversity data
+```{r}
+#get our ASV count table
+asv_counts.ab <- as.data.frame(otu_table(ps.abun))
+
+#get sample data
+samp_data.ab <- data.frame(sample_data(ps.abun))
+
+#find the asv richness of each sample
+#first convert to presence/absence table
+asv_counts_pa.ab <- asv_counts.ab
+asv_counts_pa.ab[asv_counts_pa.ab != 0] = 1
+asv_rich.ab <- colSums(asv_counts_pa.ab)
+
+#get shannon diversity
+data.ab = t(otu_table(ps.abun))
+shannon.ab <- diversity(data.ab, index="shannon")
+
+#Calculate hole areas
+#Method as per Darcy et al (2018)
+hole_area_cm2.ab <- pi*(samp_data.ab$NS/2)*(samp_data.ab$EW/2)
+
+#put into dataframe
+data.ab <- cbind(samp_data.ab$SampleID, samp_data.ab$Glacier, samp_data.ab$Region, samp_data.ab$Pole, asv_rich.ab, shannon.ab, hole_area_cm2.ab)
+colnames(data.ab) <- c("SampleID", "Glacier", "Region", "Pole", "Richness", "Shannon", "Area")
+data.ab <- as.data.frame(data.ab)
+
+#remove samples without area data
+data.ab <- data.ab[complete.cases(data.ab$Area), ]
+
+#make sure data is numeric
+data.ab$Richness <- as.numeric(data.ab$Richness)
+data.ab$Shannon <- as.numeric(data.ab$Shannon)
+data.ab$Area <- as.numeric(data.ab$Area)
+
+#add log10 transformtions
+data.ab$log10Rich <- log10(data.ab$Richness)
+data.ab$log10Shan <- log10(data.ab$Shannon)
+data.ab$log10Area <- log10(data.ab$Area)
+
+```
+
+2.2  regression on log transformed data
+Linear regession is a statistical model that analyzes the relationship between a response variable (richness) and explanatory variables (area).
+```{r}
+#RICHNESS
+#Linear regression model of richness and area
+lm_ISAR.ab <- lm(log10Rich ~ log10Area, data = data.ab)
+
+summary(lm_ISAR.ab) #c = 0.55, z=0.45
+
+#Plot the fit
+ggplot(data.ab, aes(x=log10Area, y=log10Rich)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  annotate(geom="text", x=2, y=2.5, label=paste0("p=", as.numeric(round(lmp(lm_ISAR.ab), 3)), " z=", as.numeric(round(lm_ISAR.ab$coefficients[2], 3))),
+              color="red")+
+  ggtitle("Abundant Taxa: ASV Richness")
+
+#SHANNON
+lm_ISAR_shan.ab <- lm(log10Shan ~ log10Area, data = data.ab)
+
+summary(lm_ISAR_shan.ab) #c = 0.008, z=0.09
+
+#Plot the fit
+ggplot(data.ab, aes(x=log10Area, y=log10Shan)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  annotate(geom="text", x=3, y=0.75, label=paste0("p=", as.numeric(round(lmp(lm_ISAR_shan.ab), 3)), " z=", as.numeric(round(lm_ISAR_shan.ab$coefficients[2], 3))),
+              color="red")+
+  ggtitle("Abundant Taxa: Shannon Index")
+```
+
+3 INTERMEDIATE TAXA
+
+3.1 Get hole area and diversity data
+```{r}
+#get our ASV count table
+asv_counts.i <- as.data.frame(otu_table(ps.int))
+
+#get sample data
+samp_data.i <- data.frame(sample_data(ps.int))
+
+#find the asv richness of each sample
+#first convert to presence/absence table
+asv_counts_pa.i <- asv_counts.i
+asv_counts_pa.i[asv_counts_pa.i != 0] = 1
+asv_rich.i <- colSums(asv_counts_pa.i)
+
+#get shannon diversity
+data.i = t(otu_table(ps.int))
+shannon.i <- diversity(data.i, index="shannon")
+
+#Calculate hole areas
+#Method as per Darcy et al (2018)
+hole_area_cm2.i <- pi*(samp_data.i$NS/2)*(samp_data.i$EW/2)
+
+#put into dataframe
+data.i <- cbind(samp_data.i$SampleID, samp_data.i$Glacier, samp_data.i$Region, samp_data.i$Pole, asv_rich.i, shannon.i, hole_area_cm2.i)
+colnames(data.i) <- c("SampleID", "Glacier", "Region", "Pole", "Richness", "Shannon", "Area")
+data.i <- as.data.frame(data.i)
+
+#remove samples without area data
+data.i <- data.i[complete.cases(data.i$Area), ]
+
+#make sure data is numeric
+data.i$Richness <- as.numeric(data.i$Richness)
+data.i$Shannon <- as.numeric(data.i$Shannon)
+data.i$Area <- as.numeric(data.i$Area)
+
+#add log10 transformtions
+data.i$log10Rich <- log10(data.i$Richness)
+data.i$log10Shan <- log10(data.i$Shannon)
+data.i$log10Area <- log10(data.i$Area)
+
+```
+
+3.2  regression on log transformed data
+Linear regession is a statistical model that analyzes the relationship between a response variable (richness) and explanatory variables (area).
+```{r}
+#RICHNESS
+#Linear regression model of richness and area
+lm_ISAR.i <- lm(log10Rich ~ log10Area, data = data.i)
+
+summary(lm_ISAR.i) #c = 0.17, z=0.75, p=0.12
+
+#Plot the fit
+ggplot(data.i, aes(x=log10Area, y=log10Rich)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  annotate(geom="text", x=2, y=2.5, label=paste0("p=", as.numeric(round(lmp(lm_ISAR.i), 3)), " z=", as.numeric(round(lm_ISAR.i$coefficients[2], 3))),
+              color="red")+
+  ggtitle("Intermediate Taxa: ASV Richness")
+
+#SHANNON
+#remove row with infinite value
+data.i <- data.i[data.i$log10Shan > 0, ]
+lm_ISAR_shan.i <- lm(log10Shan ~ log10Area, data = data.i)
+
+summary(lm_ISAR_shan.i) #c=0.51, z=0.06, p < 0.05
+
+#Plot the fit
+ggplot(data.i, aes(x=log10Area, y=log10Shan)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  annotate(geom="text", x=3, y=0.75, label=paste0("p=", as.numeric(round(lmp(lm_ISAR_shan.i), 3)), " z=", as.numeric(round(lm_ISAR_shan.i$coefficients[2], 3))),
+              color="red")+
+  ggtitle("Intermediate Taxa: Shannon Index")
+```
+
+4 RARE TAXA
+
+4.1 Get hole area and diversity data
+```{r}
+#get our ASV count table
+asv_counts.ra <- as.data.frame(otu_table(ps.rare))
+
+#get sample data
+samp_data.ra <- data.frame(sample_data(ps.rare))
+
+#find the asv richness of each sample
+#first convert to presence/absence table
+asv_counts_pa.ra <- asv_counts.ra
+asv_counts_pa.ra[asv_counts_pa.ra != 0] = 1
+asv_rich.ra <- colSums(asv_counts_pa.ra)
+
+#get shannon diversity
+data.ra = t(otu_table(ps.rare))
+shannon.ra <- diversity(data.ra, index="shannon")
+
+#Calculate hole areas
+#Method as per Darcy et al (2018)
+hole_area_cm2.ra <- pi*(samp_data.ra$NS/2)*(samp_data.ra$EW/2)
+
+#put into dataframe
+data.ra <- cbind(samp_data.ra$SampleID, samp_data.ra$Glacier, samp_data.ra$Region, samp_data.ra$Pole, asv_rich.ra, shannon.ra, hole_area_cm2.ra)
+colnames(data.ra) <- c("SampleID", "Glacier", "Region", "Pole", "Richness", "Shannon", "Area")
+data.ra <- as.data.frame(data.ra)
+
+#remove samples without area data
+data.ra <- data.ra[complete.cases(data.ra$Area), ]
+
+#make sure data is numeric
+data.ra$Richness <- as.numeric(data.ra$Richness)
+data.ra$Shannon <- as.numeric(data.ra$Shannon)
+data.ra$Area <- as.numeric(data.ra$Area)
+
+#add log10 transformtions
+data.ra$log10Rich <- log10(data.ra$Richness)
+data.ra$log10Shan <- log10(data.ra$Shannon)
+data.ra$log10Area <- log10(data.ra$Area)
+
+```
+
+4.2  regression on log transformed data
+Linear regession is a statistical model that analyzes the relationship between a response variable (richness) and explanatory variables (area).
+```{r}
+#RICHNESS
+#Linear regression model of richness and area
+lm_ISAR.ra <- lm(log10Rich ~ log10Area, data = data.ra)
+
+summary(lm_ISAR.ra) #c = 1.48, z=0.13, p =0.29
+
+#Plot the fit
+ggplot(data.ra, aes(x=log10Area, y=log10Rich)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  annotate(geom="text", x=2, y=2.5, label=paste0("p=", as.numeric(round(lmp(lm_ISAR.ra), 3)), " z=", as.numeric(round(lm_ISAR.ra$coefficients[2], 3))),
+              color="red")+
+  ggtitle("Rare Taxa: ASV Richness")
+
+#SHANNON
+lm_ISAR_shan.ra <- lm(log10Shan ~ log10Area, data = data.ra)
+
+summary(lm_ISAR_shan.ra) #c = 0.11, z=0.14, p = 0.02
+
+#Plot the fit
+ggplot(data.ra, aes(x=log10Area, y=log10Shan)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  annotate(geom="text", x=3, y=0.75, label=paste0("p=", as.numeric(round(lmp(lm_ISAR_shan.ra), 3)), " z=", as.numeric(round(lm_ISAR_shan.ra$coefficients[2], 3))),
+              color="red")+
+  ggtitle("Rare Taxa: Shannon Index")
+
+```

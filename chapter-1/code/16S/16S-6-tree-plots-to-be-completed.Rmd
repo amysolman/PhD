@@ -1,0 +1,121 @@
+---
+title: "18S-7-tree-plots"
+author: "Amy Solman"
+date: "06/10/2021"
+output: html_document
+---
+
+This script will explore the taxa groups present in our samples, so that differences in total, abundant, intermediate and rare communities can be compared between glaciers, regions and poles.
+
+This will be done using:
+Annotated phylogenetic tree plots for each glacier, region, pole
+
+Follow this tutorial:https://guangchuangyu.github.io/ggtree-book/short-introduction-to-r.html
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+# library(dplyr) #for manipulating data where you see %>% and computing summary stats
+
+#install ggtree
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+
+# BiocManager::install("ggtree", force= TRUE)
+
+
+# github version
+devtools::install_github("YuLab-SMU/ggtree")
+
+library(ggtree)
+```
+
+Load Data
+```{r}
+#TOTAL DATASET
+ps <- readRDS("../output/16S-phyloseq-object-rarefied.rds")
+
+#Total Abundant
+ps.abun <- readRDS("../output/16S-total-abundant.rds")
+#Total Intermediate
+ps.int <- readRDS("../output/16S-total-intermediate.rds")
+#Total Rare
+ps.rare <- readRDS("../output/16S-total-rare.rds")
+```
+
+Remove any samples with zero counts from each of our communities
+```{r}
+#Total
+ps.prune <- prune_samples(sample_sums(ps) > 0, ps)
+#Abundant
+abun.prune <- prune_samples(sample_sums(ps.abun) > 0, ps.abun)
+#Intermediate
+int.prune <- prune_samples(sample_sums(ps.int) > 0, ps.int)
+#Rare
+rare.prune <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
+```
+
+Total Community
+```{r}
+tree <- phy_tree(ps.prune)
+ggtree(tree)
+ggtree(tree, layout='circular') + geom_tiplab(size=1, aes(angle=angle))
+ggtree(tree)
+ggtree(tree, layout="slanted") 
+ggtree(tree, layout="circular")
+ggtree(tree, layout="fan", open.angle=120)
+ggtree(tree, layout="equal_angle")
+ggtree(tree, layout="daylight")
+ggtree(tree, branch.length='none')
+ggtree(tree, branch.length='none', layout='circular')
+ggtree(tree, layout="daylight", branch.length = 'none')
+
+
+info <- read.csv("info.csv")
+info <- data.frame(sample_data(ps.prune))
+tree <- read.tree("tree.nwk")
+cols <- c(Antarctic='purple2', Arctic='skyblue2')
+
+ggtree(tree, layout='circular') %<+% info + 
+  geom_tippoint(aes(color=Pole)) + 
+  scale_color_manual(values=cols) + 
+  geom_tiplab2(aes(label=Pole), align=T, linetype=NA, 
+              size=2, offset=4, hjust=0.5) +
+  geom_tiplab2(aes(label=Region), align=T, linetype=NA, 
+              size=2, offset=8, hjust=0.5)
+```
+Subset data (plotting too many taxa obscures meaning)
+```{r}
+plot_tree(ps.prune, color = "Region", shape = "Pole", label.tips = "Phylum", 
+    size = "abundance", plot.margin = 0.5, ladderize = TRUE)
+
+#Archaeplastida
+sub_arch <- subset_taxa(ps.rar, Phylum == "Archaeplastida")
+
+#map
+plot_tree(sub_arch, color = "Region", shape = "Pole", label.tips = "Phylum", 
+    size = "abundance", plot.margin = 0.5, ladderize = TRUE)
+
+#subset by region
+sub_green <- subset_samples(ps.rar, Region == "Greenland")
+
+#subset by region
+sub_swede <- subset_samples(ps.rar, Region == "Sweden")
+
+#subset by glacier
+sub_green <- subset_samples(ps.rar, Region == "Greenland")
+
+#map
+plot_tree(sub_swede, color = "Glacier", label.tips = "Phylum", 
+    size = "abundance", plot.margin = 0.5, ladderize = TRUE)
+```

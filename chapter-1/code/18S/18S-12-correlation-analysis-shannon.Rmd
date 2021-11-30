@@ -1,0 +1,466 @@
+---
+title: "Shannon Index Correlations"
+author: "Amy Solman"
+date: "07/10/2021"
+output: html_document
+---
+
+Is shannon diversity significantly correlated with any of the continuous environmental variables?
+
+Shannon–Wiener and Simpson index. 
+The Shannon–Wiener index is strongly influenced by species richness and by
+rare species
+The Simpson index gives more weight to evenness and common species. 
+The effect of the sample size is generally negligible for both of them.
+The use of both diversity indices improves the output information of the dataset, which is unique for each community or sample
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+# library(dplyr) #for manipulating data where you see %>% and computing summary stats
+# install.packages("dendextend")
+# library(dendextend) #for hierchical clustering
+# install.packages("indicspecies")
+# library(indicspecies) #for indicator species analysis
+
+```
+
+Load data 
+```{r}
+#Load data files
+load("../data-output/18S-my-sequence-data.RData") #load all our pre-processed data files
+
+#load phyloseq object
+##################################################BOTH POLES#################################################
+ps <- readRDS("../data-output/18S-my-phyloseq-object.rds") #load unrarefied phyloseq object
+ps.rar <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq objectcol
+
+# #Global abundances i.e. globally abundant, globally rare, globally intermediate
+# ps.global.RA <- readRDS("../data-output/18S-all-rarefied-abundant.rds") #load rarefied globally abundant phyloseq object
+# ps.global.RR <- readRDS("../data-output/18S-all-rarefied-rare.rds") #load rarefied globally rare phyloseq object
+# ps.global.I <- readRDS("../data-output/18S-all-rarefied-intermediate.rds") #load rarefied globally abundant phyloseq object
+# 
+# #Both poles merged regional abundances
+# ps.both.merged.RA <- readRDS("../data-output/18S-all-merged-rarefied-abundant.rds") #merged poles abundant phyloseq object
+# ps.both.merged.RR <- readRDS("../data-output/18S-all-merged-rarefied-rare.rds") #merged poles rare phyloseq object
+# ps.both.merged.I <- readRDS("../data-output/18S-all-merged-rarefied-intermediate.rds") #merged poles intermediate phyloseq object
+
+#All glaciers merged abundances
+ps.glaciers.merged.RA <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-abundant.rds") #merged glaciers abundant phyloseq object
+ps.glaciers.merged.RR <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-rare.rds") #merged glaciers rare phyloseq object
+ps.glaciers.merged.I <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds") #merged glaciers intermediate phyloseq object
+
+# ##################################################ARCTIC#################################################
+# ps.arc <- readRDS("../data-output/18S-arctic-rarefied.rds")
+# ps.arc.RA <- readRDS("../data-output/18S-arctic-rarefied-abundant.rds") #load rarefied arctic abundant phyloseq object
+# ps.arc.RR <- readRDS("../data-output/18S-arctic-rarefied-rare.rds") #load rarefied arctic rare phyloseq object
+# ps.arc.I <- readRDS("../data-output/18S-arctic-rarefied-intermediate.rds") #load rarefied arctic intermediate phyloseq object
+# 
+# ##################################################ANTARCTIC#################################################
+# ps.ant <- readRDS("../data-output/18S-antarctic-rarefied.rds")
+# ps.ant.RA <- readRDS("../data-output/18S-antarctic-rarefied-abundant.rds") #load rarefied antarctic abundant phyloseq object
+# ps.ant.RR <- readRDS("../data-output/18S-antarctic-rarefied-rare.rds") #load rarefied antarctic rare phyloseq object
+# ps.ant.I <- readRDS("../data-output/18S-antarctic-rarefied-intermediate.rds") #load rarefied antarctic intermediate phyloseq object
+```
+1TOTAL TAXA
+1.1 Get Shannon Diversity and metadata into dataframe
+```{r}
+#Get ASV richness of samples
+#get our ASV count table
+asv_counts <- as.data.frame(t(otu_table(ps.rar)))
+
+shannon <- diversity(asv_counts, index="shannon")
+
+#Get metadata of samples
+samp_data <- data.frame(sample_data(ps.rar))
+
+#Merge into datafrome
+samp_data$Shannon <- shannon
+
+#remove double lidded column because it's not needed
+drops <- c("Double_Lid")
+samp_data <- samp_data[ , !(names(samp_data) %in% drops)]
+
+#make sure data are numeric
+x <- data.frame(lapply(samp_data[17:61],as.numeric))
+samp_data[17:61] <- x
+```
+
+1.2 Test for correlation using complete cases only 
+```{r}
+#First check normality assumptions
+# Shapiro-Wilk normality test for mpg
+shapiro.test(samp_data$Shannon) # p > 0.05 data NOT significantly different from normal distribution so we need to might be able to use parametric test
+
+df <- data.frame(var=character(0), p_val=numeric(0))
+
+for (i in 17:80){
+  
+  #see if the independent variable is normally distributed
+  res <- shapiro.test(as.numeric(samp_data[,i]))
+  
+  if (res$p.value >= 0.05){
+    #if it is normally distributed then calculate correlation using the pearson method
+    t <- cor.test(samp_data$Shannon, as.numeric(samp_data[,i]), method="pearson", use = "complete.obs")
+  } else {
+    #if it is not normally distributed use the kendall method
+    t <- cor.test(samp_data$Shannon, as.numeric(samp_data[,i]), method="kendall", use = "complete.obs")
+  }
+  
+  j <- i-16
+  
+  df[j,]$var <- colnames(samp_data[i])
+  df[j,]$p_val <- t$p.value
+  
+}
+```
+
+1.3 PLOT SIGNIFICANT CORRELATIONS AND SAVE AS PDFS
+```{r}
+for (i in 1:nrow(df)){
+      
+  if (df[i,]$p_val < 0.05){
+    
+      #see if the independent variable is normally distributed
+    j <- i+16
+    
+  res <- shapiro.test(as.numeric(samp_data[,j])) #check normality
+  
+  if (res$p.value >= 0.05){ #if normally distributed 
+
+    
+    x <- which( colnames(samp_data)== df[,1][i] )
+    my_data <- samp_data[complete.cases(samp_data[x]), ] #remove data with NAs
+    
+ #list_plots[[k]] <- 
+    pdf(paste0("../data-output/cor-plots/shannon/total/correlation-plot-", df[,1][i], ".pdf"))
+   p <- ggscatter(my_data, df[,1][i], y = "Shannon", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = df[,1][i], ylab = "Shannon Diversity")
+   print(p)
+ dev.off()
+ 
+  } else { #if not normally distributed
+    
+        x <- which( colnames(samp_data)== df[,1][i] )
+    my_data <- samp_data[complete.cases(samp_data[x]), ] #remove data with NAs
+
+    pdf(paste0("../data-output/cor-plots/shannon/total/correlation-plot-", df[,1][i], ".pdf"))
+    p <- ggscatter(my_data, df[,1][i], y = "Shannon",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = df[,1][i], ylab = "Shannon Diversity")
+    print(p)
+    dev.off()
+
+  }
+  
+  }
+}
+
+```
+
+2 ABUNDANT TAXA
+2.1 Get Shannon Diversity and metadata into dataframe
+```{r}
+#get our ASV count table
+asv_counts.ab <- as.data.frame(t(otu_table(ps.glaciers.merged.RA)))
+
+shannon <- diversity(asv_counts.ab, index="shannon")
+
+#Get metadata of samples
+samp_data.ab <- data.frame(sample_data(ps.glaciers.merged.RA))
+
+#Merge into datafrome
+samp_data.ab$Shannon <- shannon
+
+#remove double lidded column because it's not needed
+drops <- c("Double_Lid")
+samp_data.ab <- samp_data.ab[ , !(names(samp_data.ab) %in% drops)]
+
+#make sure data are numeric
+x <- data.frame(lapply(samp_data.ab[17:61],as.numeric))
+samp_data.ab[17:61] <- x
+```
+
+2.2 Test for correlation using complete cases only 
+```{r}
+#First check normality assumptions
+# Shapiro-Wilk normality test for mpg
+shapiro.test(samp_data.ab$Shannon) # p > 0.05 data NOT significantly different from normal distribution so we need to might be able to use parametric test
+
+df.ab <- data.frame(var=character(0), p_val=numeric(0))
+
+for (i in 17:80){
+  
+  #see if the independent variable is normally distributed
+  res <- shapiro.test(as.numeric(samp_data.ab[,i]))
+  
+  if (res$p.value >= 0.05){
+    #if it is normally distributed then calculate correlation using the pearson method
+    t <- cor.test(samp_data.ab$Shannon, as.numeric(samp_data.ab[,i]), method="pearson", use = "complete.obs")
+  } else {
+    #if it is not normally distributed use the kendall method
+    t <- cor.test(samp_data.ab$Shannon, as.numeric(samp_data.ab[,i]), method="kendall", use = "complete.obs")
+  }
+  
+  j <- i-16
+  
+  df.ab[j,]$var <- colnames(samp_data.ab[i])
+  df.ab[j,]$p_val <- t$p.value
+  
+}
+```
+
+2.3 PLOT SIGNIFICANT CORRELATIONS AND SAVE AS PDFS
+```{r}
+for (i in 1:nrow(df.ab)){
+      
+  if (df.ab[i,]$p_val < 0.05){
+    
+      #see if the independent variable is normally distributed
+    j <- i+16
+    
+  res <- shapiro.test(as.numeric(samp_data.ab[,j])) #check normality
+  
+  if (res$p.value >= 0.05){ #if normally distributed 
+
+    
+    x <- which( colnames(samp_data.ab)== df.ab[,1][i] )
+    my_data.ab <- samp_data.ab[complete.cases(samp_data.ab[x]), ] #remove data with NAs
+    
+ #list_plots[[k]] <- 
+    pdf(paste0("../data-output/cor-plots/shannon/abundant/correlation-plot-", df.ab[,1][i], ".pdf"))
+   p <- ggscatter(my_data.ab, df.ab[,1][i], y = "Shannon", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = df.ab[,1][i], ylab = "Shannon Diversity")
+   print(p)
+ dev.off()
+ 
+  } else { #if not normally distributed
+    
+        x <- which( colnames(samp_data.ab)== df.ab[,1][i] )
+    my_data.ab <- samp_data.ab[complete.cases(samp_data.ab[x]), ] #remove data with NAs
+
+    pdf(paste0("../data-output/cor-plots/shannon/abundant/correlation-plot-", df.ab[,1][i], ".pdf"))
+    p <- ggscatter(my_data.ab, df.ab[,1][i], y = "Shannon",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = df.ab[,1][i], ylab = "Shannon Diversity")
+    print(p)
+    dev.off()
+
+  }
+  
+  }
+}
+
+```
+
+3 INTERMEDIATE TAXA
+3.1 Get Shannon Diversity and metadata into dataframe
+```{r}
+#get our ASV count table
+asv_counts.i <- as.data.frame(t(otu_table(ps.glaciers.merged.I)))
+
+shannon <- diversity(asv_counts.i, index="shannon")
+
+#Get metadata of samples
+samp_data.i <- data.frame(sample_data(ps.glaciers.merged.I))
+
+#Merge into datafrome
+samp_data.i$Shannon <- shannon
+
+#remove double lidded column because it's not needed
+drops <- c("Double_Lid")
+samp_data.i <- samp_data.i[ , !(names(samp_data.i) %in% drops)]
+
+#make sure data are numeric
+x <- data.frame(lapply(samp_data.i[17:61],as.numeric))
+samp_data.i[17:61] <- x
+```
+
+3.2 Test for correlation using complete cases only 
+```{r}
+#First check normality assumptions
+# Shapiro-Wilk normality test for mpg
+shapiro.test(samp_data.i$Shannon) # p > 0.05 data NOT significantly different from normal distribution so we need to might be able to use parametric test
+
+df.i <- data.frame(var=character(0), p_val=numeric(0))
+
+for (i in 17:80){
+  
+  #see if the independent variable is normally distributed
+  res <- shapiro.test(as.numeric(samp_data.i[,i]))
+  
+  if (res$p.value >= 0.05){
+    #if it is normally distributed then calculate correlation using the pearson method
+    t <- cor.test(samp_data.i$Shannon, as.numeric(samp_data.i[,i]), method="pearson", use = "complete.obs")
+  } else {
+    #if it is not normally distributed use the kendall method
+    t <- cor.test(samp_data.i$Shannon, as.numeric(samp_data.i[,i]), method="kendall", use = "complete.obs")
+  }
+  
+  j <- i-16
+  
+  df.i[j,]$var <- colnames(samp_data.i[i])
+  df.i[j,]$p_val <- t$p.value
+  
+}
+```
+
+3.3 PLOT SIGNIFICANT CORRELATIONS AND SAVE AS PDFS
+```{r}
+for (i in 1:nrow(df.i)){
+      
+  if (df.i[i,]$p_val < 0.05){
+    
+      #see if the independent variable is normally distributed
+    j <- i+16
+    
+  res <- shapiro.test(as.numeric(samp_data.i[,j])) #check normality
+  
+  if (res$p.value >= 0.05){ #if normally distributed 
+
+    
+    x <- which( colnames(samp_data.i)== df.i[,1][i] )
+    my_data.i <- samp_data.i[complete.cases(samp_data.i[x]), ] #remove data with NAs
+    
+ #list_plots[[k]] <- 
+    pdf(paste0("../data-output/cor-plots/shannon/intermediate/correlation-plot-", df.i[,1][i], ".pdf"))
+   p <- ggscatter(my_data.i, df.i[,1][i], y = "Shannon", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = df.i[,1][i], ylab = "Shannon Diversity")
+   print(p)
+ dev.off()
+ 
+  } else { #if not normally distributed
+    
+        x <- which( colnames(samp_data.i)== df.i[,1][i] )
+    my_data.i <- samp_data.i[complete.cases(samp_data.i[x]), ] #remove data with NAs
+
+    pdf(paste0("../data-output/cor-plots/shannon/intermediate/correlation-plot-", df.i[,1][i], ".pdf"))
+    p <- ggscatter(my_data.i, df.i[,1][i], y = "Shannon",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = df.i[,1][i], ylab = "Shannon Diversity")
+    print(p)
+    dev.off()
+
+  }
+  
+  }
+}
+
+```
+
+4 RARE TAXA
+4.1 Get Shannon Diversity and metadata into dataframe
+```{r}
+#get our ASV count table
+asv_counts.ra <- as.data.frame(t(otu_table(ps.glaciers.merged.RR)))
+
+shannon <- diversity(asv_counts.ra, index="shannon")
+
+#Get metadata of samples
+samp_data.ra <- data.frame(sample_data(ps.glaciers.merged.RR))
+
+#Merge into datafrome
+samp_data.ra$Shannon <- shannon
+
+#remove double lidded column because it's not needed
+drops <- c("Double_Lid")
+samp_data.ra <- samp_data.ra[ , !(names(samp_data.ra) %in% drops)]
+
+#make sure data are numeric
+x <- data.frame(lapply(samp_data.ra[17:61],as.numeric))
+samp_data.ra[17:61] <- x
+```
+
+4.2 Test for correlation using complete cases only 
+```{r}
+#First check normality assumptions
+# Shapiro-Wilk normality test for mpg
+shapiro.test(samp_data.ra$Shannon) # p > 0.05 data NOT significantly different from normal distribution so we need to might be able to use parametric test
+
+df.ra <- data.frame(var=character(0), p_val=numeric(0))
+
+for (i in 17:80){
+  
+  #see if the independent variable is normally distributed
+  res <- shapiro.test(as.numeric(samp_data.ra[,i]))
+  
+  if (res$p.value >= 0.05){
+    #if it is normally distributed then calculate correlation using the pearson method
+    t <- cor.test(samp_data.ra$Shannon, as.numeric(samp_data.ra[,i]), method="pearson", use = "complete.obs")
+  } else {
+    #if it is not normally distributed use the kendall method
+    t <- cor.test(samp_data.ra$Shannon, as.numeric(samp_data.ra[,i]), method="kendall", use = "complete.obs")
+  }
+  
+  j <- i-16
+  
+  df.ra[j,]$var <- colnames(samp_data.ra[i])
+  df.ra[j,]$p_val <- t$p.value
+  
+}
+```
+
+4.3 PLOT SIGNIFICANT CORRELATIONS AND SAVE AS PDFS
+```{r}
+for (i in 1:nrow(df.ra)){
+      
+  if (df.ra[i,]$p_val < 0.05){
+    
+      #see if the independent variable is normally distributed
+    j <- i+16
+    
+  res <- shapiro.test(as.numeric(samp_data.ra[,j])) #check normality
+  
+  if (res$p.value >= 0.05){ #if normally distributed 
+
+    
+    x <- which( colnames(samp_data.ra)== df.ra[,1][i] )
+    my_data.ra <- samp_data.ra[complete.cases(samp_data.ra[x]), ] #remove data with NAs
+    
+ #list_plots[[k]] <- 
+    pdf(paste0("../data-output/cor-plots/shannon/rare/correlation-plot-", df.ra[,1][i], ".pdf"))
+   p <- ggscatter(my_data.ra, df.ra[,1][i], y = "Shannon", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = df.ra[,1][i], ylab = "Shannon Diversity")
+   print(p)
+ dev.off()
+ 
+  } else { #if not normally distributed
+    
+        x <- which( colnames(samp_data.ra)== df.ra[,1][i] )
+    my_data.ra <- samp_data.ra[complete.cases(samp_data.ra[x]), ] #remove data with NAs
+
+    pdf(paste0("../data-output/cor-plots/shannon/rare/correlation-plot-", df.ra[,1][i], ".pdf"))
+    p <- ggscatter(my_data.ra, df.ra[,1][i], y = "Shannon",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = df.ra[,1][i], ylab = "Shannon Diversity")
+    print(p)
+    dev.off()
+
+  }
+  
+  }
+}
+
+```

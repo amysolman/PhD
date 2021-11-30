@@ -1,0 +1,10 @@
+# Ignore all qza files
+*.qza
+*.qza.part
+*.mp4
+*.RData
+*.pptx
+*.pptx.part
+*.pptx.zip
+*.qza.part
+.Rproj.user

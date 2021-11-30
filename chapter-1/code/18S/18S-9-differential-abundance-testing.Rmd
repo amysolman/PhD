@@ -1,0 +1,122 @@
+---
+title: "18S-differential-abundance-testing"
+author: "Amy Solman"
+date: "06/10/2021"
+output: html_document
+---
+This script will carry out differential abundance testing (DAT)
+The goal of DAT is to identify taxa associated with variables of interest
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+library(dplyr) #for manipulating data where you see %>% and computing summary stats
+# library(dendextend) #for hierchical clustering
+library(tidyr) #nest function
+library(purrr) #map function
+library(tidyverse) #rownames_to_column function
+```
+
+Load data 
+```{r}
+#Load data files
+load("../data-output/18S-my-sequence-data.RData") #load all our pre-processed data files
+
+#load phyloseq object
+##################################################BOTH POLES#################################################
+ps <- readRDS("../data-output/18S-my-phyloseq-object.rds") #load unrarefied phyloseq object
+ps.rar <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq objectcol
+
+#Global abundances i.e. globally abundant, globally rare, globally intermediate
+ps.global.RA <- readRDS("../data-output/18S-all-rarefied-abundant.rds") #load rarefied globally abundant phyloseq object
+ps.global.RR <- readRDS("../data-output/18S-all-rarefied-rare.rds") #load rarefied globally rare phyloseq object
+ps.global.I <- readRDS("../data-output/18S-all-rarefied-intermediate.rds") #load rarefied globally abundant phyloseq object
+
+#Both poles merged regional abundances
+ps.both.merged.RA <- readRDS("../data-output/18S-all-merged-rarefied-abundant.rds") #merged poles abundant phyloseq object
+ps.both.merged.RR <- readRDS("../data-output/18S-all-merged-rarefied-rare.rds") #merged poles rare phyloseq object
+ps.both.merged.I <- readRDS("../data-output/18S-all-merged-rarefied-intermediate.rds") #merged poles intermediate phyloseq object
+
+#All glaciers merged abundances
+ps.glaciers.merged.RA <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-abundant.rds") #merged glaciers abundant phyloseq object
+ps.glaciers.merged.RR <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-rare.rds") #merged glaciers rare phyloseq object
+ps.glaciers.merged.I <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds") #merged glaciers intermediate phyloseq object
+
+##################################################ARCTIC#################################################
+ps.arc <- readRDS("../data-output/18S-arctic-rarefied.rds")
+ps.arc.RA <- readRDS("../data-output/18S-arctic-rarefied-abundant.rds") #load rarefied arctic abundant phyloseq object
+ps.arc.RR <- readRDS("../data-output/18S-arctic-rarefied-rare.rds") #load rarefied arctic rare phyloseq object
+ps.arc.I <- readRDS("../data-output/18S-arctic-rarefied-intermediate.rds") #load rarefied arctic intermediate phyloseq object
+
+##################################################ANTARCTIC#################################################
+ps.ant <- readRDS("../data-output/18S-antarctic-rarefied.rds")
+ps.ant.RA <- readRDS("../data-output/18S-antarctic-rarefied-abundant.rds") #load rarefied antarctic abundant phyloseq object
+ps.ant.RR <- readRDS("../data-output/18S-antarctic-rarefied-rare.rds") #load rarefied antarctic rare phyloseq object
+ps.ant.I <- readRDS("../data-output/18S-antarctic-rarefied-intermediate.rds") #load rarefied antarctic intermediate phyloseq object
+```
+
+Following code taken from: https://www.nicholas-ollberding.com/post/introduction-to-the-statistical-analysis-of-microbiome-data-in-r/ 
+```{r}
+#Generate dataframe with avs and metadata
+df <- data.frame(t(data.frame(phyloseq::otu_table(ps.rar))))
+df$Pole <- phyloseq::sample_data(ps.rar)$Pole
+
+#Define functions to pass to map
+wilcox_model <- function(my_df){
+  wilcox.test(abund ~ Pole, data = my_df) #non parametric test to see if the abundance of poles differ
+}
+
+wilcox_pval <- function(my_df){
+  wilcox.test(abund ~ Pole, data = my_df)$p.value #get p value of test
+}
+
+#Create nested data frames by asv and loop over each using map 
+wilcox_results <- df %>%
+  gather(key = OTU, value = abund, -Pole) %>%
+  group_by(OTU) %>%
+  nest() %>%
+  mutate(wilcox_test = map(data, wilcox_model),
+         p_value = map(data, wilcox_pval)) #run the test for each ASV     
+
+#Show nests results
+head(wilcox_results) 
+
+head(wilcox_results$data[[1]]) #for the first ASV show abundance in samples
+
+wilcox_results$wilcox_test[[1]]
+
+wilcox_results$p_value[[1]] #p value of test
+
+#Unnesting
+wilcox_results <- wilcox_results %>%
+  dplyr::select(OTU, p_value) %>%
+  unnest(cols=c(p_value))
+
+head(wilcox_results) #give p values for each ASV
+
+#Adding taxonomic labels
+taxa_info <- data.frame(tax_table(ps.rar)) #get taxonomic info of each ASV
+taxa_info <- taxa_info %>% rownames_to_column(var = "OTU") #make taxa info into columns
+
+#Computing FDR corrected p-values
+wilcox_results <- wilcox_results %>%
+  full_join(taxa_info) %>%
+  arrange(p_value) %>%
+  mutate(BH_FDR = p.adjust(p_value, "BH")) %>%
+  filter(BH_FDR < 0.05) %>%
+  dplyr::select(OTU, p_value, BH_FDR, everything())
+
+#Printing results
+print.data.frame(wilcox_results)   #these are the ASVs that are significantly differentially abundant between poles
+```

@@ -1,0 +1,442 @@
+---
+title: "Basic Multivariate Analysis"
+author: "Amy Solman"
+date: "06/10/2021"
+output: html_document
+---
+
+This script will perform basic multivariate analysis on my data.
+
+The questions we want to answer are:
+Is alpha diversity significantly correlated with distance to sea/elevation/water depth/sediment depth/total depth/sediment volume/water volume/temperature/conductivity/pH/DO/DOC/C/TDN/TIN/TON/N/DON/TCP/DOP/Cl/SO4/Na/K/Mg/Ca/HCO3/PO4/NO2/SiO2/F/NH4/NO3?
+
+Is ASV richness significantly correlated with any of the continuous environmental variables?
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+# library(dplyr) #for manipulating data where you see %>% and computing summary stats
+# install.packages("dendextend")
+# library(dendextend) #for hierchical clustering
+# install.packages("indicspecies")
+# library(indicspecies) #for indicator species analysis
+
+```
+
+Load data 
+```{r}
+#Load data files
+load("../data-output/18S-my-sequence-data.RData") #load all our pre-processed data files
+
+#load phyloseq object
+##################################################BOTH POLES#################################################
+ps <- readRDS("../data-output/18S-my-phyloseq-object.rds") #load unrarefied phyloseq object
+ps.rar <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq objectcol
+
+# #Global abundances i.e. globally abundant, globally rare, globally intermediate
+# ps.global.RA <- readRDS("../data-output/18S-all-rarefied-abundant.rds") #load rarefied globally abundant phyloseq object
+# ps.global.RR <- readRDS("../data-output/18S-all-rarefied-rare.rds") #load rarefied globally rare phyloseq object
+# ps.global.I <- readRDS("../data-output/18S-all-rarefied-intermediate.rds") #load rarefied globally abundant phyloseq object
+# 
+# #Both poles merged regional abundances
+# ps.both.merged.RA <- readRDS("../data-output/18S-all-merged-rarefied-abundant.rds") #merged poles abundant phyloseq object
+# ps.both.merged.RR <- readRDS("../data-output/18S-all-merged-rarefied-rare.rds") #merged poles rare phyloseq object
+# ps.both.merged.I <- readRDS("../data-output/18S-all-merged-rarefied-intermediate.rds") #merged poles intermediate phyloseq object
+
+#All glaciers merged abundances
+ps.glaciers.merged.RA <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-abundant.rds") #merged glaciers abundant phyloseq object
+ps.glaciers.merged.RR <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-rare.rds") #merged glaciers rare phyloseq object
+ps.glaciers.merged.I <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds") #merged glaciers intermediate phyloseq object
+
+# ##################################################ARCTIC#################################################
+# ps.arc <- readRDS("../data-output/18S-arctic-rarefied.rds")
+# ps.arc.RA <- readRDS("../data-output/18S-arctic-rarefied-abundant.rds") #load rarefied arctic abundant phyloseq object
+# ps.arc.RR <- readRDS("../data-output/18S-arctic-rarefied-rare.rds") #load rarefied arctic rare phyloseq object
+# ps.arc.I <- readRDS("../data-output/18S-arctic-rarefied-intermediate.rds") #load rarefied arctic intermediate phyloseq object
+# 
+# ##################################################ANTARCTIC#################################################
+# ps.ant <- readRDS("../data-output/18S-antarctic-rarefied.rds")
+# ps.ant.RA <- readRDS("../data-output/18S-antarctic-rarefied-abundant.rds") #load rarefied antarctic abundant phyloseq object
+# ps.ant.RR <- readRDS("../data-output/18S-antarctic-rarefied-rare.rds") #load rarefied antarctic rare phyloseq object
+# ps.ant.I <- readRDS("../data-output/18S-antarctic-rarefied-intermediate.rds") #load rarefied antarctic intermediate phyloseq object
+```
+1TOTAL TAXA
+1.1 Get ASV Richness and metadata into dataframe
+```{r}
+#Get ASV richness of samples
+#get our ASV count table
+asv_counts <- as.data.frame(otu_table(ps.rar))
+#convert to presence/absence table
+asv_counts_pa <- asv_counts
+asv_counts_pa[asv_counts_pa != 0] = 1
+#find the asv richness of each sample
+asv_rich <- colSums(asv_counts_pa)
+
+#Get metadata of samples
+samp_data <- data.frame(sample_data(ps.rar))
+
+#Merge into datafrome
+samp_data$Richness <- asv_rich
+
+#remove double lidded column because it's not needed
+drops <- c("Double_Lid")
+samp_data <- samp_data[ , !(names(samp_data) %in% drops)]
+
+#make sure data are numeric
+x <- data.frame(lapply(samp_data[17:61],as.numeric))
+samp_data[17:61] <- x
+```
+
+1.2 Test for correlation using complete cases only 
+```{r}
+#First check normality assumptions
+# Shapiro-Wilk normality test for mpg
+shapiro.test(samp_data$Richness) # p < 0.05 data significantly different from normal distribution so we need to use non-parametric tests (I will use Kendall here)
+
+df <- data.frame(var=character(0), p_val=numeric(0))
+for (i in 17:80){
+  
+  t <- cor.test(samp_data$Richness, as.numeric(samp_data[,i]), method="kendall", use = "complete.obs")
+  
+  var <- colnames(samp_data[i])
+  p_val <- t$p.value
+  
+  j <- i-16
+  
+  df[j,]$var = var
+  df[j,]$p_val = p_val
+  
+}
+
+#Significant factors: pH, HCO3, TDN, NO3.N, Ice Lid, NH4 so we'll plot these
+
+#visualise significant relationships
+samp_data_pH <- samp_data[complete.cases(samp_data$pH), ]
+ggscatter(samp_data_pH, x = "pH", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "pH", ylab = "ASV Richness")
+
+samp_data_HC <- samp_data[complete.cases(samp_data$HCO3_mueq), ]
+ggscatter(samp_data_HC, x = "HCO3_mueq", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "HCO3_mueq", ylab = "ASV Richness")
+
+samp_data_TDN <- samp_data[complete.cases(samp_data$TDN), ]
+ggscatter(samp_data_TDN, x = "TDN", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "TDN", ylab = "ASV Richness")
+
+samp_data_NO <- samp_data[complete.cases(samp_data$NO3.N_mueq), ]
+ggscatter(samp_data_NO, x = "NO3.N_mueq", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "NO3.N_mueq", ylab = "ASV Richness")
+
+samp_data_mas <- samp_data[complete.cases(samp_data$Mass), ]
+ggscatter(samp_data_mas, x = "Mass", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "Mass", ylab = "ASV Richness")
+
+samp_data_ice <- samp_data[complete.cases(samp_data$Ice_Lid), ]
+ggscatter(samp_data_ice, x = "Ice_Lid", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "Ice Lid Thickness (mm)", ylab = "ASV Richness")
+
+samp_data_nh4 <- samp_data[complete.cases(samp_data$NH4), ]
+ggscatter(samp_data_nh4, x = "NH4", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "NH4", ylab = "ASV Richness")
+```
+
+2 ABUNDANT TAXA
+2.1 Get ASV Richness and metadata into dataframe
+```{r}
+#Get ASV richness of samples
+#get our ASV count table
+asv_counts.ab <- as.data.frame(otu_table(ps.glaciers.merged.RA))
+#convert to presence/absence table
+asv_counts_pa.ab <- asv_counts.ab
+asv_counts_pa.ab[asv_counts_pa.ab != 0] = 1
+#find the asv richness of each sample
+asv_rich.ab <- colSums(asv_counts_pa.ab)
+
+#Get metadata of samples
+samp_data.ab <- data.frame(sample_data(ps.glaciers.merged.RA))
+
+#Merge into datafrome
+samp_data.ab$Richness <- asv_rich.ab
+
+#remove double lidded column because it's not needed
+drops <- c("Double_Lid")
+samp_data.ab <- samp_data.ab[ , !(names(samp_data.ab) %in% drops)]
+
+#make sure data are numeric
+x <- data.frame(lapply(samp_data.ab[17:61],as.numeric))
+samp_data.ab[17:61] <- x
+```
+
+2.2 Test for correlation using complete cases only 
+```{r}
+#First check normality assumptions
+# Shapiro-Wilk normality test for mpg
+shapiro.test(samp_data.ab$Richness) # p < 0.05 data significantly different from normal distribution so we need to use non-parametric tests (I will use Kendall here)
+
+
+df.ab <- data.frame(var=character(0), p_val=numeric(0))
+for (i in 17:80){
+  
+  t <- cor.test(samp_data.ab$Richness, as.numeric(samp_data.ab[,i]), method="kendall", use = "complete.obs")
+  
+  var <- colnames(samp_data.ab[i])
+  p_val <- t$p.value
+  
+  j <- i-16
+  
+  df.ab[j,]$var = var
+  df.ab[j,]$p_val = p_val
+  
+}
+
+#Significant factors: Mass and Elevation
+
+#visualise significant relationships
+samp_data.ab_ele <- samp_data.ab[complete.cases(samp_data.ab$Elevation), ]
+ggscatter(samp_data.ab_ele, x = "Elevation", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "Elevation", ylab = "ASV Richness")
+
+samp_data.ab_mas <- samp_data.ab[complete.cases(samp_data.ab$Mass), ]
+ggscatter(samp_data.ab_mas, x = "Mass", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "Mass", ylab = "ASV Richness")
+```
+
+3 INTERMEDIATE TAXA
+3.1 Get ASV Richness and metadata into dataframe
+```{r}
+#Get ASV richness of samples
+#get our ASV count table
+asv_counts.i <- as.data.frame(otu_table(ps.glaciers.merged.I))
+#convert to presence/absence table
+asv_counts_pa.i <- asv_counts.i
+asv_counts_pa.i[asv_counts_pa.i != 0] = 1
+#find the asv richness of each sample
+asv_rich.i <- colSums(asv_counts_pa.i)
+
+#Get metadata of samples
+samp_data.i <- data.frame(sample_data(ps.glaciers.merged.I))
+
+#Merge into datafrome
+samp_data.i$Richness <- asv_rich.i
+
+#remove double lidded column because it's not needed
+drops <- c("Double_Lid")
+samp_data.i <- samp_data.i[ , !(names(samp_data.i) %in% drops)]
+
+#make sure data are numeric
+x <- data.frame(lapply(samp_data.i[17:61],as.numeric))
+samp_data.i[17:61] <- x
+```
+
+3.2 Test for correlation using complete cases only 
+```{r}
+#First check normality assumptions
+# Shapiro-Wilk normality test for mpg
+shapiro.test(samp_data.i$Richness) # p < 0.05 data significantly different from normal distribution so we need to use non-parametric tests (I will use Kendall here)
+
+
+df.i <- data.frame(var=character(0), p_val=numeric(0))
+for (i in 17:80){
+  
+  t <- cor.test(samp_data.i$Richness, as.numeric(samp_data.i[,i]), method="kendall", use = "complete.obs")
+  
+  var <- colnames(samp_data.i[i])
+  p_val <- t$p.value
+  
+  j <- i-16
+  
+  df.i[j,]$var = var
+  df.i[j,]$p_val = p_val
+  
+}
+
+#Significant factors: pH, HCO3, TDN, Ice Lid, Total Depth, Mass, NO3.N so we'll plot these
+
+#visualise significant relationships
+#remove missing values 
+samp_data.i_pH <- samp_data.i[complete.cases(samp_data.i$pH), ]
+ggscatter(samp_data.i_pH, x = "pH", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall", use = "complete.obs",
+          xlab = "pH", ylab = "ASV Richness")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+samp_data.i_HC <- samp_data.i[complete.cases(samp_data.i$HCO3_mueq), ]
+ggscatter(samp_data.i_HC, x = "HCO3_mueq", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "HCO3_mueq", ylab = "ASV Richness")
+
+samp_data.i_TDN <- samp_data.i[complete.cases(samp_data.i$TDN), ]
+ggscatter(samp_data.i_TDN, x = "TDN", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "TDN", ylab = "ASV Richness")
+
+samp_data.i_ice <- samp_data.i[complete.cases(samp_data.i$Ice_Lid), ]
+ggscatter(samp_data.i_ice, x = "Ice_Lid", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "Ice Lid Thickness (mm)", ylab = "ASV Richness")
+
+samp_data.i_td <- samp_data.i[complete.cases(samp_data.i$Total_Depth), ]
+ggscatter(samp_data.i_td, x = "Total_Depth", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "Total Depth (cm)", ylab = "ASV Richness")
+
+samp_data.i_mas <- samp_data.i[complete.cases(samp_data.i$Mass), ]
+ggscatter(samp_data.i_mas, x = "Mass", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "Mass", ylab = "ASV Richness")
+
+samp_data.i_NO3 <- samp_data.i[complete.cases(samp_data.i$NO3.N_mueq), ]
+ggscatter(samp_data.i_NO3, x = "NO3.N_mueq", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "NO3.N_mueq", ylab = "ASV Richness")
+```
+
+4 RARE TAXA
+4.1 Get ASV Richness and metadata into dataframe
+```{r}
+#Get ASV richness of samples
+#get our ASV count table
+asv_counts.ra <- as.data.frame(otu_table(ps.glaciers.merged.RR))
+#convert to presence/absence table
+asv_counts_pa.ra <- asv_counts.ra
+asv_counts_pa.ra[asv_counts_pa.ra != 0] = 1
+#find the asv richness of each sample
+asv_rich.ra <- colSums(asv_counts_pa.ra)
+
+#Get metadata of samples
+samp_data.ra <- data.frame(sample_data(ps.glaciers.merged.RR))
+
+#Merge into datafrome
+samp_data.ra$Richness <- asv_rich.ra
+
+#remove double lidded column because it's not needed
+drops <- c("Double_Lid")
+samp_data.ra <- samp_data.ra[ , !(names(samp_data.ra) %in% drops)]
+
+#make sure data are numeric
+x <- data.frame(lapply(samp_data.ra[17:61],as.numeric))
+samp_data.ra[17:61] <- x
+```
+
+4.2 Test for correlation using complete cases only 
+```{r}
+#First check normality assumptions
+# Shapiro-Wilk normality test for mpg
+shapiro.test(samp_data.ra$Richness) # p < 0.05 data significantly different from normal distribution so we need to use non-parametric tests (I will use Kendall here)
+
+
+df.ra <- data.frame(var=character(0), p_val=numeric(0))
+for (i in 17:80){
+  
+  t <- cor.test(samp_data.ra$Richness, as.numeric(samp_data.ra[,i]), method="kendall", use = "complete.obs")
+  
+  var <- colnames(samp_data.ra[i])
+  p_val <- t$p.value
+  
+  j <- i-16
+  
+  df.ra[j,]$var = var
+  df.ra[j,]$p_val = p_val
+  
+}
+
+#Significant factors: pH, HCO3  Distance to Sea, TDN, TDP, DOP, Total Depth, DRP so we'll plot these
+
+#visualise significant relationships
+#remove missing values 
+samp_data.ra_pH <- samp_data.ra[complete.cases(samp_data.ra$pH), ]
+ggscatter(samp_data.ra_pH, x = "pH", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall", use = "complete.obs",
+          xlab = "pH", ylab = "ASV Richness")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# #looks like we have an outlier here
+# #remove ASV values above 500
+samp_data.ra_pH_cut <- samp_data.ra_pH[samp_data.ra_pH$Richness < 200, ]
+
+
+ggscatter(samp_data.ra_pH_cut, x = "pH", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall", use = "complete.obs",
+          xlab = "pH", ylab = "ASV Richness")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+samp_data.ra_HC <- samp_data.ra[complete.cases(samp_data.ra$HCO3_mueq), ]
+ggscatter(samp_data.ra_HC, x = "HCO3_mueq", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "HCO3_mueq", ylab = "ASV Richness")
+
+samp_data.ra_dist <- samp_data.ra[complete.cases(samp_data.ra$Distance_To_Sea), ]
+ggscatter(samp_data.ra_dist, x = "Distance_To_Sea", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "Distance_To_Sea", ylab = "ASV Richness")
+
+samp_data.ra_TDN <- samp_data.ra[complete.cases(samp_data.ra$TDN), ]
+ggscatter(samp_data.ra_TDN, x = "TDN", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "TDN", ylab = "ASV Richness")
+
+samp_data.ra_TDP <- samp_data.ra[complete.cases(samp_data.ra$TDP), ]
+ggscatter(samp_data.ra_TDP, x = "TDP", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "TDP", ylab = "ASV Richness")
+
+samp_data.ra_DOP <- samp_data.ra[complete.cases(samp_data.ra$DOP), ]
+ggscatter(samp_data.ra_DOP, x = "DOP", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "DOP", ylab = "ASV Richness")
+
+samp_data.ra_td <- samp_data.ra[complete.cases(samp_data.ra$Total_Depth), ]
+ggscatter(samp_data.ra_td, x = "Total_Depth", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "Total Depth (cm)", ylab = "ASV Richness")
+
+samp_data.ra_DRP <- samp_data.ra[complete.cases(samp_data.ra$DRP), ]
+ggscatter(samp_data.ra_DRP, x = "DRP", y = "Richness", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "kendall",
+          xlab = "DRP", ylab = "ASV Richness")
+
+```

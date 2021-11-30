@@ -1,0 +1,100 @@
+---
+title: "18S-7-tree-plots"
+author: "Amy Solman"
+date: "06/10/2021"
+output: html_document
+---
+
+This script will explore the taxa groups present in our samples, so that differences in total, abundant, intermediate and rare communities can be compared between glaciers, regions and poles.
+
+This will be done using:
+Annotated phylogenetic tree plots for each glacier, region, pole
+
+THIS IS NOT ACTUALLY APPROPRIATE FOR THIS STAGE IN MY ANALYSIS SO I'M GOING TO MOVE ON
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+# library(dplyr) #for manipulating data where you see %>% and computing summary stats
+
+#install ggtree
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("ggtree")
+```
+
+
+Load data 
+```{r}
+#Load data files
+load("../data-output/18S-my-sequence-data.RData") #load all our pre-processed data files
+
+#load phyloseq object
+##################################################BOTH POLES#################################################
+ps <- readRDS("../data-output/18S-my-phyloseq-object.rds") #load unrarefied phyloseq object
+ps.rar <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq objectcol
+
+#Global abundances i.e. globally abundant, globally rare, globally intermediate
+ps.global.RA <- readRDS("../data-output/18S-all-rarefied-abundant.rds") #load rarefied globally abundant phyloseq object
+ps.global.RR <- readRDS("../data-output/18S-all-rarefied-rare.rds") #load rarefied globally rare phyloseq object
+ps.global.I <- readRDS("../data-output/18S-all-rarefied-intermediate.rds") #load rarefied globally abundant phyloseq object
+
+#Both poles merged regional abundances
+ps.both.merged.RA <- readRDS("../data-output/18S-all-merged-rarefied-abundant.rds") #merged poles abundant phyloseq object
+ps.both.merged.RR <- readRDS("../data-output/18S-all-merged-rarefied-rare.rds") #merged poles rare phyloseq object
+ps.both.merged.I <- readRDS("../data-output/18S-all-merged-rarefied-intermediate.rds") #merged poles intermediate phyloseq object
+
+#All glaciers merged abundances
+ps.glaciers.merged.RA <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-abundant.rds") #merged glaciers abundant phyloseq object
+ps.glaciers.merged.RR <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-rare.rds") #merged glaciers rare phyloseq object
+ps.glaciers.merged.I <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds") #merged glaciers intermediate phyloseq object
+
+##################################################ARCTIC#################################################
+ps.arc <- readRDS("../data-output/18S-arctic-rarefied.rds")
+ps.arc.RA <- readRDS("../data-output/18S-arctic-rarefied-abundant.rds") #load rarefied arctic abundant phyloseq object
+ps.arc.RR <- readRDS("../data-output/18S-arctic-rarefied-rare.rds") #load rarefied arctic rare phyloseq object
+ps.arc.I <- readRDS("../data-output/18S-arctic-rarefied-intermediate.rds") #load rarefied arctic intermediate phyloseq object
+
+##################################################ANTARCTIC#################################################
+ps.ant <- readRDS("../data-output/18S-antarctic-rarefied.rds")
+ps.ant.RA <- readRDS("../data-output/18S-antarctic-rarefied-abundant.rds") #load rarefied antarctic abundant phyloseq object
+ps.ant.RR <- readRDS("../data-output/18S-antarctic-rarefied-rare.rds") #load rarefied antarctic rare phyloseq object
+ps.ant.I <- readRDS("../data-output/18S-antarctic-rarefied-intermediate.rds") #load rarefied antarctic intermediate phyloseq object
+```
+
+Subset data (plotting too many taxa obscures meaning)
+```{r}
+plot_tree(ps.rar, color = "Region", shape = "Pole", label.tips = "Phylum", 
+    size = "abundance", plot.margin = 0.5, ladderize = TRUE)
+
+#Archaeplastida
+sub_arch <- subset_taxa(ps.rar, Phylum == "Archaeplastida")
+
+#map
+plot_tree(sub_arch, color = "Region", shape = "Pole", label.tips = "Phylum", 
+    size = "abundance", plot.margin = 0.5, ladderize = TRUE)
+
+#subset by region
+sub_green <- subset_samples(ps.rar, Region == "Greenland")
+
+#subset by region
+sub_swede <- subset_samples(ps.rar, Region == "Sweden")
+
+#subset by glacier
+sub_green <- subset_samples(ps.rar, Region == "Greenland")
+
+#map
+plot_tree(sub_swede, color = "Glacier", label.tips = "Phylum", 
+    size = "abundance", plot.margin = 0.5, ladderize = TRUE)
+```

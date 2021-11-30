@@ -1,0 +1,971 @@
+---
+title: "Variation Partitioning Analysis"
+author: "Amy Solman"
+date: "11/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+VPA
+1) Load species data and transform
+2) Load environmental data
+3) Load Lat and Long coords
+4) Select significant environmental variables using forward selection
+5) Generate dbMEMs
+6) Select significant dbMEMs using forward selection
+7) Carry out variation partitioning of species data with environmental matrix and spatial matrix
+
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(vegan)
+library(stringr)
+library(car)
+library(adespatial)
+library(phyloseq)
+```
+
+1 TOTAL TAXA
+1.1 Load species data and transform
+```{r}
+ps.rar <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq objectcol
+counts <- as.matrix(t(otu_table(ps.rar)))
+
+#rename counts columns with class
+tax_tab <- data.frame(tax_table(ps.rar))
+#replace NAs with Unknown
+tax_tab[is.na(tax_tab)] <- "Unknown"
+colnames(counts) <- tax_tab$Class
+
+#aggregate count data
+x <- t(counts)
+new_df=aggregate(x, by=list(rownames(x)),sum)
+new_counts <- t(new_df)
+colnames(new_counts) <- new_counts[1,]
+new_counts <- new_counts[-1,]
+df <- data.frame(new_counts)
+#make dataframe numeric
+df[] <- lapply(df, as.numeric)
+
+# Hellinger-transform the species dataset
+spp.h <- as.data.frame(decostand(df, "hellinger"))
+```
+
+1.2 Load environmental data
+```{r}
+meta <- data.frame(sample_data(ps.rar))
+#keep only variables we want to include in our mode
+meta_trim <- meta[,17:92]
+meta_trim <- meta_trim[,c(1:3, 5, 10, 12, 15, 18:33, 36, 39, 42, 45, 48, 51, 54:62)]
+#meta_trim <- meta_trim[,1:3]
+#calcualte area
+meta_trim$area <- pi*(meta$NS/2)*(meta$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta_trim <- meta_trim[ , !(names(meta_trim) %in% drops)]
+#remove more unneccessary columns
+meta_trim <- meta_trim[,-c(64:74)]
+#make dataframe numeric
+meta_trim[] <- lapply(meta_trim, as.numeric)
+
+#Replace NAs with median values
+
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+environment=as.data.frame(apply(meta_trim,2,f))
+```
+
+1.3 Load Lat and Long coords
+```{r}
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta)){
+  if (meta$Pole[i] == "Antarctic"){
+    meta$Glacier_Latitude[i] <- c(paste0("-", meta$Glacier_Latitude[i]))
+    meta$Cryoconite_Latitude[i] <- c(paste0("-", meta$Cryoconite_Latitude[i]))
+  }
+}
+
+#get latitude of each sample
+lat <- as.numeric(meta$Cryoconite_Latitude)
+#get longitude of each sample
+long <- as.numeric(meta$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta$Glacier_Latitude <- as.numeric(str_sub(meta$Glacier_Latitude,1,nchar(meta$Glacier_Latitude)-1))
+meta$Glacier_Longitude <- as.numeric(str_sub(meta$Glacier_Longitude,1,nchar(meta$Glacier_Longitude)-1))
+
+lat[4:6] <- meta$Glacier_Latitude[4:6]
+lat[8] <- meta$Glacier_Latitude[8]
+lat[14:18] <- meta$Glacier_Latitude[14:18]
+lat[21] <- meta$Glacier_Latitude[21]
+lat[24:25] <- meta$Glacier_Latitude[24:25]
+lat[34:42] <- meta$Glacier_Latitude[34:42]
+lat[50:53] <- meta$Glacier_Latitude[50:53]
+
+long[4:6] <- meta$Glacier_Longitude[4:6]
+long[8] <- meta$Glacier_Longitude[8]
+long[14:18] <- meta$Glacier_Longitude[14:18]
+long[21] <- meta$Glacier_Longitude[21]
+long[24:25] <- meta$Glacier_Longitude[24:25]
+long[34:42] <- meta$Glacier_Longitude[34:42]
+long[50:53] <- meta$Glacier_Longitude[50:53]
+
+#put into matrix
+long.lat <- as.matrix(cbind(long, lat))
+```
+
+1.4 Select significant environmental variables
+```{r}
+#Redundancy Analysis
+spe.env <- rda(spp.h, environment)
+
+#check for model significance
+anova(spe.env, permutations = how(nperm=999)) #p<0.05 so continue
+
+R2a.all.env <- RsquareAdj(spe.env)$adj.r.squared
+
+#get list of selected variables
+env.sel <- forward.sel(spp.h, environment, adjR2thresh=R2a.all.env, nperm=9999) 
+
+#put them in order
+env.sign <- sort(env.sel$order)
+
+#subset data by selected variables
+env.red <- environment[,c(env.sign)]
+
+#re-run redundancy analysis
+env.rda.selected <- rda(spp.h, env.red)
+
+#Check for variance inflation factors (remove anything with VIF > 10)
+vif.cca(env.rda.selected)
+```
+
+1.5 Generate dbMEMs
+```{r}
+#represent spatial patterns through PCNMs (dbMEM)
+cryo_pcnm <- pcnm(dist(long.lat))
+
+#get scores for dbMEM
+cryo_dbMEM <- as.data.frame(scores(cryo_pcnm))
+```
+
+1.6 Select significant dbMEMs
+```{r}
+#Redundancy Analysis
+spe.geo <- rda(spp.h, cryo_dbMEM)
+
+#check for model significance
+anova(spe.geo, permutations = how(nperm=999)) #p<0.05 so continue
+
+R2a.all.geo <- RsquareAdj(spe.geo)$adj.r.squared
+
+#get list of selected variables
+var.sel <- forward.sel(spp.h, cryo_dbMEM, adjR2thresh=R2a.all.geo, nperm=9999) 
+
+#put them in order
+geo.sign <- sort(var.sel$order)
+
+#subset data by selected variables
+geo.red <- cryo_dbMEM[,c(geo.sign)]
+
+#re-run redundancy analysis
+geo.rda.selected <- rda(spp.h, geo.red)
+
+#Check for variance inflation factors (remove anything with VIF > 10)
+vif.cca(geo.rda.selected)
+```
+1.7 Alternative selection method
+```{r}
+##########ALTERNATIVE WAY TO SELECT VARIABLES###########
+#This method chose the same environmental variables but different spatial factors
+
+#Do distance based redundance analysis
+# environmental matrix as predictor
+cap.env <- capscale(spp.h ~ ., data=environment, distance='bray')
+cap.env
+# spatial matrix as predictor
+cap.pcnm <- capscale(spp.h ~ ., data=cryo_dbMEM, distance='bray')
+cap.pcnm
+
+# select particular variables to proceed with (here we use both forward and backward selection but could use either one separately)
+# set up the null cases with no predictors
+mod0.env <- capscale(spp.h ~ 1, data=environment, distance='bray')
+mod0.pcnm <- capscale(spp.h ~ 1, data=cryo_dbMEM, distance='bray')
+
+# select variables in each predictor table
+step.env <- ordistep(mod0.env, scope=formula(cap.env))
+step.pcnm <- ordistep(mod0.pcnm, scope=formula(cap.pcnm))
+
+#subset data by selected variables
+env.red2 <- environment[,c(2,3,36)]
+geo.red2 <- cryo_dbMEM[,c(1, 4:6)]
+
+#re-run distance-based redundancy analysis
+env.cap.selected2 <- capscale(spp.h ~., data=env.red2, disatnce='bray')
+geo.cap.selected2 <- capscale(spp.h ~., data=geo.red2, disatnce='bray')
+
+#Check for variance inflation factors (remove anything with VIF > 10)
+vif.cca(env.cap.selected2)
+vif.cca(geo.cap.selected2)
+
+```
+1.8 Carry out variation partitioning of species data with environmental matrix and spatial matrix
+```{r}
+# Variation partitioning
+spe.part <- varpart(spp.h, env.red, geo.red)
+spe.part2 <- varpart(spp.h, env.red, geo.red2) #with different spatial factors
+
+spe.part
+spe.part2
+
+plot (spe.part, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+plot (spe.part2, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+
+# Tests of all testable fractions
+#Test of fractions a+b+c - the global model 
+anova(rda(spp.h, env.red, geo.red)) #p < 0.05
+anova(rda(spp.h, env.red, geo.red2)) #p < 0.05
+
+# Test of fractions [a+b]
+#simple effect of environmental variables
+anova(rda(spp.h, env.red), step=1000) #p < 0.05
+
+# Test of fractions [b+c]
+#simple effect of spatial variables
+anova(rda(spp.h, geo.red), step=1000) #p < 0.05
+anova(rda(spp.h, geo.red2), step=1000) #p < 0.05
+
+#bind dataframes so we can do partial redundancy analysis
+tot.pars <- cbind(env.red, geo.red)
+tot.pars2 <- cbind(env.red, geo.red2)
+
+# # Test of fraction [c]
+# #Conditional (partial) effect of spatial factors
+
+anova(rda(spp.h ~ Elevation + Water_Depth + NO3.N_mueq + Condition(PCNM1 + PCNM2 + PCNM4 + PCNM5), data=tot.pars))
+anova(rda(spp.h ~ Elevation + Water_Depth + NO3.N_mueq + Condition(PCNM1 + PCNM4 + PCNM5 + PCNM6), data=tot.pars2))
+
+# Test of fraction [a]
+# #Conditional (partial) effect of environmental factors
+anova(rda(spp.h ~ PCNM1 + PCNM2 + PCNM4 + PCNM5 + Condition(Elevation + Water_Depth + NO3.N_mueq), data=tot.pars))
+anova(rda(spp.h ~ PCNM1 + PCNM4 + PCNM5 + PCNM6 + Condition(Elevation + Water_Depth + NO3.N_mueq), data=tot.pars2))
+```
+
+2 ABUNDANT TAXA
+2.1 Load species data and transform
+```{r}
+ps.glaciers.merged.RA <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-abundant.rds") #merged glaciers abundant phyloseq object
+counts.ab.ab <- as.matrix(t(otu_table(ps.glaciers.merged.RA)))
+
+#rename counts.ab columns with class
+tax_tab.ab <- data.frame(tax_table(ps.glaciers.merged.RA))
+#replace NAs with Unknown
+tax_tab.ab[is.na(tax_tab.ab)] <- "Unknown"
+colnames(counts.ab.ab) <- tax_tab.ab$Class
+
+#aggregate count data
+x <- t(counts.ab.ab)
+new_df.ab=aggregate(x, by=list(rownames(x)),sum)
+new_counts.ab <- t(new_df.ab)
+colnames(new_counts.ab) <- new_counts.ab[1,]
+new_counts.ab <- new_counts.ab[-1,]
+df.ab <- data.frame(new_counts.ab)
+#make dataframe numeric
+df.ab[] <- lapply(df.ab, as.numeric)
+
+# Hellinger-transform the species dataset
+spp.h.ab <- as.data.frame(decostand(df.ab, "hellinger"))
+```
+
+2.2 Load environmental data
+```{r}
+meta.ab <- data.frame(sample_data(ps.rar))
+#keep only variables we want to include in our mode
+meta.ab_trim <- meta.ab[,17:92]
+meta.ab_trim <- meta.ab_trim[,c(1:3, 5, 10, 12, 15, 18:33, 36, 39, 42, 45, 48, 51, 54:62)]
+#meta.ab_trim <- meta.ab_trim[,1:3]
+#calcualte area
+meta.ab_trim$area <- pi*(meta.ab$NS/2)*(meta.ab$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta.ab_trim <- meta.ab_trim[ , !(names(meta.ab_trim) %in% drops)]
+#remove more unneccessary columns
+meta.ab_trim <- meta.ab_trim[,-c(64:74)]
+#make dataframe numeric
+meta.ab_trim[] <- lapply(meta.ab_trim, as.numeric)
+
+#Replace NAs with median values
+
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+environment.ab=as.data.frame(apply(meta.ab_trim,2,f))
+```
+
+2.3 Load lat.ab and long.ab coords
+```{r}
+#put a negative sign in front of all the south lat.abitude coords
+for (i in 1:nrow(meta.ab)){
+  if (meta.ab$Pole[i] == "Antarctic"){
+    meta.ab$Glacier_Latitude[i] <- c(paste0("-", meta.ab$Glacier_Latitude[i]))
+    meta.ab$Cryoconite_Latitude[i] <- c(paste0("-", meta.ab$Cryoconite_Latitude[i]))
+  }
+}
+
+#get lat.abitude of each sample
+lat.ab <- as.numeric(meta.ab$Cryoconite_Latitude)
+#get long.abitude of each sample
+long.ab <- as.numeric(meta.ab$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta.ab$Glacier_Latitude <- as.numeric(str_sub(meta.ab$Glacier_Latitude,1,nchar(meta.ab$Glacier_Latitude)-1))
+meta.ab$Glacier_Longitude <- as.numeric(str_sub(meta.ab$Glacier_Longitude,1,nchar(meta.ab$Glacier_Longitude)-1))
+
+lat.ab[4:6] <- meta.ab$Glacier_Latitude[4:6]
+lat.ab[8] <- meta.ab$Glacier_Latitude[8]
+lat.ab[14:18] <- meta.ab$Glacier_Latitude[14:18]
+lat.ab[21] <- meta.ab$Glacier_Latitude[21]
+lat.ab[24:25] <- meta.ab$Glacier_Latitude[24:25]
+lat.ab[34:42] <- meta.ab$Glacier_Latitude[34:42]
+lat.ab[50:53] <- meta.ab$Glacier_Latitude[50:53]
+
+long.ab[4:6] <- meta.ab$Glacier_Longitude[4:6]
+long.ab[8] <- meta.ab$Glacier_Longitude[8]
+long.ab[14:18] <- meta.ab$Glacier_Longitude[14:18]
+long.ab[21] <- meta.ab$Glacier_Longitude[21]
+long.ab[24:25] <- meta.ab$Glacier_Longitude[24:25]
+long.ab[34:42] <- meta.ab$Glacier_Longitude[34:42]
+long.ab[50:53] <- meta.ab$Glacier_Longitude[50:53]
+
+#put into matrix
+long.ab.lat.ab <- as.matrix(cbind(long.ab, lat.ab))
+```
+
+2.4 Select significant environmental variables
+```{r}
+#Redundancy Analysis
+spe.env.ab <- rda(spp.h.ab, environment.ab)
+
+#check for model significance
+anova(spe.env.ab, permutations = how(nperm=999)) #p<0.05 so continue
+
+R2a.all.env.ab <- RsquareAdj(spe.env.ab)$adj.r.squared
+
+#get list of selected variables
+env.sel.ab <- forward.sel(spp.h.ab, environment.ab, adjR2thresh=R2a.all.env.ab, nperm=9999) 
+
+#put them in order
+env.sign.ab <- sort(env.sel.ab$order)
+
+#subset data by selected variables
+env.red.ab <- environment.ab[,c(env.sign.ab)]
+
+#re-run redundancy analysis
+env.rda.selected.ab <- rda(spp.h.ab, env.red.ab)
+
+#Check for variance inflation factors (remove anything with VIF > 10)
+vif.cca(env.rda.selected.ab)
+```
+
+2.5 Generate dbMEMs
+```{r}
+#represent spatial patterns through PCNMs (dbMEM)
+cryo_pcnm <- pcnm(dist(long.ab.lat.ab))
+
+#get scores for dbMEM
+cryo_dbMEM <- as.data.frame(scores(cryo_pcnm))
+```
+
+2.6 Select significant dbMEMs
+```{r}
+#Redundancy Analysis
+spe.geo <- rda(spp.h.ab, cryo_dbMEM)
+
+#check for model significance
+anova(spe.geo, permutations = how(nperm=999)) #p<0.05 so continue
+
+R2a.all.geo <- RsquareAdj(spe.geo)$adj.r.squared
+
+#get list of selected variables
+var.sel <- forward.sel(spp.h.ab, cryo_dbMEM, adjR2thresh=R2a.all.geo, nperm=9999) 
+
+#put them in order
+geo.sign <- sort(var.sel$order)
+
+#subset data by selected variables
+geo.red.ab <- cryo_dbMEM[,c(geo.sign)]
+
+#re-run redundancy analysis
+geo.rda.selected <- rda(spp.h.ab, geo.red.ab)
+
+#Check for variance inflat.abion factors (remove anything with VIF > 10)
+vif.cca(geo.rda.selected)
+```
+
+2.7 Alternative selection method
+```{r}
+##########ALTERNATIVE WAY TO SELECT VARIABLES###########
+#This method chose the same environment.abal variables but different spatial factors
+
+#Do distance based redundance analysis
+# environment.abal matrix as predictor
+cap.env.ab <- capscale(spp.h.ab ~ ., data=environment.ab, distance='bray')
+cap.env.ab
+# spatial matrix as predictor
+cap.pcnm.ab <- capscale(spp.h.ab ~ ., data=cryo_dbMEM, distance='bray')
+cap.pcnm.ab
+
+# select particular variables to proceed with (here we use both forward and backward selection but could use either one separately)
+# set up the null cases with no predictors
+mod0.env.ab <- capscale(spp.h.ab ~ 1, data=environment.ab, distance='bray')
+mod0.pcnm.ab <- capscale(spp.h.ab ~ 1, data=cryo_dbMEM, distance='bray')
+
+# select variables in each predictor table
+step.env.ab <- ordistep(mod0.env.ab, scope=formula(cap.env.ab))
+step.pcnm.ab <- ordistep(mod0.pcnm.ab, scope=formula(cap.pcnm.ab))
+
+#subset data by selected variables
+env.red.ab2 <- environment.ab[,c(2,3,32,36)]
+geo.red.ab2 <- cryo_dbMEM[,c(1, 4, 6)]
+
+#re-run distance-based redundancy analysis
+env.cap.selected2 <- capscale(spp.h.ab ~., data=env.red.ab2, disatnce='bray')
+geo.cap.selected2 <- capscale(spp.h.ab ~., data=geo.red.ab2, disatnce='bray')
+
+#Check for variance inflat.abion factors (remove anything with VIF > 10)
+vif.cca(env.cap.selected2)
+vif.cca(geo.cap.selected2)
+
+```
+
+2.8 Carry out variation partitioning of species data with environment.abal matrix and spatial matrix
+```{r}
+# Variation partitioning
+spe.part.ab <- varpart(spp.h.ab, env.red.ab, geo.red.ab)
+spe.part.ab2 <- varpart(spp.h.ab, env.red.ab2, geo.red.ab2) #with different spatial factors
+
+spe.part.ab
+spe.part.ab2
+
+plot (spe.part.ab, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+plot (spe.part.ab2, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+
+# Tests of all testable fractions
+#Test of fractions a+b+c - the global model 
+anova(rda(spp.h.ab, env.red.ab, geo.red.ab)) #p < 0.05
+anova(rda(spp.h.ab, env.red.ab2, geo.red.ab2)) #p < 0.05
+
+# Test of fractions [a+b]
+#simple effect of environment.abal variables
+anova(rda(spp.h.ab, env.red.ab), step=1000) #p < 0.05
+anova(rda(spp.h.ab, env.red.ab2), step=1000) #p < 0.05
+
+# Test of fractions [b+c]
+#simple effect of spatial variables
+anova(rda(spp.h.ab, geo.red.ab), step=1000) #p < 0.05
+anova(rda(spp.h.ab, geo.red.ab2), step=1000) #p < 0.05
+
+#bind dataframes so we can do partial redundancy analysis
+tot.part.ab <- cbind(env.red.ab, geo.red.ab)
+tot.part.ab2 <- cbind(env.red.ab2, geo.red.ab2)
+
+# # Test of fraction [c]
+# #Conditional (partial) effect of spatial factors
+
+anova(rda(spp.h.ab ~ Elevation + Water_Depth + NO3.N_mueq + Condition(PCNM1 + PCNM2 + PCNM4 + PCNM5 + PCNM6), data=tot.part.ab))
+
+anova(rda(spp.h.ab ~ Elevation + Water_Depth + NO3.N_mueq + SiO2 + Condition(PCNM1 + PCNM4 + PCNM6), data=tot.part.ab2))
+
+# Test of fraction [a]
+# #Conditional (partial) effect of environment.abal factors
+anova(rda(spp.h.ab ~ PCNM1 + PCNM2 + PCNM4 + PCNM5 + PCNM6 + Condition(Elevation + Water_Depth + NO3.N_mueq), data=tot.part.ab))
+anova(rda(spp.h.ab ~ PCNM1 + PCNM4 +PCNM6 + Condition(Elevation + Water_Depth + SiO2 + NO3.N_mueq), data=tot.part.ab2))
+```
+
+3 INTERMEDIATE TAXA
+3.1 Load species data and transform
+```{r}
+ps.glaciers.merged.I <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds") #merged glaciers abundant phyloseq object
+counts.i <- as.matrix(t(otu_table(ps.glaciers.merged.I)))
+
+#rename counts.i columns with class
+tax_tab.i <- data.frame(tax_table(ps.glaciers.merged.I))
+#replace NAs with Unknown
+tax_tab.i[is.na(tax_tab.i)] <- "Unknown"
+colnames(counts.i) <- tax_tab.i$Class
+
+#aggregate count data
+x <- t(counts.i)
+new_df.i=aggregate(x, by=list(rownames(x)),sum)
+new_counts.i <- t(new_df.i)
+colnames(new_counts.i) <- new_counts.i[1,]
+new_counts.i <- new_counts.i[-1,]
+df.i <- data.frame(new_counts.i)
+#make dataframe numeric
+df.i[] <- lapply(df.i, as.numeric)
+
+# Hellinger-transform the species dataset
+spp.h.i <- as.data.frame(decostand(df.i, "hellinger"))
+```
+
+3.2 Load environmental data
+```{r}
+meta.i <- data.frame(sample_data(ps.rar))
+#keep only variables we want to include in our mode
+meta.i_trim <- meta.i[,17:92]
+meta.i_trim <- meta.i_trim[,c(1:3, 5, 10, 12, 15, 18:33, 36, 39, 42, 45, 48, 51, 54:62)]
+#meta.i_trim <- meta.i_trim[,1:3]
+#calcualte area
+meta.i_trim$area <- pi*(meta.i$NS/2)*(meta.i$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta.i_trim <- meta.i_trim[ , !(names(meta.i_trim) %in% drops)]
+#remove more unneccessary columns
+meta.i_trim <- meta.i_trim[,-c(64:74)]
+#make dataframe numeric
+meta.i_trim[] <- lapply(meta.i_trim, as.numeric)
+
+#Replace NAs with median values
+
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+environment.i=as.data.frame(apply(meta.i_trim,2,f))
+```
+
+3.3 Load lat.i and long.i coords
+```{r}
+#put a negative sign in front of all the south lat.iitude coords
+for (i in 1:nrow(meta.i)){
+  if (meta.i$Pole[i] == "Antarctic"){
+    meta.i$Glacier_Latitude[i] <- c(paste0("-", meta.i$Glacier_Latitude[i]))
+    meta.i$Cryoconite_Latitude[i] <- c(paste0("-", meta.i$Cryoconite_Latitude[i]))
+  }
+}
+
+#get lat.iitude of each sample
+lat.i <- as.numeric(meta.i$Cryoconite_Latitude)
+#get long.iitude of each sample
+long.i <- as.numeric(meta.i$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta.i$Glacier_Latitude <- as.numeric(str_sub(meta.i$Glacier_Latitude,1,nchar(meta.i$Glacier_Latitude)-1))
+meta.i$Glacier_Longitude <- as.numeric(str_sub(meta.i$Glacier_Longitude,1,nchar(meta.i$Glacier_Longitude)-1))
+
+lat.i[4:6] <- meta.i$Glacier_Latitude[4:6]
+lat.i[8] <- meta.i$Glacier_Latitude[8]
+lat.i[14:18] <- meta.i$Glacier_Latitude[14:18]
+lat.i[21] <- meta.i$Glacier_Latitude[21]
+lat.i[24:25] <- meta.i$Glacier_Latitude[24:25]
+lat.i[34:42] <- meta.i$Glacier_Latitude[34:42]
+lat.i[50:53] <- meta.i$Glacier_Latitude[50:53]
+
+long.i[4:6] <- meta.i$Glacier_Longitude[4:6]
+long.i[8] <- meta.i$Glacier_Longitude[8]
+long.i[14:18] <- meta.i$Glacier_Longitude[14:18]
+long.i[21] <- meta.i$Glacier_Longitude[21]
+long.i[24:25] <- meta.i$Glacier_Longitude[24:25]
+long.i[34:42] <- meta.i$Glacier_Longitude[34:42]
+long.i[50:53] <- meta.i$Glacier_Longitude[50:53]
+
+#put into matrix
+long.i.lat.i <- as.matrix(cbind(long.i, lat.i))
+```
+
+3.4 Select significant environmental variables
+```{r}
+#Redundancy Analysis
+spe.env.i <- rda(spp.h.i, environment.i)
+
+#check for model significance
+anova(spe.env.i, permutations = how(nperm=999)) #p<0.05 so continue
+
+R2a.all.env.i <- RsquareAdj(spe.env.i)$adj.r.squared
+
+#get list of selected variables
+env.sel.i <- forward.sel(spp.h.i, environment.i, adjR2thresh=R2a.all.env.i, nperm=9999) 
+
+#put them in order
+env.sign.i <- sort(env.sel.i$order)
+
+#subset data by selected variables
+env.red.i <- environment.i[,c(env.sign.i)]
+
+#re-run redundancy analysis
+env.rda.selected.i <- rda(spp.h.i, env.red.i)
+
+#Check for variance inflation factors (remove anything with VIF > 10)
+vif.cca(env.rda.selected.i)
+```
+
+3.5 Generate dbMEMs
+```{r}
+#represent spatial patterns through PCNMs (dbMEM)
+cryo_pcnm <- pcnm(dist(long.i.lat.i))
+
+#get scores for dbMEM
+cryo_dbMEM <- as.data.frame(scores(cryo_pcnm))
+```
+
+3.6 Select significant dbMEMs
+```{r}
+#Redundancy Analysis
+spe.geo <- rda(spp.h.i, cryo_dbMEM)
+
+#check for model significance
+anova(spe.geo, permutations = how(nperm=999)) #p<0.05 so continue
+
+R2a.all.geo <- RsquareAdj(spe.geo)$adj.r.squared
+
+#get list of selected variables
+var.sel <- forward.sel(spp.h.i, cryo_dbMEM, adjR2thresh=R2a.all.geo, nperm=9999) 
+
+#put them in order
+geo.sign <- sort(var.sel$order)
+
+#subset data by selected variables
+geo.red.i <- data.frame(cryo_dbMEM[,c(geo.sign)])
+names(geo.red.i) <- names(cryo_dbMEM[geo.sign])
+
+#re-run redundancy analysis
+geo.rda.selected <- rda(spp.h.i, geo.red.i)
+
+#Check for variance inflat.iion factors (remove anything with VIF > 10)
+vif.cca(geo.rda.selected)
+```
+
+3.7 Alternative selection method
+```{r}
+##########ALTERNATIVE WAY TO SELECT VARIABLES###########
+#This method chose the same environment.ial variables but different spatial factors
+
+#Do distance based redundance analysis
+# environment.ial matrix as predictor
+cap.env.i <- capscale(spp.h.i ~ ., data=environment.i, distance='bray')
+cap.env.i
+# spatial matrix as predictor
+cap.pcnm.i <- capscale(spp.h.i ~ ., data=cryo_dbMEM, distance='bray')
+cap.pcnm.i
+
+# select particular variables to proceed with (here we use both forward and backward selection but could use either one separately)
+# set up the null cases with no predictors
+mod0.env.i <- capscale(spp.h.i ~ 1, data=environment.i, distance='bray')
+mod0.pcnm.i <- capscale(spp.h.i ~ 1, data=cryo_dbMEM, distance='bray')
+
+# select variables in each predictor table
+step.env.i <- ordistep(mod0.env.i, scope=formula(cap.env.i))
+step.pcnm.i <- ordistep(mod0.pcnm.i, scope=formula(cap.pcnm.i))
+
+#subset data by selected variables
+env.red.i2 <- data.frame(environment.i[,c(2)])
+names(env.red.i2) <- names(environment.i[2])
+geo.red.i2 <- data.frame(cryo_dbMEM[,c(1)])
+names(geo.red.i2) <- names(cryo_dbMEM[1])
+
+#re-run distance-based redundancy analysis
+env.cap.selected2 <- capscale(spp.h.i ~ ., data=data.frame(env.red.i2), distance='bray')
+geo.cap.selected2 <- capscale(spp.h.i ~., data=data.frame(geo.red.i2), disatnce='bray')
+
+#Check for variance inflat.iion factors (remove anything with VIF > 10)
+vif.cca(env.cap.selected2)
+vif.cca(geo.cap.selected2)
+
+```
+
+3.8 Carry out variation partitioning of species data with environment.ial matrix and spatial matrix
+```{r}
+# Variation partitioning
+spe.part.i <- varpart(spp.h.i, env.red.i, geo.red.i)
+spe.part.i2 <- varpart(spp.h.i, env.red.i2, geo.red.i2) #with different spatial factors
+
+spe.part.i
+spe.part.i2
+
+plot (spe.part.i, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+plot (spe.part.i2, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+
+# Tests of all testable fractions
+#Test of fractions a+b+c - the global model 
+anova(rda(spp.h.i, env.red.i, geo.red.i)) #p < 0.05
+anova(rda(spp.h.i, env.red.i2, geo.red.i2)) #p < 0.05
+
+# Test of fractions [a+b]
+#simple effect of environment.ial variables
+anova(rda(spp.h.i, env.red.i), step=1000) #p < 0.05
+anova(rda(spp.h.i, env.red.i2), step=1000) #p < 0.05
+
+# Test of fractions [b+c]
+#simple effect of spatial variables
+anova(rda(spp.h.i, geo.red.i), step=1000) #p < 0.05
+anova(rda(spp.h.i, geo.red.i2), step=1000) #p < 0.05
+
+#bind dataframes so we can do partial redundancy analysis
+tot.part.i <- cbind(env.red.i, geo.red.i)
+tot.part.i2 <- cbind(env.red.i2, geo.red.i2)
+
+# # Test of fraction [c]
+# #Conditional (partial) effect of spatial factors
+anova(rda(spp.h.i ~ Elevation + TDP + Condition(PCNM1), data=tot.part.i))
+anova(rda(spp.h.i ~ Elevation + Condition(PCNM1), data=tot.part.i2))
+
+# Test of fraction [a]
+# #Conditional (partial) effect of environment.ial factors
+anova(rda(spp.h.i ~ PCNM1+ Condition(Elevation + TDP), data=tot.part.i))
+anova(rda(spp.h.i ~ PCNM1 + Condition(Elevation), data=tot.part.i2))
+```
+
+4 RARE TAXA
+4.1 Load species data and transform
+```{r}
+ps.glaciers.merged.RR <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-rare.rds") #merged glaciers abundant phyloseq object
+counts.ra <- as.matrix(t(otu_table(ps.glaciers.merged.RR)))
+
+#rename counts.ra columns with class
+tax_tab.ra <- data.frame(tax_table(ps.glaciers.merged.RR))
+#replace NAs with Unknown
+tax_tab.ra[is.na(tax_tab.ra)] <- "Unknown"
+colnames(counts.ra) <- tax_tab.ra$Class
+
+#aggregate count data
+x <- t(counts.ra)
+new_df.ra=aggregate(x, by=list(rownames(x)),sum)
+new_counts.ra <- t(new_df.ra)
+colnames(new_counts.ra) <- new_counts.ra[1,]
+new_counts.ra <- new_counts.ra[-1,]
+df.ra <- data.frame(new_counts.ra)
+#make dataframe numeric
+df.ra[] <- lapply(df.ra, as.numeric)
+
+# Hellinger-transform the species dataset
+spp.h.ra <- as.data.frame(decostand(df.ra, "hellinger"))
+```
+
+
+4.2 Load environmental data
+```{r}
+meta.ra <- data.frame(sample_data(ps.rar))
+#keep rows of dataframe with same sampleID as count table
+meta.ra <- meta.ra[rownames(meta.ra) %in% rownames(spp.h.ra),]
+#keep only variables we want to include in our mode
+meta.ra_trim <- meta.ra[,17:92]
+meta.ra_trim <- meta.ra_trim[,c(1:3, 5, 10, 12, 15, 18:33, 36, 39, 42, 45, 48, 51, 54:62)]
+#meta.ra_trim <- meta.ra_trim[,1:3]
+#calcualte area
+meta.ra_trim$area <- pi*(meta.ra$NS/2)*(meta.ra$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta.ra_trim <- meta.ra_trim[ , !(names(meta.ra_trim) %in% drops)]
+#remove more unneccessary columns
+meta.ra_trim <- meta.ra_trim[,-c(64:74)]
+#make dataframe numeric
+meta.ra_trim[] <- lapply(meta.ra_trim, as.numeric)
+
+#Replace NAs with median values
+
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+environment.ra=as.data.frame(apply(meta.ra_trim,2,f))
+```
+
+4.3 Load lat.ra and long.ra coords
+```{r}
+#put a negative sign in front of all the south lat.raitude coords
+for (i in 1:nrow(meta.ra)){
+  if (meta.ra$Pole[i] == "Antarctic"){
+    meta.ra$Glacier_Latitude[i] <- c(paste0("-", meta.ra$Glacier_Latitude[i]))
+    meta.ra$Cryoconite_Latitude[i] <- c(paste0("-", meta.ra$Cryoconite_Latitude[i]))
+  }
+}
+
+#get lat.raitude of each sample
+lat.ra <- as.numeric(meta.ra$Cryoconite_Latitude)
+#get long.raitude of each sample
+long.ra <- as.numeric(meta.ra$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta.ra$Glacier_Latitude <- as.numeric(str_sub(meta.ra$Glacier_Latitude,1,nchar(meta.ra$Glacier_Latitude)-1))
+meta.ra$Glacier_Longitude <- as.numeric(str_sub(meta.ra$Glacier_Longitude,1,nchar(meta.ra$Glacier_Longitude)-1))
+
+lat.ra[4:6] <- meta.ra$Glacier_Latitude[4:6]
+lat.ra[8] <- meta.ra$Glacier_Latitude[8]
+lat.ra[14:18] <- meta.ra$Glacier_Latitude[14:18]
+lat.ra[21] <- meta.ra$Glacier_Latitude[21]
+lat.ra[23:24] <- meta.ra$Glacier_Latitude[23:24]
+lat.ra[33:41] <- meta.ra$Glacier_Latitude[33:41]
+lat.ra[49:52] <- meta.ra$Glacier_Latitude[49:52]
+
+long.ra[4:6] <- meta.ra$Glacier_Longitude[4:6]
+long.ra[8] <- meta.ra$Glacier_Longitude[8]
+long.ra[14:18] <- meta.ra$Glacier_Longitude[14:18]
+long.ra[21] <- meta.ra$Glacier_Longitude[21]
+long.ra[23:24] <- meta.ra$Glacier_Longitude[23:24]
+long.ra[33:41] <- meta.ra$Glacier_Longitude[33:41]
+long.ra[49:52] <- meta.ra$Glacier_Longitude[49:52]
+
+#put into matrix
+long.ra.lat.ra <- as.matrix(cbind(long.ra, lat.ra))
+```
+
+4.4 Select significant environmental variables
+```{r}
+#Redundancy Analysis
+spe.env.ra <- rda(spp.h.ra, environment.ra)
+
+#check for model significance
+anova(spe.env.ra, permutations = how(nperm=999)) #p<0.05 so continue
+
+R2a.all.env.ra <- RsquareAdj(spe.env.ra)$adj.r.squared
+
+#get list of selected variables
+env.sel.ra <- forward.sel(spp.h.ra, environment.ra, adjR2thresh=R2a.all.env.ra, nperm=9999) 
+
+#put them in order
+env.sign.ra <- sort(env.sel.ra$order)
+
+#subset data by selected variables
+env.red.ra <- environment.ra[,c(env.sign.ra)]
+
+#re-run redundancy analysis
+env.rda.selected.ra <- rda(spp.h.ra, env.red.ra)
+
+#Check for variance inflation factors (remove anything with VIF > 10)
+vif.cca(env.rda.selected.ra) #two have VIF > 10 so I'm going to remove them
+
+env.red.ra <- env.red.ra[,c(1,4)]
+```
+
+4.5 Generate dbMEMs
+```{r}
+#represent spatial patterns through PCNMs (dbMEM)
+cryo_pcnm <- pcnm(dist(long.ra.lat.ra))
+
+#get scores for dbMEM
+cryo_dbMEM <- as.data.frame(scores(cryo_pcnm))
+```
+
+4.6 Select significant dbMEMs
+```{r}
+#Redundancy Analysis
+spe.geo <- rda(spp.h.ra, cryo_dbMEM)
+
+#check for model significance
+anova(spe.geo, permutations = how(nperm=999)) #p<0.05 so continue
+
+R2a.all.geo <- RsquareAdj(spe.geo)$adj.r.squared
+
+#get list of selected variables
+var.sel <- forward.sel(spp.h.ra, cryo_dbMEM, adjR2thresh=R2a.all.geo, nperm=9999) 
+
+#put them in order
+geo.sign <- sort(var.sel$order)
+
+#subset data by selected variables
+geo.red.ra <- data.frame(cryo_dbMEM[,c(geo.sign)])
+names(geo.red.ra) <- names(cryo_dbMEM[geo.sign])
+
+#re-run redundancy analysis
+geo.rda.selected <- rda(spp.h.ra, geo.red.ra)
+
+#Check for variance inflat.raion factors (remove anything with VIF > 10)
+vif.cca(geo.rda.selected)
+```
+
+4.7 Alternative selection method
+```{r}
+##########ALTERNATIVE WAY TO SELECT VARIABLES###########
+#This method chose the same environment.raal variables but different spatial factors
+
+#Do distance based redundance analysis
+# environment.raal matrix as predictor
+cap.env.ra <- capscale(spp.h.ra ~ ., data=environment.ra, distance='bray')
+cap.env.ra
+# spatial matrix as predictor
+cap.pcnm.ra <- capscale(spp.h.ra ~ ., data=cryo_dbMEM, distance='bray')
+cap.pcnm.ra
+
+# select particular variables to proceed with (here we use both forward and backward selection but could use either one separately)
+# set up the null cases with no predictors
+mod0.env.ra <- capscale(spp.h.ra ~ 1, data=environment.ra, distance='bray')
+mod0.pcnm.ra <- capscale(spp.h.ra ~ 1, data=cryo_dbMEM, distance='bray')
+
+# select variables in each predictor table
+step.env.ra <- ordistep(mod0.env.ra, scope=formula(cap.env.ra))
+step.pcnm.ra <- ordistep(mod0.pcnm.ra, scope=formula(cap.pcnm.ra))
+
+#subset data by selected variables
+env.red.ra2 <- data.frame(environment.ra[,c(2)])
+env.red.ra2 <- data.frame(environment.ra[,c("TDP","DOP", "Elevation", "NO3.N_mueq")])
+names(env.red.ra2) <- c("TDP","DOP", "Elevation", "NO3.N_mueq")
+geo.red.ra2 <- data.frame(cryo_dbMEM[,c(1, 3, 4, 5)])
+names(geo.red.ra2) <- names(cryo_dbMEM[c(1, 3, 4, 5)])
+
+#re-run distance-based redundancy analysis
+env.cap.selected2 <- capscale(spp.h.ra ~ ., data=data.frame(env.red.ra2), distance='bray')
+geo.cap.selected2 <- capscale(spp.h.ra ~., data=data.frame(geo.red.ra2), disatnce='bray')
+
+#Check for variance inflat.raion factors (remove anything with VIF > 10)
+vif.cca(env.cap.selected2) #TDP and DOP need to be removed
+vif.cca(geo.cap.selected2)
+
+env.red.ra2 <- env.red.ra2[,c(3:4)]
+```
+
+4.8 Carry out variation partitioning of species data with environment.raal matrix and spatial matrix
+```{r}
+# Variation partitioning
+spe.part.ra <- varpart(spp.h.ra, env.red.ra, geo.red.ra)
+spe.part.ra2 <- varpart(spp.h.ra, env.red.ra2, geo.red.ra2) #with different spatial factors
+
+spe.part.ra
+spe.part.ra2
+
+plot (spe.part.ra, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+plot (spe.part.ra2, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+
+# Tests of all testable fractions
+#Test of fractions a+b+c - the global model 
+anova(rda(spp.h.ra, env.red.ra, geo.red.ra)) #p < 0.05
+anova(rda(spp.h.ra, env.red.ra2, geo.red.ra2)) #p < 0.05
+
+# Test of fractions [a+b]
+#simple effect of environment.raal variables
+anova(rda(spp.h.ra, env.red.ra), step=1000) #p < 0.05
+anova(rda(spp.h.ra, env.red.ra2), step=1000) #p < 0.05
+
+# Test of fractions [b+c]
+#simple effect of spatial variables
+anova(rda(spp.h.ra, geo.red.ra), step=1000) #p < 0.05
+anova(rda(spp.h.ra, geo.red.ra2), step=1000) #p < 0.05
+
+#bind dataframes so we can do partial redundancy analysis
+tot.part.ra <- cbind(env.red.ra, geo.red.ra)
+tot.part.ra2 <- cbind(env.red.ra2, geo.red.ra2)
+
+# # Test of fraction [c]
+# #Conditional (partial) effect of spatial factorsp
+anova(rda(spp.h.ra ~ Elevation + NO3.N_mueq + Condition(PCNM1 + PCNM3 + PCNM5), data=tot.part.ra))
+anova(rda(spp.h.ra ~ Elevation + NO3.N_mueq +Condition(PCNM1 + PCNM3 + PCNM4 + PCNM5), data=tot.part.ra2))
+
+# Test of fraction [a]
+# #Conditional (partial) effect of environment.raal factors
+anova(rda(spp.h.ra ~ PCNM1 + PCNM3 + PCNM5 + Condition(Elevation + NO3.N_mueq), data=tot.part.ra))
+anova(rda(spp.h.ra ~ PCNM1 + PCNM3 + PCNM4 + PCNM5 + Condition(Elevation + NO3.N_mueq), data=tot.part.ra2))
+```

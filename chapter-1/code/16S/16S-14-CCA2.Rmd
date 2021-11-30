@@ -1,0 +1,657 @@
+---
+title: "Canonical Correspondence Analysis"
+author: "Amy Solman"
+date: "08/10/2021"
+output: html_document
+---
+
+This script will carry out canonical correspondence analysis.
+This is a multivariate method that explores the relationship between microbial assemblages and their environment.
+The analysis extracts synthetic environmental gradients from the data.
+The gradients can then be used to visualize habitat preferences via ordination diagrams.
+
+The following code/explaination is taken from: https://rfunctions.blogspot.com/2016/11/canonical-correspondence-analysis-cca.html
+
+Correspondence Analysis (CA) is a multivariate ordination analysis. It uses variables from a single data set to find new axes (orthogonal components) that explain variation within the dataset. CA assumes observations to have unimodal distributions (rather than linear as in principal component analysis), as is usually the case for species distributions = a species usually shows highest abundance in the midrange of an environmental gradient. This is why CA and CCA is used by ecologists.
+
+How is CCA different to CA? CANONICAL = something reduced to its most basic form. CCA is CA following a specific principal, looking for relationships between groups of variables.
+
+In CCA we need to specify two matrices - one with observations (e.g. species abundance) and the other has gradients (e.g. temperature). These observations should have unimodal distributions along gradients (e.g. more species at midrange temp). REMEMBER: if observations are linearly related to gradients (more species with temp) then we should use CANONICAL CORRELATION ANALYSIS (CANCOR) OR REDUNDANCY ANALYSIS (RDA) (THESE ARE MULTIVARIATE ANALOGS OF SIMPLE LINEAR REGRESSION).
+
+PARTIAL CCA is similar to similar to CCA but controls for the effect of a third matrix. The effects of this third matrix are removes from the community matrix. The residual community matrix is used in the remaining part of the CCA. This can be used to remove the effects of spatial autocorrelation etc. 
+
+
+I want to know how enviro/physical variables related to alpha diversity/community composition.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(vegan) #for diversity indices
+
+```
+
+Load My Data
+```{r}
+#TOTAL DATASET
+ps <- readRDS("../output/16S-phyloseq-object-rarefied.rds")
+
+#Total Abundant
+ps.abun <- readRDS("../output/16S-total-abundant.rds")
+#Total Intermediate
+ps.int <- readRDS("../output/16S-total-intermediate.rds")
+#Total Rare
+ps.rare <- readRDS("../output/16S-total-rare.rds")
+```
+
+Load Practice Data
+```{r}
+spe <- read.csv("../spe.csv", row.names=1, sep=";")
+env <- read.csv("../env.csv", row.names=1, sep=";")
+spatial <- read.csv("../spatial.csv", row.names=1, sep=";")
+```
+
+Get my lat long coordinates function
+```{r}
+
+get_my_coords <- function(phylo){
+  
+  #get metadata
+meta <- data.frame(sample_data(phylo))
+
+  #put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta)){
+  if (meta$Pole[i] == "Antarctic"){
+    meta$Glacier_Latitude[i] <- c(paste0("-", meta$Glacier_Latitude[i]))
+    meta$Cryoconite_Latitude[i] <- c(paste0("-", meta$Cryoconite_Latitude[i]))
+  }
+}
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta$Glacier_Latitude <- as.numeric(str_sub(meta$Glacier_Latitude,1,nchar(meta$Glacier_Latitude)-1))
+meta$Glacier_Longitude <- as.numeric(str_sub(meta$Glacier_Longitude,1,nchar(meta$Glacier_Longitude)-1))
+
+glac_lat <- meta$Glacier_Latitude
+glac_long <- meta$Glacier_Longitude
+
+#get latitude of each sample
+cryo_lat <- as.numeric(meta$Cryoconite_Latitude)
+#get longitude of each sample
+cryo_long <- as.numeric(meta$Cryoconite_Longitude)
+
+#replace any missing cryoconite coords with those of it's glacier
+for (j in 1:length(cryo_lat)){
+  if (is.na(cryo_lat[j])){
+    cryo_lat[j] <- glac_lat[j]
+    cryo_long[j] <- glac_long[j]
+  }
+}
+
+#put into matrix
+long.lat <- data.frame(as.matrix(cbind(cryo_long, cryo_lat)))
+rownames(long.lat) <- rownames(meta)
+
+return(long.lat)
+}
+
+
+```
+
+Total Taxa
+```{r}
+#Extract data
+my_spe <- data.frame(t(otu_table(ps)))
+my_env <- data.frame(sample_data(ps))
+my_spatial <- get_my_coords(ps)
+```
+
+Adjust environmental variables
+```{r}
+my_env <- my_env[,17:82]
+#calcualte area
+my_env$area <- pi*(my_env$NS/2)*(my_env$EW/2)
+#remove diamter info
+my_env <- my_env[ , !(names(my_env) %in% c("NS","EW"))]
+
+#By finding median values we get a lot of collinearity in our data and cannot complete this analysis
+# #Replace NAs with median values
+# f=function(x){
+#    x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+#    x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+#    x #display the column
+# }
+# my_env=data.frame(apply(my_env,2,f))
+
+my_env <- my_env[, (names(my_env) %in% c("Sediment_Depth", "Total_Depth", "Conductivity", "pH", "DOC", "Cl_mueq", "SO4_mueg", "Na_mueq", "K_mueq", "Mg_mueq", "Ca_mueq"))]
+
+my_env <- my_env[complete.cases(my_env), ]
+
+#make sure every column is numeric
+my_env[] <- lapply(my_env, function(x) as.numeric(as.character(x)))
+
+#Only keep spe and spatial which match out environmental vairables
+my_spe <- subset(my_spe, rownames(my_spe) %in% rownames(my_env))
+my_spatial <- subset(my_spatial, rownames(my_spatial) %in% rownames(my_env))
+```
+
+Apply log+1 transformation to your species occurrences data (spe matrix) in order to correct for possible statistical errors associated to rare or very common species
+```{r}
+spelog <- decostand(spe, "log")
+my_spelog <- decostand(my_spe, "log")
+```
+
+Perform CCA. We need to specify that spe (species distribution matrix) is explained by env (environmental matrix)
+```{r}
+ccamodel <- cca(spe~., env)
+my_ccamodel <- cca(my_spe~., my_env)
+```
+
+To perform a Partial CCA, we need to use a third matrix (conditioning matrix). To do that, we must first combine variables from the environmental ("env") and conditional ("spatial") matrices. We have to do that in order to later apply another function ("ordistep" function). After we have combined all variables, we will apply the Partial CCA using a formula where we specify the response ("spe" matrix), the constraint variables (each of the variables from "env" matrix), and the conditioning variables (variables from the conditioning matrix; in our case "spatial" matrix)
+```{r}
+envspatial<-cbind(env,spatial)
+nams <- names(envspatial)
+partialccamodel <- formula(paste("spe ~", paste(nams[1: (length(envspatial)-(length(spatial)) )], collapse = " + "),"+ Condition(", paste(nams[(length(envspatial)-(length(spatial)-1) ):length(envspatial)], collapse ="+"),")"))
+partialccamodel<-cca(partialccamodel, envspatial)
+
+
+my_envspatial<-cbind(my_env,my_spatial)
+my_nams <- names(my_envspatial)
+my_partialccamodel <- formula(paste("my_spe ~", paste(my_nams[1: (length(my_envspatial)-(length(my_spatial)) )], collapse = " + "),"+ Condition(", paste(my_nams[(length(my_envspatial)-(length(my_spatial)-1) ):length(my_envspatial)], collapse ="+"),")"))
+my_partialccamodel<-cca(my_partialccamodel, my_envspatial)
+```
+
+However, we also have to automatically select variables of "env" matrix that best explain "spe" matrix. We can do that by using a stepwise model from "ordistep" function. Let us do that with our "ccamodel" (not the partial cca).
+
+```{r}
+finalmodel<- ordistep(ccamodel, scope=formula(ccamodel))
+
+my_finalmodel<- ordistep(my_ccamodel, scope=formula(my_ccamodel))
+```
+Then, we can calculate Variance Inflation Factors (VIF) for each of the constraints (variables) from the "env" matrix (environmental matrix). If we find an environmental variable with VIF>10, we'll know that this variable presents colinearity with another or other variables. In that case, we would have to delete the variable from our initial dataset and redo all the analysis. In our example, no variable is redundant with each other (all of them have VIF<10).
+```{r}
+vif.cca(finalmodel)
+vif.cca(my_finalmodel) #remove conductivity, Cl_mueq, Na_mueq, Ca_mueq
+```
+Remove variables with collinearity
+```{r}
+my_env <- my_env[ , !(names(my_env) %in% c("Conductivity", "Cl_mueq", "Na_mueq", "Ca_mueq"))]
+```
+
+Re-run the CCA
+```{r}
+my_ccamodel <- cca(my_spe~., my_env)
+my_finalmodel<- ordistep(my_ccamodel, scope=formula(my_ccamodel))
+vif.cca(my_finalmodel) #there is no collinearity
+```
+
+Let us now fit the stepwise model (ordistep function) using our partial cca model ("partialccamodel"). Note that we will use X (longitude) and Y (latitude) variables from the previously created "envspatial" object as our conditioning variables. After "vif.cca", note that "X" (spatial) variable has a value > 10, so one should consider to delete the variable before the analysis.
+```{r}
+partialccamodel <- formula(paste("spe ~", paste(nams[1: (length(envspatial)-(length(spatial)) )], collapse = " + "),"+ Condition(", paste(nams[(length(envspatial)-(length(spatial)-1) ):length(envspatial)], collapse ="+"),")"))
+simplemodel<-cca(partialccamodel, envspatial)
+finalmodelpartial<- ordistep(simplemodel, scope=formula(partialccamodel))
+vif.cca(finalmodelpartial)
+
+my_partialccamodel <- formula(paste("my_spe ~", paste(my_nams[1: (length(my_envspatial)-(length(my_spatial)) )], collapse = " + "),"+ Condition(", paste(my_nams[(length(my_envspatial)-(length(my_spatial)-1) ):length(my_envspatial)], collapse ="+"),")"))
+my_simplemodel<-cca(my_partialccamodel, my_envspatial)
+my_finalmodelpartial<- ordistep(my_simplemodel, scope=formula(my_partialccamodel))
+vif.cca(my_finalmodelpartial)
+```
+Remove variables with VIF > 10 and continue the analysis
+```{r}
+my_envspatial <- my_envspatial[ , !(names(my_envspatial) %in% c("cryo_lat", "Total_Depth", "Conductivity","Cl_mueq", "Na_mueq", "K_mueq", "Mg_mueq", "Ca_mueq"))]
+my_nams <- names(my_envspatial)
+my_partialccamodel <- formula(paste("my_spe ~", paste(my_nams[1: (length(my_envspatial)-(length(my_spatial)) )], collapse = " + "),"+ Condition(", paste(my_nams[(length(my_envspatial)-(length(my_spatial)-1) ):length(my_envspatial)], collapse ="+"),")"))
+my_simplemodel<-cca(my_partialccamodel, my_envspatial)
+my_finalmodelpartial<- ordistep(my_simplemodel, scope=formula(my_partialccamodel))
+vif.cca(my_finalmodelpartial)
+```
+
+Ok, let us now call "ccamodel" object (not the "partialccamodel") to see how to interpret results.
+```{r}
+finalmodel
+#Total inertia = total variance in species distributions
+#Constrained inertia = variance explained by environmental variables
+#Proportion = percentage of variance of species distributions explained by constrained (environmental) and unconstrained variables.
+#Eigenvalues of constrained and unconstrained axes represent the amount of vairance explained by each CCA axis.
+
+my_finalmodel
+```
+
+This is a critical step when doing the CCA. When we have our final model, we must use permutation tests to observe if our whole CCA model, the CCA terms (environmental varibles), and CCA axes explain more variance of "spe" (observations) matrix than expected by chance (tests should be significant; p values lower or equal 0.05). If the tests are not significant, there is no point in using the CCA. In our example, we'll see that we can continue using the CCA results.
+```{r}
+# Testing the significance of the CCA model:
+anova.cca(finalmodel) #p < 0.01
+# Testing the significance of terms (environmental variables):
+anova.cca(finalmodel, by="terms")
+# Testing the significance of CCA axes (at least the first two or three should present a significant p value):
+anova.cca(finalmodel, by="axis")
+
+# Testing the significance of the CCA model:
+anova.cca(my_finalmodel) #p > 0.01
+# Testing the significance of terms (environmental variables):
+anova.cca(my_finalmodel, by="terms")
+# Testing the significance of CCA axes (at least the first two or three should present a significant p value):
+anova.cca(my_finalmodel, by="axis")
+```
+Finally, we may want to generate graphs in order to better understand results. To do that, we have to take a look at "xlim" (limits of x axis), "ylim" (limits of y axis), and "display" (if we want to observe species, environmental gradients, and/or sites in the graph) arguments. For example, to show only species scores along CCA axes, use only "sp" inside display" argument.
+To interpret the graph, we need to see if species or sites are close to environmental gradients. For example, Alopacce, Alopfabr and Arctperi are very related to Bare Sand, while Pardiugu is very related to Fallen Twigs.
+```{r}
+#show only species scores
+plot(finalmodel, xlim=c(-1.5,2), ylim=c(-1,1.5), display=c("sp"))
+#show species and environmental gradients
+plot(finalmodel, xlim=c(-3,3), ylim=c(-3,3), display=c("sp","cn"))
+#show species, environmental gradients and samples
+plot(finalmodel, xlim=c(-3,3), ylim=c(-3,3), display=c("sp","cn","wa"))
+```
+
+
+1 TOTAL TAXA 
+1.1 Modify data
+```{r}
+#pull out count table and metadata
+counts <- data.frame(t(otu_table(ps)))
+
+#count table with ASV IDs as taxonomic classifications
+#taxa <- taxa_names(ps)
+
+meta <- data.frame(sample_data(ps))
+
+#keep only variables we want to include in our mode
+meta_trim <- meta[,17:92]
+#calcualte area
+meta_trim$area <- pi*(meta_trim$NS/2)*(meta_trim$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta_trim <- meta_trim[ , !(names(meta_trim) %in% drops)]
+#remove more unneccessary columns
+meta_trim <- meta_trim[,-c(64:74)]
+#make dataframe numeric
+meta_trim[] <- lapply(meta_trim, as.numeric)
+
+#Initial CCA analysis suggested these were significant: #Distance to sea, elevation, water depth, total depth, mass, pH, C, TIN, TDP, DOP, C.N, Cl_meq, SO4, NA and K significant
+# keeps <- c("Distance_To_Sea", "Elevation", "Water_Depth", "Total_Depth", "Mass", "pH", "C", "TIN", "TDP", "DOP", "C.N", "Cl_meq", "SO4_mueq", "Na_mg", "K_mueq")
+# meta_trim_trim <- meta_trim[, (names(meta_trim) %in% keeps)]
+# meta_trim_trim2 <- meta_trim[, (names(meta_trim) %in% keeps2)]
+# 
+# #remove rows with NA values
+# meta_trim_complete <- meta_trim_trim[complete.cases(meta_trim_trim), ]
+# 
+# #only keep same count samples as in our metadata_trim_complete
+# counts_trim <- counts[(row.names(counts) %in% row.names(meta_trim_complete)), ]
+
+#Replace NAs with median values
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+meta_med=data.frame(apply(meta_trim,2,f))
+
+#rename counts columns with phylum
+tax_tab <- data.frame(tax_table(ps))
+#replace NAs with Unknown
+tax_tab[is.na(tax_tab)] <- "Unknown"
+colnames(counts) <- tax_tab$Class
+
+#aggregate count data
+x <- t(counts)
+new_df=aggregate(x, by=list(rownames(x)),sum)
+new_counts <- t(new_df)
+colnames(new_counts) <- new_counts[1,]
+new_counts <- new_counts[-1,]
+df <- data.frame(new_counts)
+#make dataframe numeric
+df[] <- lapply(df, as.numeric)
+```
+
+1.2 Apply log+1 tranformation to species data to correct for statistcial errors associated with rare/very common species
+```{r}
+#spelog <- decostand(spe, "log")
+
+asvlog <- decostand(counts, "log")
+
+dflog <- decostand(df, "log")
+```
+
+1.3 Perform CCA, specifying that species is explained by environmental variables
+```{r}
+ccamodel1 <- cca(df~., meta_med, na.action = na.exclude)
+```
+
+1.4 Perform a partial CCA using a third matrix. We can do this by combining environmental and spatial matrices.
+```{r}
+# envspatial <- cbind(env,spatial) #bind the data frames
+# 
+# nams <- names(envspatial) #get out variable names
+# 
+# partialccamodel <- formula(paste("spe ~", paste(nams[1: (length(envspatial)-(length(spatial)) )], collapse = " + "),"+ Condition(", paste(nams[(length(envspatial)-(length(spatial)-1) ):length(envspatial)], collapse ="+"),")")) 
+# #this generates the formula of species as explained by environmental variables while controlling for location (lat/long coors)
+# 
+# patrialccamodel <- cca(partialccamodel, envspatial)
+```
+
+1.5 We now have to automatically select variables of "env" than best explain "spe". We can do this by using a stepwise model from the "ordistep" function. We'll just do this with 
+```{r}
+finalmodel1 <- ordistep(ccamodel1, scope=formula(ccamodel1))
+```
+
+1.6 Next we calculate Variance Inflation Factors for each of the variables (constraints). If there is an env variable with VIF > 10 then this variable presents collinearity with other variables. We then have to delete from the dataset and redo our analysis.
+```{r}
+vif.cca(finalmodel1) #TDP, DOP, CL_meq, SO4, NA and K all VIF scores > 10 so I will remove them and run the analysis again
+
+keeps <- c("Distance_To_Sea", "Elevation", "Water_Depth", "Total_Depth", "Mass", "pH", "C", "TIN", "C.N")
+meta_trim_trim <- meta_trim[, (names(meta_trim) %in% keeps)]
+meta_med=data.frame(apply(meta_trim_trim,2,f))
+ccamodel2 <- cca(df~., meta_med, na.action = na.exclude)
+finalmodel2 <- ordistep(ccamodel2, scope=formula(ccamodel2))
+vif.cca(finalmodel2)
+```
+
+1.7 Now we will fit the stepwise model (ordistep function) using partial cca using lat and longitude as our conditioning variables
+```{r}
+partialccamodel <- formula(paste("spe ~", paste(nams[1: (length(envspatial)-(length(spatial)) )], collapse = " + "),"+ Condition(", paste(nams[(length(envspatial)-(length(spatial)-1) ):length(envspatial)], collapse ="+"),")"))
+
+simplemodel<-cca(partialccamodel, envspatial)
+
+finalmodelpartial<- ordistep(simplemodel, scope=formula(partialccamodel))
+
+vif.cca(finalmodelpartial) #X and Y now have VIF > 10 so we should delete the variable and re-run the analysis.
+```
+
+1.8 Call the ccamodel and interpret results
+```{r}
+# ccamodel 
+
+ccamodel2
+#total inertia = total variance in species distributions
+#constrained inertia = variance explained by environmental gradients
+#proportion values = percentages of variance of species distributions explained by constrained (env) and unconstrained variables
+#eigenvalues represent the amount of variance explained by each CCA axis (graphs usually present the first two constrained axes)
+
+#use permutation test to see if whole CCA model, CCA terms (env variables) and CCA axes explain more variance of species (observations) than expected by chance (p < 0.05). If p > 0.05 then there is no point using the CCA.
+
+#test significance of the model
+anova.cca(finalmodel2) # p < 0.05 SIGNIFICANT!
+
+#test significance of the terms
+anova.cca(finalmodel1, by="terms") #Distance to sea, elevation, water depth, total depth, mass, pH, C, TIN, TDP, DOP, C.N, Cl_meq, SO4, NA and K significant
+
+#test significance of the CCA axes - at least the first two or three should present a significant p value
+anova.cca(finalmodel1, by="axis") #the first two are significant
+
+#plot a graph of results
+plot(finalmodel1, xlim=c(-1.5,2), ylim=c(-1,1.5), display=c("sp", "cn"), main="Total Taxa CCA Plot")
+  
+```
+
+2 ABUNDANT TAXA
+
+2.1 Prep data
+```{r}
+#pull out count table and metadata
+counts.ab <- data.frame(t(otu_table(ps.glaciers.merged.RA)))
+meta.ab <- data.frame(sample_data(ps.glaciers.merged.RA))
+
+#keep only variables we want to include in our model
+meta_trim.ab <- meta.ab[,17:92]
+#calcualte area
+meta_trim.ab$area <- pi*(meta_trim.ab$NS/2)*(meta_trim.ab$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta_trim.ab <- meta_trim.ab[ , !(names(meta_trim.ab) %in% drops)]
+#remove more unneccessary columns
+meta_trim.ab <- meta_trim.ab[,-c(64:74)]
+#make dataframe numeric
+meta_trim.ab[] <- lapply(meta_trim.ab, as.numeric)
+
+# #Initial CCA analysis suggested these were significant: #sig terms: distance to sea level, elevation, water depth, total depth, pH, TIN, TDP, DOP, Cl_meq, SO4_mueq, Na_mg, K_mueq - I'm going to re-run this analysis with these terms only
+keeps <- c("Distance_To_Sea", "Elevation", "Water_Depth", "Total_Depth", "pH", "TIN", "TDP", "DOP", "Cl_meq", "SO4_mueq", "Na_mg", "K_mueq")
+meta_trim_trim.ab <- meta_trim.ab[, (names(meta_trim.ab) %in% keeps)]
+
+#Replace NAs with median values
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+meta_med.ab=data.frame(apply(meta_trim_trim.ab,2,f))
+
+#rename counts columns with phylum
+tax_tab.ab <- data.frame(tax_table(ps.glaciers.merged.RA))
+#replace NAs with Unknown
+tax_tab.ab[is.na(tax_tab.ab)] <- "Unknown"
+colnames(counts.ab) <- tax_tab.ab$Class
+
+#aggregate count data
+x <- t(counts.ab)
+new_df=aggregate(x, by=list(rownames(x)),sum)
+new_counts <- t(new_df)
+colnames(new_counts) <- new_counts[1,]
+new_counts <- new_counts[-1,]
+df.ab <- data.frame(new_counts)
+#make dataframe numeric
+df.ab[] <- lapply(df.ab, as.numeric)
+```
+
+2.2 Perform CCA, specifying that species is explained by environmental variables
+```{r}
+ccamodel1.ab <- cca(df.ab~., meta_med.ab, na.action = na.exclude)
+```
+
+2.3 We now have to automatically select variables of "env" than best explain "spe". We can do this by using a stepwise model from the "ordistep" function. We'll just do this with 
+```{r}
+finalmodel1.ab <- ordistep(ccamodel1.ab, scope=formula(ccamodel1.ab))
+```
+
+2.4 Next we calculate Variance Inflation Factors for each of the variables (constraints). If there is an env variable with VIF > 10 then this variable presents collinearity with other variables. We then have to delete from the dataset and redo our analysis.
+```{r}
+vif.cca(finalmodel1.ab) #VIF scores > 10 TDP, DOP, Cl_meq, SO4, Na, K
+keeps <- c("Distance_To_Sea", "Elevation", "Water_Depth", "Total_Depth", "pH", "TIN")
+meta_trim_trim.ab <- meta_trim.ab[, (names(meta_trim.ab) %in% keeps)]
+meta_med.ab=data.frame(apply(meta_trim_trim.ab,2,f))
+ccamodel2.ab <- cca(df.ab~., meta_med.ab, na.action = na.exclude)
+finalmodel2.ab <- ordistep(ccamodel2.ab, scope=formula(ccamodel2.ab))
+vif.cca(finalmodel2.ab)
+```
+
+2.5 Call the ccamodel and interpret results
+```{r}
+ccamodel2.ab
+
+#test significance of the model
+anova.cca(finalmodel2.ab) # p < 0.05 SIGNIFICANT!
+
+#test significance of the terms
+anova.cca(finalmodel2.ab, by="terms") #sig terms: distance to sea level, elevation, water depth, total depth, pH, TIN, TDP, DOP, Cl_meq, SO4_mueq, Na_mg, K_mueq - I'm going to re-run this analysis with these terms only
+
+#test significance of the CCA axes - at least the first two or three should present a significant p value
+anova.cca(finalmodel2.ab, by="axis") #the first two are significant
+
+#plot a graph of results
+plot(finalmodel2.ab, xlim=c(-1.5,2), ylim=c(-1,1.5), display=c("sp", "cn"), main="Abundant Taxa CCA Plot")
+```
+
+3 INTERMEDIATE TAXA
+
+3.1 Prep data
+```{r}
+#pull out count table and metadata
+counts.i <- data.frame(t(otu_table(ps.glaciers.merged.I)))
+meta.i <- data.frame(sample_data(ps.glaciers.merged.I))
+
+#keep only variables we want to include in our model
+meta_trim.i <- meta.i[,17:92]
+#calcualte area
+meta_trim.i$area <- pi*(meta_trim.i$NS/2)*(meta_trim.i$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta_trim.i <- meta_trim.i[ , !(names(meta_trim.i) %in% drops)]
+#remove more unneccessary columns
+meta_trim.i <- meta_trim.i[,-c(64:74)]
+#make dataframe numeric
+meta_trim.i[] <- lapply(meta_trim.i, as.numeric)
+
+# # #Initial CCA analysis suggested these were significant: #sig terms: total depth, radius, mass, temp, conductivity, pH, DOC, C, TIN, C.N, NA_mg - I'm going to re-run this analysis with these terms only
+keeps <- c("Total_Depth", "Radius", "Mass", "Temp", "Conductivity", "pH", "DOC", "C", "TIN","C.N","Na_mg")
+meta_trim_trim.i <- meta_trim.i[, (names(meta_trim.i) %in% keeps)]
+
+#Replace NAs with median values
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+meta_med.i=data.frame(apply(meta_trim_trim.i,2,f))
+
+#rename counts columns with phylum
+tax_tab.i <- data.frame(tax_table(ps.glaciers.merged.I))
+#replace NAs with Unknown
+tax_tab.i[is.na(tax_tab.i)] <- "Unknown"
+colnames(counts.i) <- tax_tab.i$Class
+
+#aggregate count data
+x <- t(counts.i)
+new_df=aggregate(x, by=list(rownames(x)),sum)
+new_counts <- t(new_df)
+colnames(new_counts) <- new_counts[1,]
+new_counts <- new_counts[-1,]
+df.i <- data.frame(new_counts)
+#make dataframe numeric
+df.i[] <- lapply(df.i, as.numeric)
+```
+
+3.2 Perform CCA, specifying that species is explained by environmental variables
+```{r}
+ccamodel1.i <- cca(df.i~., meta_med.i, na.action = na.exclude)
+```
+
+3.3 We now have to automatically select variables of "env" than best explain "spe". We can do this by using a stepwise model from the "ordistep" function. We'll just do this with 
+```{r}
+finalmodel1.i <- ordistep(ccamodel1.i, scope=formula(ccamodel1.i))
+```
+
+3.4 Next we calculate Variance Inflation Factors for each of the variables (constraints). If there is an env variable with VIF > 10 then this variable presents collinearity with other variables. We then have to delete from the dataset and redo our analysis.
+```{r}
+vif.cca(finalmodel1.i) #VIF scores > 10 Radius, Mass, Conductivity, Na_mg
+keeps <- c("Total_Depth", "Temp", "pH", "DOC", "C", "TIN","C.N")
+meta_trim_trim.i <- meta_trim.i[, (names(meta_trim.i) %in% keeps)]
+meta_med.i=data.frame(apply(meta_trim_trim.i,2,f))
+ccamodel2.i <- cca(df.i~., meta_med.i, na.action = na.exclude)
+finalmodel2.i <- ordistep(ccamodel2.i, scope=formula(ccamodel2.i))
+vif.cca(finalmodel2.i)
+```
+
+3.5 Call the ccamodel and interpret results
+```{r}
+ccamodel2.i
+
+#test significance of the model
+anova.cca(finalmodel2.i) # p <0.05 SIGNIFICANT!
+
+#test significance of the terms
+anova.cca(finalmodel2.i, by="terms") #sig terms: total depth, radius, mass, temp, conductivity, pH, DOC, C, TIN, C.N, NA_mg
+
+#test significance of the CCA axes - at least the first two or three should present a significant p value
+anova.cca(finalmodel2.i, by="axis") #the first two are significant
+
+#plot a graph of results
+plot(finalmodel2.i, xlim=c(-1.5,2), ylim=c(-1,1), display=c("sp", "cn"), main="Intermediate Taxa CCA Plot")
+```
+
+4 RARE TAXA
+
+4.1 Prep data
+```{r}
+#pull out count table and metadata
+counts.ra <- data.frame(t(otu_table(ps.glaciers.merged.RR)))
+meta.ra <- data.frame(sample_data(ps.glaciers.merged.RR))
+
+#keep only variables we want to include in our model
+meta_trim.ra <- meta.ra[,17:92]
+#calcualte area
+meta_trim.ra$area <- pi*(meta_trim.ra$NS/2)*(meta_trim.ra$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta_trim.ra <- meta_trim.ra[ , !(names(meta_trim.ra) %in% drops)]
+#remove more unneccessary columns
+meta_trim.ra <- meta_trim.ra[,-c(64:74)]
+#make dataframe numeric
+meta_trim.ra[] <- lapply(meta_trim.ra, as.numeric)
+
+# #earlier correlation analysis suggested that pH, TDN, HCO3, Mass, NO3, NH4, elevation, ice lid thickeness, total depth, DOP, TDP, DRP, distance to sea, temp, TIN, K, F, C:N were most significantly related to our communities so I'm only going to include these variables - leave out DOP, NH4, C.N, TDN because not enough values
+# #keeps.ab <- c("Distance_To_Sea", "Elevation", "Total Depth", "Ice_Lid", "Temp", "pH", "K_mueq", "HC03_mueq", "F", "area")
+# keeps.ra <- c("Elevation", "Total_Depth", "Ice_Lid", "area", "Distance_To_Sea", "HC03_mueq")
+# meta_trim_trim.ra <- meta_trim.ra[, (names(meta_trim.ra) %in% keeps.ra)]
+
+# # #Initial CCA analysis suggested these were significant: #sig terms: #sig terms: Elevation, Total Depth, Rock water, ice lid, temp, ph, Cl_meq, K_mg - I'm going to re-run this analysis with these terms only
+keeps <- c("Elevation", "Total_Depth", "Rock_Water", "Ice_Lid", "Temp", "pH", "Cl_meq", "K_mg")
+meta_trim_trim.ra <- meta_trim.ra[, (names(meta_trim.ra) %in% keeps)]
+
+#Replace NAs with median values
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+meta_med.ra=data.frame(apply(meta_trim_trim.ra,2,f))
+
+#rename counts columns with phylum
+tax_tab.ra <- data.frame(tax_table(ps.glaciers.merged.RR))
+#replace NAs with Unknown
+tax_tab.ra[is.na(tax_tab.ra)] <- "Unknown"
+colnames(counts.ra) <- tax_tab.ra$Class
+
+#aggregate count data
+x <- t(counts.ra)
+new_df=aggregate(x, by=list(rownames(x)),sum)
+new_counts <- t(new_df)
+colnames(new_counts) <- new_counts[1,]
+new_counts <- new_counts[-1,]
+df.ra <- data.frame(new_counts)
+#make dataframe numeric
+df.ra[] <- lapply(df.ra, as.numeric)
+```
+
+4.2 Perform CCA, specifying that species is explained by environmental variables
+```{r}
+ccamodel1.ra <- cca(df.ra~., meta_med.ra, na.action = na.exclude)
+```
+
+4.3 We now have to automatically select variables of "env" than best explain "spe". We can do this by using a stepwise model from the "ordistep" function. We'll just do this with 
+```{r}
+finalmodel1.ra <- ordistep(ccamodel1.ra, scope=formula(ccamodel1.ra))
+```
+
+4.4 Next we calculate Variance Inflation Factors for each of the variables (constraints). If there is an env variable with VIF > 10 then this variable presents collinearity with other variables. We then have to delete from the dataset and redo our analysis.
+```{r}
+vif.cca(finalmodel1.ra) #VIF scores > 10 Cl_meq and K_mg
+keeps <- c("Elevation", "Total_Depth", "Rock_Water", "Ice_Lid", "Temp", "pH")
+meta_trim_trim.ra <- meta_trim.ra[, (names(meta_trim.ra) %in% keeps)]
+meta_med.ra=data.frame(apply(meta_trim_trim.ra,2,f))
+ccamodel2.ra <- cca(df.ra~., meta_med.ra, na.action = na.exclude)
+finalmodel2.ra <- ordistep(ccamodel2.ra, scope=formula(ccamodel2.ra))
+vif.cca(finalmodel2.ra)
+```
+
+4.5 Call the ccamodel and interpret results
+```{r}
+ccamodel2.ra
+
+#test significance of the model
+anova.cca(finalmodel2.ra) # p < 0.05 SIGNIFICANT!
+
+#test significance of the terms
+anova.cca(finalmodel2.ra, by="terms") #sig terms: Elevation, Total Depth, Rock water, ice lid, temp, ph, Cl_meq, K_mg
+
+#test significance of the CCA axes - at least the first two or three should present a significant p value
+anova.cca(finalmodel2.ra, by="axis") #the first two are significant
+
+#plot a graph of results
+plot(finalmodel2.ra, xlim=c(-1.5,2), ylim=c(-1,1.5), display=c("sp", "cn"), main="Rare Taxa CCA Plot")
+```

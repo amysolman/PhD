@@ -1,0 +1,598 @@
+---
+title: "Mantel Tests"
+author: "Amy Solman"
+date: "11/10/2021"
+output: html_document
+---
+
+In this script I will use Mantel and Partial Mantel tests to verify the contributions of environmental and spatial factors in shaping these communities.
+
+Mantel tests are correlation tests that determine the correlation between two matrices.
+
+I need to define three matrices:
+1) Species abundance dissimilarity matrix
+2) Environmental parameter distance matrix
+3) Geographic distance matrix
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(vegan)
+library(geosphere)
+library(ggplot2)
+#install.packages("ggsignif")
+#library(ggsignif)
+```
+
+1 TOTAL TAXA
+1.1 Load taxa data
+```{r}
+ps.rar <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq objectcol
+counts <- as.matrix(t(otu_table(ps.rar)))
+
+# Hellinger-transform the species dataset
+spp.h <- as.data.frame(decostand(counts, "hellinger"))
+```
+
+1.2 Load environmental data
+```{r}
+meta <- data.frame(sample_data(ps.rar))
+#keep only variables we want to include in our mode
+meta_trim <- meta[,17:92]
+meta_trim <- meta_trim[,c(1:2, 5, 12, 17:33, 36, 39, 42, 45, 48, 51, 54:62)]
+#meta_trim <- meta_trim[,1:3]
+#calcualte area
+meta_trim$area <- pi*(meta$NS/2)*(meta$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta_trim <- meta_trim[ , !(names(meta_trim) %in% drops)]
+#remove more unneccessary columns
+meta_trim <- meta_trim[,-c(64:74)]
+#make dataframe numeric
+meta_trim[] <- lapply(meta_trim, as.numeric)
+
+#Replace NAs with median values
+
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+environment=as.data.frame(apply(meta_trim,2,f))
+```
+
+1.3 Load Lat and Long coords
+```{r}
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta)){
+  if (meta$Pole[i] == "Antarctic"){
+    meta$Glacier_Latitude[i] <- c(paste0("-", meta$Glacier_Latitude[i]))
+    meta$Cryoconite_Latitude[i] <- c(paste0("-", meta$Cryoconite_Latitude[i]))
+  }
+}
+
+#get latitude of each sample
+lat <- as.numeric(meta$Cryoconite_Latitude)
+#get longitude of each sample
+long <- as.numeric(meta$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta$Glacier_Latitude <- as.numeric(str_sub(meta$Glacier_Latitude,1,nchar(meta$Glacier_Latitude)-1))
+meta$Glacier_Longitude <- as.numeric(str_sub(meta$Glacier_Longitude,1,nchar(meta$Glacier_Longitude)-1))
+
+lat[4:6] <- meta$Glacier_Latitude[4:6]
+lat[8] <- meta$Glacier_Latitude[8]
+lat[14:18] <- meta$Glacier_Latitude[14:18]
+lat[21] <- meta$Glacier_Latitude[21]
+lat[24:25] <- meta$Glacier_Latitude[24:25]
+lat[34:42] <- meta$Glacier_Latitude[34:42]
+lat[50:53] <- meta$Glacier_Latitude[50:53]
+
+long[4:6] <- meta$Glacier_Longitude[4:6]
+long[8] <- meta$Glacier_Longitude[8]
+long[14:18] <- meta$Glacier_Longitude[14:18]
+long[21] <- meta$Glacier_Longitude[21]
+long[24:25] <- meta$Glacier_Longitude[24:25]
+long[34:42] <- meta$Glacier_Longitude[34:42]
+long[50:53] <- meta$Glacier_Longitude[50:53]
+
+#put into matrix
+long.lat <- as.matrix(cbind(long, lat))
+```
+
+1.4 Convert data into distance matrices
+```{r}
+#taxa
+dist.abun <- vegdist(spp.h, method='bray')
+
+#env
+#scale data 
+scale.env = scale(environment, center = TRUE, scale = TRUE)
+dist.env <- dist(scale.env, method='euclidean')
+
+#geo
+d.geo <- distm(long.lat, fun=distHaversine)
+dist.geo <- as.dist(d.geo)
+# dist.geo <-vegdist(long.lat, method="euclidean")
+```
+
+1.5 Run Mantel Tests
+```{r}
+#abundance vs environmental 
+abund_env = mantel(dist.abun, dist.env, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_env
+
+#abundance vs geographic 
+abund_geo  = mantel(dist.abun, dist.geo, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_geo #p > 0.05
+```
+
+1.6 Run partial Mantel tests
+```{r}
+# Environmental while controlling for geographic
+env_cont_geo = mantel.partial(dist.abun, dist.env, dist.geo, method="pearson", permutations=999)
+env_cont_geo
+
+# Geographic while controlling for environmental
+geo_cont_env = mantel.partial(dist.abun, dist.geo, dist.env, method="pearson", permutations=999)
+geo_cont_env
+```
+
+1.7 Bar plot of results
+```{r}
+env <- abund_env$statistic
+spa <- abund_geo$statistic
+env_spa <- env_cont_geo$statistic
+spa_env <- geo_cont_env$statistic
+
+stat_df <- data.frame(mod=c("env", "spa", "env | spa", "spa | env"), stat=c(env, spa, env_spa, spa_env))
+
+#create label dataframe
+label.df <- data.frame(mod = c("env"),
+                       stat = c(0.22))
+
+ggplot(data=stat_df, aes(x=mod, y=stat))+
+  geom_bar(stat="identity")+
+  ggtitle("Total Taxa Mantel/Partial Mantel Tests for Cor with Enviro/Spatial Factors")+
+  xlab("Factors")+
+  ylab("Correlation Coefficient") +
+  geom_text(data = label.df, label = "***")
+```
+
+2 ABUNDANT TAXA
+2.1 Load taxa data
+```{r}
+ps.glaciers.merged.RA <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-abundant.rds") #merged glaciers abundant phyloseq object
+counts.ab <- as.matrix(t(otu_table(ps.glaciers.merged.RA)))
+
+# Hellinger-transform the species dataset
+spp.h.ab <- as.data.frame(decostand(counts.ab, "hellinger"))
+```
+
+2.2 Load environmental data
+```{r}
+meta.ab <- data.frame(sample_data(ps.glaciers.merged.RA))
+#keep only variables we want to include in our mode
+meta.ab_trim <- meta.ab[,17:92]
+meta.ab_trim <- meta.ab_trim[,c(1:2, 5, 12, 17:33, 36, 39, 42, 45, 48, 51, 54:62)]
+#meta.ab_trim <- meta.ab_trim[,1:3]
+#calcualte area
+meta.ab_trim$area <- pi*(meta.ab$NS/2)*(meta.ab$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta.ab_trim <- meta.ab_trim[ , !(names(meta.ab_trim) %in% drops)]
+#remove more unneccessary columns
+meta.ab_trim <- meta.ab_trim[,-c(64:74)]
+#make dataframe numeric
+meta.ab_trim[] <- lapply(meta.ab_trim, as.numeric)
+
+#Replace NAs with median values
+
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+environment.ab=as.data.frame(apply(meta.ab_trim,2,f))
+```
+
+2.3 Load Lat and Long coords
+```{r}
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta.ab)){
+  if (meta.ab$Pole[i] == "Antarctic"){
+    meta.ab$Glacier_Latitude[i] <- c(paste0("-", meta.ab$Glacier_Latitude[i]))
+    meta.ab$Cryoconite_Latitude[i] <- c(paste0("-", meta.ab$Cryoconite_Latitude[i]))
+  }
+}
+
+#get latitude of each sample
+lat <- as.numeric(meta.ab$Cryoconite_Latitude)
+#get longitude of each sample
+long <- as.numeric(meta.ab$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta.ab$Glacier_Latitude <- as.numeric(str_sub(meta.ab$Glacier_Latitude,1,nchar(meta.ab$Glacier_Latitude)-1))
+meta.ab$Glacier_Longitude <- as.numeric(str_sub(meta.ab$Glacier_Longitude,1,nchar(meta.ab$Glacier_Longitude)-1))
+
+lat[4:6] <- meta.ab$Glacier_Latitude[4:6]
+lat[8] <- meta.ab$Glacier_Latitude[8]
+lat[14:18] <- meta.ab$Glacier_Latitude[14:18]
+lat[21] <- meta.ab$Glacier_Latitude[21]
+lat[24:25] <- meta.ab$Glacier_Latitude[24:25]
+lat[34:42] <- meta.ab$Glacier_Latitude[34:42]
+lat[50:53] <- meta.ab$Glacier_Latitude[50:53]
+
+long[4:6] <- meta.ab$Glacier_Longitude[4:6]
+long[8] <- meta.ab$Glacier_Longitude[8]
+long[14:18] <- meta.ab$Glacier_Longitude[14:18]
+long[21] <- meta.ab$Glacier_Longitude[21]
+long[24:25] <- meta.ab$Glacier_Longitude[24:25]
+long[34:42] <- meta.ab$Glacier_Longitude[34:42]
+long[50:53] <- meta.ab$Glacier_Longitude[50:53]
+
+#put into matrix
+long.lat.ab <- as.matrix(cbind(long, lat))
+```
+
+2.4 Convert data into distance matrices
+```{r}
+#taxa
+dist.abun.ab <- vegdist(spp.h.ab, method='bray')
+
+#env
+#scale data 
+scale.env = scale(environment.ab, center = TRUE, scale = TRUE)
+dist.env.ab <- dist(scale.env, method='euclidean')
+
+#geo
+d.geo <- distm(long.lat, fun=distHaversine)
+dist.geo.ab <- as.dist(d.geo)
+# dist.geo.ab <-vegdist(long.lat, method="euclidean")
+```
+
+2.5 Run Mantel Tests
+```{r}
+#abundance vs environment.abal 
+abund_env.ab = mantel(dist.abun.ab, dist.env.ab, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_env.ab
+
+#abundance vs geographic 
+abund_geo.ab  = mantel(dist.abun.ab, dist.geo.ab, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_geo.ab #p > 0.05
+```
+
+2.6 Run partial Mantel tests
+```{r}
+# environment.abal while controlling for geographic
+env_cont_geo.ab = mantel.partial(dist.abun.ab, dist.env.ab, dist.geo.ab, method="spearman", permutations=999)
+env_cont_geo.ab
+
+# Geographic while controlling for environment.abal
+geo_cont_env.ab = mantel.partial(dist.abun.ab, dist.geo.ab, dist.env.ab, method="spearman", permutations=999)
+geo_cont_env.ab
+```
+
+2.7 Bar plot of results
+```{r}
+env <- abund_env$statistic
+spa <- abund_geo$statistic
+env_spa <- env_cont_geo.ab$statistic
+spa_env <- geo_cont_env.ab$statistic
+
+stat_df.ab <- data.frame(mod=c("env", "spa", "env | spa", "spa | env"), stat=c(env, spa, env_spa, spa_env))
+
+#create label dataframe
+label.df.ab <- data.frame(mod = c("env", "env | spa"),
+                       stat = c(0.22, 0.23))
+
+ggplot(data=stat_df.ab, aes(x=mod, y=stat))+
+  geom_bar(stat="identity")+
+  ggtitle("Abundant Taxa Mantel/Partial Mantel Tests for Cor with Enviro/Spatial Factors")+
+  xlab("Factors")+
+  ylab("Correlation Coefficient") +
+  geom_text(data = label.df.ab, label = "***")
+```
+
+3 INTERMEDIATE TAXA
+3.1 Load taxa data
+```{r}
+ps.glaciers.merged.I <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds") #merged glaciers abundant phyloseq object
+counts.i <- as.matrix(t(otu_table(ps.glaciers.merged.I)))
+
+# Hellinger-transform the species dataset
+spp.h.i <- as.data.frame(decostand(counts.i, "hellinger"))
+```
+
+3.2 Load environmental data
+```{r}
+meta.i <- data.frame(sample_data(ps.glaciers.merged.I))
+#keep only variables we want to include in our mode
+meta.i_trim <- meta.i[,17:92]
+meta.i_trim <- meta.i_trim[,c(1:2, 5, 12, 17:33, 36, 39, 42, 45, 48, 51, 54:62)]
+#meta.i_trim <- meta.i_trim[,1:3]
+#calcualte area
+meta.i_trim$area <- pi*(meta.i$NS/2)*(meta.i$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta.i_trim <- meta.i_trim[ , !(names(meta.i_trim) %in% drops)]
+#remove more unneccessary columns
+meta.i_trim <- meta.i_trim[,-c(64:74)]
+#make dataframe numeric
+meta.i_trim[] <- lapply(meta.i_trim, as.numeric)
+
+#Replace NAs with median values
+
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+environment.i=as.data.frame(apply(meta.i_trim,2,f))
+```
+
+3.3 Load Lat and Long coords
+```{r}
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta.i)){
+  if (meta.i$Pole[i] == "Antarctic"){
+    meta.i$Glacier_Latitude[i] <- c(paste0("-", meta.i$Glacier_Latitude[i]))
+    meta.i$Cryoconite_Latitude[i] <- c(paste0("-", meta.i$Cryoconite_Latitude[i]))
+  }
+}
+
+#get latitude of each sample
+lat <- as.numeric(meta.i$Cryoconite_Latitude)
+#get longitude of each sample
+long <- as.numeric(meta.i$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta.i$Glacier_Latitude <- as.numeric(str_sub(meta.i$Glacier_Latitude,1,nchar(meta.i$Glacier_Latitude)-1))
+meta.i$Glacier_Longitude <- as.numeric(str_sub(meta.i$Glacier_Longitude,1,nchar(meta.i$Glacier_Longitude)-1))
+
+lat[4:6] <- meta.i$Glacier_Latitude[4:6]
+lat[8] <- meta.i$Glacier_Latitude[8]
+lat[14:18] <- meta.i$Glacier_Latitude[14:18]
+lat[21] <- meta.i$Glacier_Latitude[21]
+lat[24:25] <- meta.i$Glacier_Latitude[24:25]
+lat[34:42] <- meta.i$Glacier_Latitude[34:42]
+lat[50:53] <- meta.i$Glacier_Latitude[50:53]
+
+long[4:6] <- meta.i$Glacier_Longitude[4:6]
+long[8] <- meta.i$Glacier_Longitude[8]
+long[14:18] <- meta.i$Glacier_Longitude[14:18]
+long[21] <- meta.i$Glacier_Longitude[21]
+long[24:25] <- meta.i$Glacier_Longitude[24:25]
+long[34:42] <- meta.i$Glacier_Longitude[34:42]
+long[50:53] <- meta.i$Glacier_Longitude[50:53]
+
+#put into matrix
+long.lat.i <- as.matrix(cbind(long, lat))
+```
+
+3.4 Convert data into distance matrices
+```{r}
+#taxa
+dist.comm.i <- vegdist(spp.h.i, method='bray')
+
+#env
+#scale data 
+scale.env = scale(environment.i, center = TRUE, scale = TRUE)
+dist.env.i <- dist(scale.env, method='euclidean')
+
+#geo
+d.geo <- distm(long.lat, fun=distHaversine)
+dist.geo.i <- as.dist(d.geo)
+# dist.geo.i <-vegdist(long.lat, method="euclidean")
+```
+
+3.5 Run Mantel Tests
+```{r}
+#abundance vs environment.ial 
+abund_env.i = mantel(dist.comm.i, dist.env.i, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_env.i
+
+#abundance vs geographic 
+abund_geo.i  = mantel(dist.comm.i, dist.geo.i, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_geo.i #p > 0.05
+```
+
+3.6 Run partial Mantel tests
+```{r}
+# environment.ial while controlling for geographic
+env_cont_geo.i = mantel.partial(dist.comm.i, dist.env.i, dist.geo.i, method="spearman", permutations=999)
+env_cont_geo.i
+
+# Geographic while controlling for environment.ial
+geo_cont_env.i = mantel.partial(dist.comm.i, dist.geo.i, dist.env.i, method="spearman", permutations=999)
+geo_cont_env.i
+```
+
+3.7 Bar plot of results
+```{r}
+env <- abund_env$statistic
+spa <- abund_geo$statistic
+env_spa <- env_cont_geo.i$statistic
+spa_env <- geo_cont_env.i$statistic
+
+stat_df.i <- data.frame(mod=c("env", "spa", "env | spa", "spa | env"), stat=c(env, spa, env_spa, spa_env))
+
+#create label dataframe
+label.df.i <- data.frame(mod = c("env", "env | spa"),
+                       stat = c(0.22, 0.165))
+
+ggplot(data=stat_df.i, aes(x=mod, y=stat))+
+  geom_bar(stat="identity")+
+  ggtitle("Intermediate Taxa Mantel/Partial Mantel Tests for Cor with Enviro/Spatial Factors")+
+  xlab("Factors")+
+  ylab("Correlation Coefficient") +
+  geom_text(data = label.df.i, label = "**")
+```
+
+4 RARE TAXA
+4.1 Load species data and transform
+```{r}
+ps.glaciers.merged.RR <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-rare.rds") #merged glaciers abundant phyloseq object
+counts.ra <- as.matrix(t(otu_table(ps.glaciers.merged.RR)))
+
+# #rename counts.ra columns with class
+# tax_tab.ra <- data.frame(tax_table(ps.glaciers.merged.RR))
+# #replace NAs with Unknown
+# tax_tab.ra[is.na(tax_tab.ra)] <- "Unknown"
+# colnames(counts.ra) <- tax_tab.ra$Class
+# 
+# #aggregate count data
+# x <- t(counts.ra)
+# new_df.ra=aggregate(x, by=list(rownames(x)),sum)
+# new_counts.ra <- t(new_df.ra)
+# colnames(new_counts.ra) <- new_counts.ra[1,]
+# new_counts.ra <- new_counts.ra[-1,]
+# df.ra <- data.frame(new_counts.ra)
+# #make dataframe numeric
+# df.ra[] <- lapply(df.ra, as.numeric)
+
+# Hellinger-transform the species dataset
+spp.h.ra <- as.data.frame(decostand(df.ra, "hellinger"))
+```
+
+
+4.2 Load environmental data
+```{r}
+meta.ra <- data.frame(sample_data(ps.rar))
+#keep rows of dataframe with same sampleID as count table
+meta.ra <- meta.ra[rownames(meta.ra) %in% rownames(spp.h.ra),]
+#keep only variables we want to include in our mode
+meta.ra_trim <- meta.ra[,17:92]
+meta.ra_trim <- meta.ra_trim[,c(1:3, 5, 10, 12, 15, 18:33, 36, 39, 42, 45, 48, 51, 54:62)]
+#meta.ra_trim <- meta.ra_trim[,1:3]
+#calcualte area
+meta.ra_trim$area <- pi*(meta.ra$NS/2)*(meta.ra$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta.ra_trim <- meta.ra_trim[ , !(names(meta.ra_trim) %in% drops)]
+#remove more unneccessary columns
+meta.ra_trim <- meta.ra_trim[,-c(64:74)]
+#make dataframe numeric
+meta.ra_trim[] <- lapply(meta.ra_trim, as.numeric)
+
+#Replace NAs with median values
+
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+environment.ra=as.data.frame(apply(meta.ra_trim,2,f))
+```
+
+4.3 Load lat.ra and long.ra coords
+```{r}
+#put a negative sign in front of all the south lat.raitude coords
+for (i in 1:nrow(meta.ra)){
+  if (meta.ra$Pole[i] == "Antarctic"){
+    meta.ra$Glacier_Latitude[i] <- c(paste0("-", meta.ra$Glacier_Latitude[i]))
+    meta.ra$Cryoconite_Latitude[i] <- c(paste0("-", meta.ra$Cryoconite_Latitude[i]))
+  }
+}
+
+#get lat.raitude of each sample
+lat.ra <- as.numeric(meta.ra$Cryoconite_Latitude)
+#get long.raitude of each sample
+long.ra <- as.numeric(meta.ra$Cryoconite_Longitude)
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+# meta.ra$Glacier_Latitude <- as.numeric(str_sub(meta.ra$Glacier_Latitude,1,nchar(meta.ra$Glacier_Latitude)-1))
+
+y <- as.numeric(str_sub(meta.ra$Glacier_Latitude,1,nchar(meta.ra$Glacier_Latitude)-2))
+
+meta.ra$Glacier_Latitude <- y
+
+meta.ra$Glacier_Longitude <- as.numeric(str_sub(meta.ra$Glacier_Longitude,1,nchar(meta.ra$Glacier_Longitude)-1))
+
+lat.ra[4:6] <- meta.ra$Glacier_Latitude[4:6]
+lat.ra[8] <- meta.ra$Glacier_Latitude[8]
+lat.ra[14:18] <- meta.ra$Glacier_Latitude[14:18]
+lat.ra[21] <- meta.ra$Glacier_Latitude[21]
+lat.ra[23:24] <- meta.ra$Glacier_Latitude[23:24]
+lat.ra[33:41] <- meta.ra$Glacier_Latitude[33:41]
+lat.ra[49:52] <- meta.ra$Glacier_Latitude[49:52]
+
+long.ra[4:6] <- meta.ra$Glacier_Longitude[4:6]
+long.ra[8] <- meta.ra$Glacier_Longitude[8]
+long.ra[14:18] <- meta.ra$Glacier_Longitude[14:18]
+long.ra[21] <- meta.ra$Glacier_Longitude[21]
+long.ra[23:24] <- meta.ra$Glacier_Longitude[23:24]
+long.ra[33:41] <- meta.ra$Glacier_Longitude[33:41]
+long.ra[49:52] <- meta.ra$Glacier_Longitude[49:52]
+
+#put into matrix
+long.ra.lat.ra <- as.matrix(cbind(long.ra, lat.ra))
+```
+
+4.4 Convert data into distance matrices
+```{r}
+#taxa
+dist.comm.ra <- vegdist(spp.h.ra, method='bray')
+
+#env
+#scale data 
+scale.env = scale(environment.ra, center = TRUE, scale = TRUE)
+dist.env.ra <- dist(scale.env, method='euclidean')
+
+#geo
+# d.geo.ra <- distm(long.ra.lat.ra, fun=distHaversine)
+# dist.geo.ra <- as.dist(d.geo.ra)
+dist.geo.ra <-vegdist(long.ra.lat.ra, method="euclidean")
+```
+
+4.5 Run Mantel Tests
+```{r}
+#abundance vs environment.raal 
+abund_env.ra = mantel(dist.comm.ra, dist.env.ra, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_env.ra
+
+#abundance vs geographic 
+abund_geo.ra  = mantel(dist.comm.ra, dist.geo.ra, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_geo.ra #p > 0.05
+```
+
+4.6 Run partial Mantel tests
+```{r}
+# environment.raal while controlling for geographic
+env_cont_geo.ra = mantel.partial(dist.comm.ra, dist.env.ra, dist.geo.ra, method="spearman", permutations=999)
+env_cont_geo.ra
+
+# Geographic while controlling for environment.raal
+geo_cont_env.ra = mantel.partial(dist.comm.ra, dist.geo.ra, dist.env.ra, method="spearman", permutations=999)
+geo_cont_env.ra
+```
+
+4.7 Bar plot of results
+```{r}
+env <- abund_env$statistic
+spa <- abund_geo$statistic
+env_spa <- env_cont_geo.ra$statistic
+spa_env <- geo_cont_env.ra$statistic
+
+stat_df.ra <- data.frame(mod=c("env", "spa", "env | spa", "spa | env"), stat=c(env, spa, env_spa, spa_env))
+
+# #create label dataframe
+# label.df.ra <- data.frame(mod = c("env", "env | spa"),
+#                        stat = c(0.22, 0.165))
+
+ggplot(data=stat_df.ra, aes(x=mod, y=stat))+
+  geom_bar(stat="identity")+
+  ggtitle("Rare Taxa Mantel/Partial Mantel Tests for Cor with Enviro/Spatial Factors")+
+  xlab("Factors")+
+  ylab("Correlation Coefficient") #+
+  #geom_text(data = label.df.i, label = "**")
+```

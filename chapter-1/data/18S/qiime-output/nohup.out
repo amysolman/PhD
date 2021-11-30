@@ -1,0 +1,21 @@
+R version 4.0.3 (2020-10-10) 
+Loading required package: Rcpp
+DADA2: 1.18.0 / Rcpp: 1.0.6 / RcppParallel: 5.1.2 
+1) Filtering .....................................................................................
+2) Learning Error Rates
+186477595 total bases in 1007987 reads from 32 samples will be used for learning the error rates.
+171357790 total bases in 1007987 reads from 32 samples will be used for learning the error rates.
+3) Denoise samples .....................................................................................
+.....................................................................................
+4) Remove chimeras (method = consensus)
+6) Write output
+Running external command line application(s). This may print messages to stdout and/or stderr.
+The command(s) being run are below. These commands cannot be manually re-run as they will depend on temporary files that no longer exist.
+
+Command: run_dada_paired.R /tmp/tmp8cod7q95/forward /tmp/tmp8cod7q95/reverse /tmp/tmp8cod7q95/output.tsv.biom /tmp/tmp8cod7q95/track.tsv /tmp/tmp8cod7q95/filt_f /tmp/tmp8cod7q95/filt_r 205 190 20 20 2.0 2.0 2 12 independent consensus 1.0 1 1000000
+
+Saved FeatureTable[Frequency] to: table.qza
+Saved FeatureData[Sequence] to: rep-seqs.qza
+Saved SampleData[DADA2Stats] to: denoising-stats.qza
+Saved TaxonomicClassifier to: classifier.qza
+Saved FeatureData[Taxonomy] to: taxonomy.qza

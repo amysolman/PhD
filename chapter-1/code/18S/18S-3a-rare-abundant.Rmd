@@ -1,0 +1,572 @@
+---
+title: "18S-3-rare-abundant"
+author: "Amy Solman"
+date: "05/08/2021"
+output: html_document
+---
+In this script I'm going to divide my cryoconite data into subcommunities based on their regional abundance.
+Following Liu et al. (2015), Li et al., (2021)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(phyloseq)
+library(dplyr) 
+```
+
+#Step Two: Load data 
+```{r}
+#Load data files
+load("../data-output/18S-my-sequence-data.RData") #load all our pre-processed data files
+
+#load phyloseq object
+ps <- readRDS("../data-output/18S-my-phyloseq-object.rds") #load unrarefied phyloseq object
+ps.all.samples <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq object
+```
+
+#Step Three: Divide the rarefied sequences into two new phyloseq objects, one for the Arctic and one for the Antarctic
+```{r}
+#subset rarefied samples by pole
+ps.arc.samples <- subset_samples(ps.all.samples, Pole=="Arctic")
+ps.ant.samples <- subset_samples(ps.all.samples, Pole=="Antarctic")
+
+#subset rarefied samples by glacier
+#Canada
+ps.can.samples <- subset_samples(ps.all.samples, Glacier=="Canada")
+#Commonwealth
+ps.com.samples <- subset_samples(ps.all.samples, Glacier=="Commonwealth")
+#Taylor
+ps.tay.samples <- subset_samples(ps.all.samples, Glacier=="Taylor")
+#Diamond
+ps.dia.samples <- subset_samples(ps.all.samples, Glacier=="Diamond")
+#Lower Koettlitz
+ps.lk.samples <- subset_samples(ps.all.samples, Glacier=="Lower Koettlitz")
+# Lower Wright
+ps.lw.samples <- subset_samples(ps.all.samples, Glacier=="Lower Wright")
+# Upper Wright
+ps.uw.samples <- subset_samples(ps.all.samples, Glacier=="Upper Wright")
+# Core
+ps.cor.samples <- subset_samples(ps.all.samples, Glacier=="Core")
+# Kangerlussuaq
+ps.kan.samples <- subset_samples(ps.all.samples, Glacier=="Kangerlussuaq")
+# Margin
+ps.mar.samples <- subset_samples(ps.all.samples, Glacier=="Margin")
+# Midre Lovenbreen
+ps.mid.samples <- subset_samples(ps.all.samples, Glacier=="Midre Lovenbreen")
+# Miers
+ps.mie.samples <- subset_samples(ps.all.samples, Glacier=="Miers")
+# Storglaciären
+ps.sto.samples <- subset_samples(ps.all.samples, Glacier=="Storglaciären")
+# Upper Koettlitz
+ps.uk.samples <- subset_samples(ps.all.samples, Glacier=="Upper Koettlitz")
+```
+
+
+```{r}
+#Keep only ASVs that have 1 or more reads
+ps.all.samples.prune <- prune_taxa(taxa_sums(ps.all.samples) >= 1, ps.all.samples)
+ps.arc.samples.prune <- prune_taxa(taxa_sums(ps.arc.samples) >= 1, ps.arc.samples)
+ps.ant.samples.prune <- prune_taxa(taxa_sums(ps.ant.samples) >= 1, ps.ant.samples)
+ps.can.samples.prune <- prune_taxa(taxa_sums(ps.can.samples) >= 1, ps.can.samples)
+ps.com.samples.prune <- prune_taxa(taxa_sums(ps.com.samples) >= 1, ps.com.samples)
+ps.tay.samples.prune <- prune_taxa(taxa_sums(ps.tay.samples) >= 1, ps.tay.samples)
+ps.dia.samples.prune <- prune_taxa(taxa_sums(ps.dia.samples) >= 1, ps.dia.samples)
+ps.lk.samples.prune <- prune_taxa(taxa_sums(ps.lk.samples) >= 1, ps.lk.samples)
+ps.lw.samples.prune <- prune_taxa(taxa_sums(ps.lw.samples) >= 1, ps.lw.samples)
+ps.uw.samples.prune <- prune_taxa(taxa_sums(ps.uw.samples) >= 1, ps.uw.samples)
+ps.cor.samples.prune <- prune_taxa(taxa_sums(ps.cor.samples) >= 1, ps.cor.samples)
+ps.kan.samples.prune <- prune_taxa(taxa_sums(ps.kan.samples) >= 1, ps.kan.samples)
+ps.mar.samples.prune <- prune_taxa(taxa_sums(ps.mar.samples) >= 1, ps.mar.samples)
+ps.mid.samples.prune <- prune_taxa(taxa_sums(ps.mid.samples) >= 1, ps.mid.samples)
+ps.mie.samples.prune <- prune_taxa(taxa_sums(ps.mie.samples) >= 1, ps.mie.samples)
+ps.sto.samples.prune <- prune_taxa(taxa_sums(ps.sto.samples) >= 1, ps.sto.samples)
+ps.uk.samples.prune <- prune_taxa(taxa_sums(ps.uk.samples) >= 1, ps.uk.samples)
+
+
+#Check bar plots to make sure each data set has the same number of reads in each sample
+plot_bar(ps.all.samples.prune)
+plot_bar(ps.arc.samples.prune)
+plot_bar(ps.ant.samples.prune)
+plot_bar(ps.can.samples.prune)
+plot_bar(ps.uk.samples.prune)
+```
+
+#Step Four: Find the local relative abundance of each ASV in each sample
+```{r}
+#get relative abundances
+ps.all.samples.prune.rel <- transform_sample_counts(ps.all.samples.prune, function(x) x/sum(x))
+ps.arc.samples.prune.rel <- transform_sample_counts(ps.arc.samples.prune, function(x) x/sum(x))
+ps.ant.samples.prune.rel <- transform_sample_counts(ps.ant.samples.prune, function(x) x/sum(x))
+ps.can.samples.prune.rel <- transform_sample_counts(ps.can.samples.prune, function(x) x/sum(x))
+ps.com.samples.prune.rel <- transform_sample_counts(ps.com.samples.prune, function(x) x/sum(x))
+ps.tay.samples.prune.rel <- transform_sample_counts(ps.tay.samples.prune, function(x) x/sum(x))
+ps.dia.samples.prune.rel <- transform_sample_counts(ps.dia.samples.prune, function(x) x/sum(x))
+ps.lk.samples.prune.rel <- transform_sample_counts(ps.lk.samples.prune, function(x) x/sum(x))
+ps.lw.samples.prune.rel <- transform_sample_counts(ps.lw.samples.prune, function(x) x/sum(x))
+ps.uw.samples.prune.rel <- transform_sample_counts(ps.uw.samples.prune, function(x) x/sum(x))
+ps.cor.samples.prune.rel <- transform_sample_counts(ps.cor.samples.prune, function(x) x/sum(x))
+ps.kan.samples.prune.rel <- transform_sample_counts(ps.kan.samples.prune, function(x) x/sum(x))
+ps.mar.samples.prune.rel <- transform_sample_counts(ps.mar.samples.prune, function(x) x/sum(x))
+ps.mid.samples.prune.rel <- transform_sample_counts(ps.mid.samples.prune, function(x) x/sum(x))
+ps.mie.samples.prune.rel <- transform_sample_counts(ps.mie.samples.prune, function(x) x/sum(x))
+ps.sto.samples.prune.rel <- transform_sample_counts(ps.sto.samples.prune, function(x) x/sum(x))
+ps.uk.samples.prune.rel <- transform_sample_counts(ps.uk.samples.prune, function(x) x/sum(x))
+
+#We can check to see if this worked by getting the sum of each of the columns in the count table of the phyloseq object
+colSums(otu_table(ps.all.samples.prune.rel))
+colSums(otu_table(ps.arc.samples.prune.rel)) 
+colSums(otu_table(ps.ant.samples.prune.rel))
+colSums(otu_table(ps.can.samples.prune.rel))
+#the column sums for the count tables in these phyloseq objects all equal 1 so the columns have the relative abundances
+
+#We can also check this by looking at our bar plots 
+plot_bar(ps.all.samples.prune.rel)
+plot_bar(ps.arc.samples.prune.rel)
+plot_bar(ps.ant.samples.prune.rel)
+```
+#Find the mean local relative abundance of each ASV within All, Arctic and Antarctic groups
+```{r}
+df.all.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.all.samples.prune.rel)))
+df.arc.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.arc.samples.prune.rel)))
+df.ant.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.ant.samples.prune.rel)))
+
+df.can.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.can.samples.prune.rel)))
+df.com.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.com.samples.prune.rel)))
+df.tay.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.tay.samples.prune.rel)))
+df.dia.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.dia.samples.prune.rel)))
+df.lk.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.lk.samples.prune.rel)))
+df.lw.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.lw.samples.prune.rel)))
+df.uw.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.uw.samples.prune.rel)))
+df.cor.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.cor.samples.prune.rel)))
+df.kan.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.kan.samples.prune.rel)))
+df.mar.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.mar.samples.prune.rel)))
+df.mid.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.mid.samples.prune.rel)))
+df.mie.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.mie.samples.prune.rel)))
+df.sto.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.sto.samples.prune.rel)))
+df.uk.sample.prune.rel.mean <- as.data.frame(rowMeans(otu_table(ps.uk.samples.prune.rel)))
+```
+#Save the OTUID of those with mean relative abundance >=0.1% into a regionally abundant vector
+```{r}
+RA.IDs.all.sample <- row.names(df.all.sample.prune.rel.mean)[df.all.sample.prune.rel.mean >= 0.001]
+RA.IDs.arc.sample <- row.names(df.arc.sample.prune.rel.mean)[df.arc.sample.prune.rel.mean >= 0.001]
+RA.IDs.ant.sample <- row.names(df.ant.sample.prune.rel.mean)[df.ant.sample.prune.rel.mean >= 0.001]
+
+RA.IDs.can.sample <- row.names(df.can.sample.prune.rel.mean)[df.can.sample.prune.rel.mean >= 0.001]
+RA.IDs.com.sample <- row.names(df.com.sample.prune.rel.mean)[df.com.sample.prune.rel.mean >= 0.001]
+RA.IDs.tay.sample <- row.names(df.tay.sample.prune.rel.mean)[df.tay.sample.prune.rel.mean >= 0.001]
+RA.IDs.dia.sample <- row.names(df.dia.sample.prune.rel.mean)[df.dia.sample.prune.rel.mean >= 0.001]
+RA.IDs.lk.sample <- row.names(df.lk.sample.prune.rel.mean)[df.lk.sample.prune.rel.mean >= 0.001]
+RA.IDs.lw.sample <- row.names(df.lw.sample.prune.rel.mean)[df.lw.sample.prune.rel.mean >= 0.001]
+RA.IDs.uw.sample <- row.names(df.uw.sample.prune.rel.mean)[df.uw.sample.prune.rel.mean >= 0.001]
+RA.IDs.cor.sample <- row.names(df.cor.sample.prune.rel.mean)[df.cor.sample.prune.rel.mean >= 0.001]
+RA.IDs.kan.sample <- row.names(df.kan.sample.prune.rel.mean)[df.kan.sample.prune.rel.mean >= 0.001]
+RA.IDs.mar.sample <- row.names(df.mar.sample.prune.rel.mean)[df.mar.sample.prune.rel.mean >= 0.001]
+RA.IDs.mid.sample <- row.names(df.mid.sample.prune.rel.mean)[df.mid.sample.prune.rel.mean >= 0.001]
+RA.IDs.mie.sample <- row.names(df.mie.sample.prune.rel.mean)[df.mie.sample.prune.rel.mean >= 0.001]
+RA.IDs.sto.sample <- row.names(df.sto.sample.prune.rel.mean)[df.sto.sample.prune.rel.mean >= 0.001]
+RA.IDs.uk.sample <- row.names(df.uk.sample.prune.rel.mean)[df.uk.sample.prune.rel.mean >= 0.001]
+```
+
+#Save the OTUID of those with mean relative abundance <=0.01% into a regionally rare vector
+```{r}
+RR.IDs.all.sample <- row.names(df.all.sample.prune.rel.mean)[df.all.sample.prune.rel.mean <= 0.0001]
+RR.IDs.arc.sample <- row.names(df.arc.sample.prune.rel.mean)[df.arc.sample.prune.rel.mean <= 0.0001]
+RR.IDs.ant.sample <- row.names(df.ant.sample.prune.rel.mean)[df.ant.sample.prune.rel.mean <= 0.0001]
+
+#I've changed this to <=0.01%
+RR.IDs.can.sample <- row.names(df.can.sample.prune.rel.mean)[df.can.sample.prune.rel.mean <= 0.0001]
+RR.IDs.com.sample <- row.names(df.com.sample.prune.rel.mean)[df.com.sample.prune.rel.mean <= 0.0001]
+RR.IDs.tay.sample <- row.names(df.tay.sample.prune.rel.mean)[df.tay.sample.prune.rel.mean <= 0.0001]
+RR.IDs.dia.sample <- row.names(df.dia.sample.prune.rel.mean)[df.dia.sample.prune.rel.mean <= 0.0001]
+RR.IDs.lk.sample <- row.names(df.lk.sample.prune.rel.mean)[df.lk.sample.prune.rel.mean <= 0.0001]
+RR.IDs.lw.sample <- row.names(df.lw.sample.prune.rel.mean)[df.lw.sample.prune.rel.mean <= 0.0001]
+RR.IDs.uw.sample <- row.names(df.uw.sample.prune.rel.mean)[df.uw.sample.prune.rel.mean <= 0.0001]
+RR.IDs.cor.sample <- row.names(df.cor.sample.prune.rel.mean)[df.cor.sample.prune.rel.mean <= 0.0001]
+RR.IDs.kan.sample <- row.names(df.kan.sample.prune.rel.mean)[df.kan.sample.prune.rel.mean <= 0.0001]
+RR.IDs.mar.sample <- row.names(df.mar.sample.prune.rel.mean)[df.mar.sample.prune.rel.mean <= 0.0001]
+RR.IDs.mid.sample <- row.names(df.mid.sample.prune.rel.mean)[df.mid.sample.prune.rel.mean <= 0.0001]
+RR.IDs.mie.sample <- row.names(df.mie.sample.prune.rel.mean)[df.mie.sample.prune.rel.mean <= 0.0001]
+RR.IDs.sto.sample <- row.names(df.sto.sample.prune.rel.mean)[df.sto.sample.prune.rel.mean <= 0.0001]
+RR.IDs.uk.sample <- row.names(df.uk.sample.prune.rel.mean)[df.uk.sample.prune.rel.mean <= 0.0001]
+```
+
+#Save the OTUID of those with mean relative abundance >0.01% and <0.1% (or >0.05% and <0.1% or >=0.01% and <=0.01%) into a regionally intermediate vector
+```{r}
+I.IDs.all.sample <- row.names(df.all.sample.prune.rel.mean)[df.all.sample.prune.rel.mean > 0.0001 & df.all.sample.prune.rel.mean < 0.001]
+I.IDs.arc.sample <- row.names(df.arc.sample.prune.rel.mean)[df.arc.sample.prune.rel.mean > 0.0001 & df.arc.sample.prune.rel.mean < 0.001]
+I.IDs.ant.sample <- row.names(df.ant.sample.prune.rel.mean)[df.ant.sample.prune.rel.mean > 0.0001 & df.ant.sample.prune.rel.mean < 0.001]
+
+I.IDs.can.sample <- row.names(df.can.sample.prune.rel.mean)[df.can.sample.prune.rel.mean > 0.0001 & df.can.sample.prune.rel.mean < 0.001]
+I.IDs.com.sample <- row.names(df.com.sample.prune.rel.mean)[df.com.sample.prune.rel.mean > 0.0001 & df.com.sample.prune.rel.mean < 0.001]
+I.IDs.tay.sample <- row.names(df.tay.sample.prune.rel.mean)[df.tay.sample.prune.rel.mean > 0.0001 & df.tay.sample.prune.rel.mean < 0.001]
+I.IDs.dia.sample <- row.names(df.dia.sample.prune.rel.mean)[df.dia.sample.prune.rel.mean > 0.0001 & df.dia.sample.prune.rel.mean < 0.001]
+I.IDs.lk.sample <- row.names(df.lk.sample.prune.rel.mean)[df.lk.sample.prune.rel.mean > 0.0001 & df.lk.sample.prune.rel.mean < 0.001]
+I.IDs.lw.sample <- row.names(df.lw.sample.prune.rel.mean)[df.lw.sample.prune.rel.mean > 0.0001 & df.lw.sample.prune.rel.mean < 0.001]
+I.IDs.uw.sample <- row.names(df.uw.sample.prune.rel.mean)[df.uw.sample.prune.rel.mean > 0.0001 & df.uw.sample.prune.rel.mean < 0.001]
+I.IDs.cor.sample <- row.names(df.cor.sample.prune.rel.mean)[df.cor.sample.prune.rel.mean > 0.0001 & df.cor.sample.prune.rel.mean < 0.001]
+I.IDs.kan.sample <- row.names(df.kan.sample.prune.rel.mean)[df.kan.sample.prune.rel.mean > 0.0001 & df.kan.sample.prune.rel.mean < 0.001]
+I.IDs.mar.sample <- row.names(df.mar.sample.prune.rel.mean)[df.mar.sample.prune.rel.mean > 0.0001 & df.mar.sample.prune.rel.mean < 0.001]
+I.IDs.mid.sample <- row.names(df.mid.sample.prune.rel.mean)[df.mid.sample.prune.rel.mean > 0.0001 & df.mid.sample.prune.rel.mean < 0.001]
+I.IDs.mie.sample <- row.names(df.mie.sample.prune.rel.mean)[df.mie.sample.prune.rel.mean > 0.0001 & df.mie.sample.prune.rel.mean < 0.001]
+I.IDs.sto.sample <- row.names(df.sto.sample.prune.rel.mean)[df.sto.sample.prune.rel.mean > 0.0001 & df.sto.sample.prune.rel.mean < 0.001]
+I.IDs.uk.sample <- row.names(df.uk.sample.prune.rel.mean)[df.uk.sample.prune.rel.mean > 0.0001 & df.uk.sample.prune.rel.mean < 0.001]
+```
+
+#Check how many ASVs we have in each subgroup to make sure we've grouped everything into appropriate communities
+```{r}
+#Let's double check how many ASVs we have in our total community groups
+nrow(df.all.sample.prune.rel.mean) # = 7644
+nrow(df.arc.sample.prune.rel.mean) # = 2224
+nrow(df.ant.sample.prune.rel.mean) # = 5505
+
+nrow(df.can.sample.prune.rel.mean) # = 1551
+
+#How many do we have in our abundant groups
+length(RA.IDs.all.sample) # = 209
+length(RA.IDs.arc.sample) # = 210
+length(RA.IDs.ant.sample) # = 196
+
+length(RA.IDs.can.sample) # = 127
+
+#How many do we have in our rare groups
+length(RR.IDs.all.sample) # = 2524
+length(RR.IDs.arc.sample) # = 128
+length(RR.IDs.ant.sample) # = 1322
+
+length(RR.IDs.can.sample) # = 896
+
+#How many do we have in our intermediate groups
+length(I.IDs.all.sample) # = 4911
+length(I.IDs.arc.sample) # = 1886
+length(I.IDs.ant.sample) # = 3987
+
+length(I.IDs.can.sample) # = 528
+
+#Both poles
+#209+2524+4911 = 7644 taxa
+
+#Arctic
+#210+128+1886 = 2224 taxa
+
+#Antarctic
+#196+1322+3987 = 5505
+
+#Canada
+#127 + 896 + 528 = 1551
+
+#PERFECT! All our ASVs are classified as either rare, abundant or intermediate 
+
+```
+
+#Filter all samples from each group and only keep the OTUIDs from the abundant vector. This is your abundant dataset.
+```{r}
+#We're going to use our phyloseq objects from before tranforming into relative abundance
+ps.all.samples.RA = prune_taxa(RA.IDs.all.sample, ps.all.samples.prune)
+ps.arc.samples.RA = prune_taxa(RA.IDs.arc.sample, ps.arc.samples.prune)
+ps.ant.samples.RA = prune_taxa(RA.IDs.ant.sample, ps.ant.samples.prune)
+
+ps.can.samples.RA = prune_taxa(RA.IDs.can.sample, ps.can.samples.prune)
+ps.com.samples.RA = prune_taxa(RA.IDs.com.sample, ps.com.samples.prune)
+ps.tay.samples.RA = prune_taxa(RA.IDs.tay.sample, ps.tay.samples.prune)
+ps.dia.samples.RA = prune_taxa(RA.IDs.dia.sample, ps.dia.samples.prune)
+ps.lk.samples.RA = prune_taxa(RA.IDs.lk.sample, ps.lk.samples.prune)
+ps.lw.samples.RA = prune_taxa(RA.IDs.lw.sample, ps.lw.samples.prune)
+ps.uw.samples.RA = prune_taxa(RA.IDs.uw.sample, ps.uw.samples.prune)
+ps.cor.samples.RA = prune_taxa(RA.IDs.cor.sample, ps.cor.samples.prune)
+ps.kan.samples.RA = prune_taxa(RA.IDs.kan.sample, ps.kan.samples.prune)
+ps.mar.samples.RA = prune_taxa(RA.IDs.mar.sample, ps.mar.samples.prune)
+ps.mid.samples.RA = prune_taxa(RA.IDs.mid.sample, ps.mid.samples.prune)
+ps.mie.samples.RA = prune_taxa(RA.IDs.mie.sample, ps.mie.samples.prune)
+ps.sto.samples.RA = prune_taxa(RA.IDs.sto.sample, ps.sto.samples.prune)
+ps.uk.samples.RA = prune_taxa(RA.IDs.uk.sample, ps.uk.samples.prune)
+
+#Check our new phyloseq objects by making sure they have the right number of samples and ASVs
+ps.all.samples.RA #209 taxa, 62 samples
+ps.arc.samples.RA #210 taxa, 16 samples
+ps.ant.samples.RA #196 taxa, 46 samples
+
+ps.can.samples.RA #127 taxa, 8 samples
+
+#Bar plots to check the data
+plot_bar(ps.all.samples.RA)
+plot_bar(ps.arc.samples.RA)
+plot_bar(ps.ant.samples.RA)
+
+plot_bar(ps.can.samples.RA)
+
+#how many reads are in each data frame
+colSums(data.frame(otu_table(ps.all.samples.RA))) #for the total dataset there is one sample with no globally abundant taxa
+colSums(data.frame(otu_table(ps.arc.samples.RA)))
+colSums(data.frame(otu_table(ps.ant.samples.RA)))
+
+colSums(data.frame(otu_table(ps.can.samples.RA)))
+
+#remove any samples with zero reads
+ps.all.samples.RA.prune = prune_samples(sample_sums(ps.all.samples.RA)>=1, ps.all.samples.RA)
+ps.arc.samples.RA.prune = prune_samples(sample_sums(ps.arc.samples.RA)>=1, ps.arc.samples.RA)
+ps.ant.samples.RA.prune = prune_samples(sample_sums(ps.ant.samples.RA)>=1, ps.ant.samples.RA)
+
+ps.can.samples.RA.prune = prune_samples(sample_sums(ps.can.samples.RA)>=1, ps.can.samples.RA)
+ps.com.samples.RA.prune = prune_samples(sample_sums(ps.com.samples.RA)>=1, ps.com.samples.RA)
+ps.tay.samples.RA.prune = prune_samples(sample_sums(ps.tay.samples.RA)>=1, ps.tay.samples.RA)
+ps.dia.samples.RA.prune = prune_samples(sample_sums(ps.dia.samples.RA)>=1, ps.dia.samples.RA)
+ps.lk.samples.RA.prune = prune_samples(sample_sums(ps.lk.samples.RA)>=1, ps.lk.samples.RA)
+ps.lw.samples.RA.prune = prune_samples(sample_sums(ps.lw.samples.RA)>=1, ps.lw.samples.RA)
+ps.uw.samples.RA.prune = prune_samples(sample_sums(ps.uw.samples.RA)>=1, ps.uw.samples.RA)
+ps.cor.samples.RA.prune = prune_samples(sample_sums(ps.cor.samples.RA)>=1, ps.cor.samples.RA)
+ps.kan.samples.RA.prune = prune_samples(sample_sums(ps.kan.samples.RA)>=1, ps.kan.samples.RA)
+ps.mar.samples.RA.prune = prune_samples(sample_sums(ps.mar.samples.RA)>=1, ps.mar.samples.RA)
+ps.mid.samples.RA.prune = prune_samples(sample_sums(ps.mid.samples.RA)>=1, ps.mid.samples.RA)
+ps.mie.samples.RA.prune = prune_samples(sample_sums(ps.mie.samples.RA)>=1, ps.mie.samples.RA)
+ps.sto.samples.RA.prune = prune_samples(sample_sums(ps.sto.samples.RA)>=1, ps.sto.samples.RA)
+ps.uk.samples.RA.prune = prune_samples(sample_sums(ps.uk.samples.RA)>=1, ps.uk.samples.RA)
+
+#how many reads are in each pruned data frame
+colSums(data.frame(otu_table(ps.all.samples.RA.prune)))
+colSums(data.frame(otu_table(ps.arc.samples.RA.prune)))
+colSums(data.frame(otu_table(ps.ant.samples.RA.prune)))
+
+colSums(data.frame(otu_table(ps.can.samples.RA.prune)))
+```
+
+#Filter all samples from each group and only keep the OTUIDs from the rare vector. This is your rare dataset.
+```{r}
+#We're going to use our phyloseq objects before tranforming into relative abundance
+ps.all.samples.RR = prune_taxa(RR.IDs.all.sample, ps.all.samples.prune)
+ps.arc.samples.RR = prune_taxa(RR.IDs.arc.sample, ps.arc.samples.prune)
+ps.ant.samples.RR = prune_taxa(RR.IDs.ant.sample, ps.ant.samples.prune)
+
+ps.can.samples.RR = prune_taxa(RR.IDs.can.sample, ps.can.samples.prune)
+ps.com.samples.RR = prune_taxa(RR.IDs.com.sample, ps.com.samples.prune)
+ps.tay.samples.RR = prune_taxa(RR.IDs.tay.sample, ps.tay.samples.prune)
+ps.dia.samples.RR = prune_taxa(RR.IDs.dia.sample, ps.dia.samples.prune)
+ps.lk.samples.RR = prune_taxa(RR.IDs.lk.sample, ps.lk.samples.prune)
+ps.lw.samples.RR = prune_taxa(RR.IDs.lw.sample, ps.lw.samples.prune)
+#ps.uw.samples.RR = prune_taxa(RR.IDs.uw.sample, ps.uw.samples.prune) No rare taxa for UW
+ps.cor.samples.RR = prune_taxa(RR.IDs.cor.sample, ps.cor.samples.prune)
+ps.kan.samples.RR = prune_taxa(RR.IDs.kan.sample, ps.kan.samples.prune)
+ps.mar.samples.RR = prune_taxa(RR.IDs.mar.sample, ps.mar.samples.prune)
+ps.mid.samples.RR = prune_taxa(RR.IDs.mid.sample, ps.mid.samples.prune)
+ps.mie.samples.RR = prune_taxa(RR.IDs.mie.sample, ps.mie.samples.prune)
+ps.sto.samples.RR = prune_taxa(RR.IDs.sto.sample, ps.sto.samples.prune)
+ps.uk.samples.RR = prune_taxa(RR.IDs.uk.sample, ps.uk.samples.prune)
+
+#Check our new phyloseq objects by making sure they have the right number of samples and ASVs
+ps.all.samples.RR #2524 taxa, 62 samples
+ps.arc.samples.RR #128 taxa, 16 samples
+ps.ant.samples.RR #1322 taxa, 46 samples
+
+#Bar plots to check the data
+plot_bar(ps.all.samples.RR)
+plot_bar(ps.arc.samples.RR)
+plot_bar(ps.ant.samples.RR)
+
+#how many reads are in each data frame
+colSums(data.frame(otu_table(ps.all.samples.RR))) #for the total dataset there is one sample with no globally abundant taxa
+colSums(data.frame(otu_table(ps.arc.samples.RR)))
+colSums(data.frame(otu_table(ps.ant.samples.RR))) #for the antarctic dataset there is one sample with no globally abundant taxa
+
+#remove any samples with zero reads
+ps.all.samples.RR.prune = prune_samples(sample_sums(ps.all.samples.RR)>=1, ps.all.samples.RR)
+ps.arc.samples.RR.prune = prune_samples(sample_sums(ps.arc.samples.RR)>=1, ps.arc.samples.RR)
+ps.ant.samples.RR.prune = prune_samples(sample_sums(ps.ant.samples.RR)>=1, ps.ant.samples.RR)
+
+ps.can.samples.RR.prune = prune_samples(sample_sums(ps.can.samples.RR)>=1, ps.can.samples.RR)
+ps.com.samples.RR.prune = prune_samples(sample_sums(ps.com.samples.RR)>=1, ps.com.samples.RR)
+ps.tay.samples.RR.prune = prune_samples(sample_sums(ps.tay.samples.RR)>=1, ps.tay.samples.RR)
+ps.dia.samples.RR.prune = prune_samples(sample_sums(ps.dia.samples.RR)>=1, ps.dia.samples.RR)
+ps.lk.samples.RR.prune = prune_samples(sample_sums(ps.lk.samples.RR)>=1, ps.lk.samples.RR)
+ps.lw.samples.RR.prune = prune_samples(sample_sums(ps.lw.samples.RR)>=1, ps.lw.samples.RR)
+#ps.uw.samples.RR.prune = prune_samples(sample_sums(ps.uw.samples.RR)>=1, ps.uw.samples.RR)
+ps.cor.samples.RR.prune = prune_samples(sample_sums(ps.cor.samples.RR)>=1, ps.cor.samples.RR)
+ps.kan.samples.RR.prune = prune_samples(sample_sums(ps.kan.samples.RR)>=1, ps.kan.samples.RR)
+ps.mar.samples.RR.prune = prune_samples(sample_sums(ps.mar.samples.RR)>=1, ps.mar.samples.RR)
+ps.mid.samples.RR.prune = prune_samples(sample_sums(ps.mid.samples.RR)>=1, ps.mid.samples.RR)
+ps.mie.samples.RR.prune = prune_samples(sample_sums(ps.mie.samples.RR)>=1, ps.mie.samples.RR)
+ps.sto.samples.RR.prune = prune_samples(sample_sums(ps.sto.samples.RR)>=1, ps.sto.samples.RR)
+ps.uk.samples.RR.prune = prune_samples(sample_sums(ps.uk.samples.RR)>=1, ps.uk.samples.RR)
+
+#how many reads are in each pruned data frame
+colSums(data.frame(otu_table(ps.all.samples.RR.prune)))
+colSums(data.frame(otu_table(ps.arc.samples.RR.prune)))
+colSums(data.frame(otu_table(ps.ant.samples.RR.prune)))
+```
+
+#Filter all samples from each group and only keep the OTUIDs from the intermediate vector. This is your intermediate dataset.
+```{r}
+#We're going to use our phyloseq objects before tranforming into relative abundance
+ps.all.samples.I = prune_taxa(I.IDs.all.sample, ps.all.samples.prune)
+ps.arc.samples.I = prune_taxa(I.IDs.arc.sample, ps.arc.samples.prune)
+ps.ant.samples.I = prune_taxa(I.IDs.ant.sample, ps.ant.samples.prune)
+
+ps.can.samples.I = prune_taxa(I.IDs.can.sample, ps.can.samples.prune)
+ps.com.samples.I = prune_taxa(I.IDs.com.sample, ps.com.samples.prune)
+ps.tay.samples.I = prune_taxa(I.IDs.tay.sample, ps.tay.samples.prune)
+ps.dia.samples.I = prune_taxa(I.IDs.dia.sample, ps.dia.samples.prune)
+ps.lk.samples.I = prune_taxa(I.IDs.lk.sample, ps.lk.samples.prune)
+ps.lw.samples.I = prune_taxa(I.IDs.lw.sample, ps.lw.samples.prune)
+ps.uw.samples.I = prune_taxa(I.IDs.uw.sample, ps.uw.samples.prune)
+ps.cor.samples.I = prune_taxa(I.IDs.cor.sample, ps.cor.samples.prune)
+ps.kan.samples.I = prune_taxa(I.IDs.kan.sample, ps.kan.samples.prune)
+ps.mar.samples.I = prune_taxa(I.IDs.mar.sample, ps.mar.samples.prune)
+ps.mid.samples.I = prune_taxa(I.IDs.mid.sample, ps.mid.samples.prune)
+ps.mie.samples.I = prune_taxa(I.IDs.mie.sample, ps.mie.samples.prune)
+ps.sto.samples.I = prune_taxa(I.IDs.sto.sample, ps.sto.samples.prune)
+ps.uk.samples.I = prune_taxa(I.IDs.uk.sample, ps.uk.samples.prune)
+
+#Check our new phyloseq objects by making sure they have the right number of samples and ASVs
+ps.all.samples.I #4911 taxa, 62 samples
+ps.arc.samples.I #1886 taxa, 16 samples
+ps.ant.samples.I #3987 taxa, 46 samples
+
+#Bar plots to check the data
+plot_bar(ps.all.samples.I)
+plot_bar(ps.arc.samples.I)
+plot_bar(ps.ant.samples.I)
+
+#how many reads are in each data frame
+colSums(data.frame(otu_table(ps.all.samples.I)))
+colSums(data.frame(otu_table(ps.arc.samples.I)))
+colSums(data.frame(otu_table(ps.ant.samples.I))) 
+
+#remove any samples with zero reads
+ps.all.samples.I.prune = prune_samples(sample_sums(ps.all.samples.I)>=1, ps.all.samples.I)
+ps.arc.samples.I.prune = prune_samples(sample_sums(ps.arc.samples.I)>=1, ps.arc.samples.I)
+ps.ant.samples.I.prune = prune_samples(sample_sums(ps.ant.samples.I)>=1, ps.ant.samples.I)
+
+ps.can.samples.I.prune = prune_samples(sample_sums(ps.can.samples.I)>=1, ps.can.samples.I)
+ps.com.samples.I.prune = prune_samples(sample_sums(ps.com.samples.I)>=1, ps.com.samples.I)
+ps.tay.samples.I.prune = prune_samples(sample_sums(ps.tay.samples.I)>=1, ps.tay.samples.I)
+ps.dia.samples.I.prune = prune_samples(sample_sums(ps.dia.samples.I)>=1, ps.dia.samples.I)
+ps.lk.samples.I.prune = prune_samples(sample_sums(ps.lk.samples.I)>=1, ps.lk.samples.I)
+ps.lw.samples.I.prune = prune_samples(sample_sums(ps.lw.samples.I)>=1, ps.lw.samples.I)
+ps.uw.samples.I.prune = prune_samples(sample_sums(ps.uw.samples.I)>=1, ps.uw.samples.I)
+ps.cor.samples.I.prune = prune_samples(sample_sums(ps.cor.samples.I)>=1, ps.cor.samples.I)
+ps.kan.samples.I.prune = prune_samples(sample_sums(ps.kan.samples.I)>=1, ps.kan.samples.I)
+ps.mar.samples.I.prune = prune_samples(sample_sums(ps.mar.samples.I)>=1, ps.mar.samples.I)
+ps.mid.samples.I.prune = prune_samples(sample_sums(ps.mid.samples.I)>=1, ps.mid.samples.I)
+ps.mie.samples.I.prune = prune_samples(sample_sums(ps.mie.samples.I)>=1, ps.mie.samples.I)
+ps.sto.samples.I.prune = prune_samples(sample_sums(ps.sto.samples.I)>=1, ps.sto.samples.I)
+ps.uk.samples.I.prune = prune_samples(sample_sums(ps.uk.samples.I)>=1, ps.uk.samples.I)
+
+#how many reads are in each pruned data frame
+colSums(data.frame(otu_table(ps.all.samples.I.prune)))
+colSums(data.frame(otu_table(ps.arc.samples.I.prune)))
+colSums(data.frame(otu_table(ps.ant.samples.I.prune)))
+```
+
+#Finally, remake the both poles subcommunities as a combination of the results from the arctic and antarctic
+```{r}
+#combine the IDs from arctic and antarctic abundant ASVs, only keep the uniqe IDs
+RA.IDs.all.sample.merge <- c(RA.IDs.arc.sample, RA.IDs.ant.sample)
+RA.IDs.all.sample.merge <- unique(RA.IDs.all.sample.merge)
+length(RA.IDs.all.sample.merge) #401
+
+RA.IDs.all.glaciers.merge <- c(RA.IDs.can.sample, RA.IDs.com.sample, RA.IDs.tay.sample, RA.IDs.dia.sample, RA.IDs.lk.sample, RA.IDs.lw.sample, RA.IDs.uw.sample, RA.IDs.cor.sample, RA.IDs.kan.sample, RA.IDs.mar.sample, RA.IDs.mid.sample, RA.IDs.mie.sample, RA.IDs.sto.sample, RA.IDs.uk.sample)
+RA.IDs.all.glaciers.merge <- unique(RA.IDs.all.glaciers.merge)
+length(RA.IDs.all.glaciers.merge) #1570
+
+#Rare
+RR.IDs.all.sample.merge <- c(RR.IDs.arc.sample, RR.IDs.ant.sample)
+RR.IDs.all.sample.merge <- unique(RR.IDs.all.sample.merge)
+length(RR.IDs.all.sample.merge) #1449
+
+RR.IDs.all.glaciers.merge <- c(RR.IDs.can.sample, RR.IDs.com.sample, RR.IDs.tay.sample, RR.IDs.dia.sample, RR.IDs.lk.sample, RR.IDs.lw.sample, RR.IDs.uw.sample, RR.IDs.cor.sample, RR.IDs.kan.sample, RR.IDs.mar.sample, RR.IDs.mid.sample, RR.IDs.mie.sample, RR.IDs.sto.sample, RR.IDs.uk.sample)
+RR.IDs.all.glaciers.merge <- unique(RR.IDs.all.glaciers.merge)
+length(RR.IDs.all.glaciers.merge) #2462
+
+#Intermediate
+I.IDs.all.sample.merge <- c(I.IDs.arc.sample, I.IDs.ant.sample)
+I.IDs.all.sample.merge <- unique(I.IDs.all.sample.merge)
+length(I.IDs.all.sample.merge) #5825
+
+I.IDs.all.glaciers.merge <- c(I.IDs.can.sample, I.IDs.com.sample, I.IDs.tay.sample, I.IDs.dia.sample, I.IDs.lk.sample, I.IDs.lw.sample, I.IDs.uw.sample, I.IDs.cor.sample, I.IDs.kan.sample, I.IDs.mar.sample, I.IDs.mid.sample, I.IDs.mie.sample, I.IDs.sto.sample, I.IDs.uk.sample)
+I.IDs.all.glaciers.merge <- unique(I.IDs.all.glaciers.merge)
+length(I.IDs.all.glaciers.merge) #3690
+
+#How many ASVs total?
+#401+1449+5825 = 7675
+#1570 + 2462 + 3690 = 7722
+#This is more than the original number of ASVs in our total dataset because we're combining all the ASVs considered abundant/rare/intermediate in the arctiC/antarctic samples/glaciers so some will be abundant in one but rare or intermediate in the other, therefore ASVs may appear in more than one subcommunity using this merging method
+
+#We'll make these into phyloseq objects anyway and continue our analysis with all.samples data (where ASVs are considered abundant/rare/intermediate based on global abundance) and all.samples.merged data where each subcommunity is just a merging of the arctic and antarctic communities (therefore, where the same ASV is regionally abundant in one and rare in another, the ASV will be in both datasets).
+
+#prune our original dataset to reflect these groups
+ps.all.samples.merged.RA = prune_taxa(RA.IDs.all.sample.merge, ps.all.samples.prune)
+ps.all.samples.merged.RR = prune_taxa(RR.IDs.all.sample.merge, ps.all.samples.prune)
+ps.all.samples.merged.I = prune_taxa(I.IDs.all.sample.merge, ps.all.samples.prune)
+
+ps.all.glaciers.merged.RA = prune_taxa(RA.IDs.all.glaciers.merge, ps.all.samples.prune)
+ps.all.glaciers.merged.RR = prune_taxa(RR.IDs.all.glaciers.merge, ps.all.samples.prune)
+ps.all.glaciers.merged.I = prune_taxa(I.IDs.all.glaciers.merge, ps.all.samples.prune)
+
+#Check our new phyloseq objects by making sure they have the right number of samples and ASVs
+ps.all.samples.merged.RA #401 taxa, 62 samples
+ps.all.samples.merged.RR #1449 taxa, 62 samples
+ps.all.samples.merged.I #5825 taxa, 62 samples
+
+ps.all.glaciers.merged.RA #1570 taxa, 62 samples
+ps.all.glaciers.merged.RR #2462 taxa, 62 samples
+ps.all.glaciers.merged.I #3690 taxa, 62 samples
+
+#Bar plots to check the data
+plot_bar(ps.all.samples.merged.RA)
+plot_bar(ps.all.samples.merged.RR)
+plot_bar(ps.all.samples.merged.I)
+
+#how many reads are in each data frame
+colSums(data.frame(otu_table(ps.all.samples.merged.RA)))
+colSums(data.frame(otu_table(ps.all.samples.merged.RR))) #some zeros here
+colSums(data.frame(otu_table(ps.all.samples.merged.I))) 
+
+#remove any samples with zero reads
+ps.all.samples.merged.RA.prune = prune_samples(sample_sums(ps.all.samples.merged.RA)>=1, ps.all.samples.merged.RA)
+ps.all.samples.merged.RR.prune = prune_samples(sample_sums(ps.all.samples.merged.RR)>=1, ps.all.samples.merged.RR)
+ps.all.samples.merged.I.prune = prune_samples(sample_sums(ps.all.samples.merged.I)>=1, ps.all.samples.merged.I)
+
+ps.all.glaciers.merged.RA.prune = prune_samples(sample_sums(ps.all.glaciers.merged.RA)>=1, ps.all.glaciers.merged.RA)
+ps.all.glaciers.merged.RR.prune = prune_samples(sample_sums(ps.all.glaciers.merged.RR)>=1, ps.all.glaciers.merged.RR)
+ps.all.glaciers.merged.I.prune = prune_samples(sample_sums(ps.all.glaciers.merged.I)>=1, ps.all.glaciers.merged.I)
+
+#how many reads are in each pruned data frame
+colSums(data.frame(otu_table(ps.all.samples.merged.RA.prune)))
+colSums(data.frame(otu_table(ps.all.samples.merged.RR.prune)))
+colSums(data.frame(otu_table(ps.all.samples.merged.I.prune))) 
+```
+
+#Step 21: Export phyloseq objects
+```{r}
+#Now I'm going to export my phyloseq objects
+
+##########################################################BOTH POLES###########################################################
+#Global abundances i.e. globally abundant, globally rare, globally intermediate
+saveRDS(ps.all.samples.RA.prune, "../data-output/18S-all-rarefied-abundant.rds")
+saveRDS(ps.all.samples.RR.prune, "../data-output/18S-all-rarefied-rare.rds")
+saveRDS(ps.all.samples.I.prune, "../data-output/18S-all-rarefied-intermediate.rds")
+
+#Both poles merged regional abundances
+saveRDS(ps.all.samples.merged.RA.prune, "../data-output/18S-all-merged-rarefied-abundant.rds")
+saveRDS(ps.all.samples.merged.RR.prune, "../data-output/18S-all-merged-rarefied-rare.rds")
+saveRDS(ps.all.samples.merged.I.prune, "../data-output/18S-all-merged-rarefied-intermediate.rds")
+
+#All glaciers merged abundances
+saveRDS(ps.all.glaciers.merged.RA.prune, "../data-output/18S-all-glaciers-merged-rarefied-abundant.rds")
+saveRDS(ps.all.glaciers.merged.RR.prune, "../data-output/18S-all-glaciers-merged-rarefied-rare.rds")
+saveRDS(ps.all.glaciers.merged.I.prune, "../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds")
+############################################################ARCTIC#############################################################
+saveRDS(ps.arc.samples.prune, "../data-output/18S-arctic-rarefied.rds")
+saveRDS(ps.arc.samples.RA.prune, "../data-output/18S-arctic-rarefied-abundant.rds")
+saveRDS(ps.arc.samples.RR.prune, "../data-output/18S-arctic-rarefied-rare.rds")
+saveRDS(ps.arc.samples.I.prune, "../data-output/18S-arctic-rarefied-intermediate.rds")
+#########################################################ANTARCTIC#############################################################
+saveRDS(ps.ant.samples.prune, "../data-output/18S-antarctic-rarefied.rds")
+saveRDS(ps.ant.samples.RA.prune, "../data-output/18S-antarctic-rarefied-abundant.rds")
+saveRDS(ps.ant.samples.RR.prune, "../data-output/18S-antarctic-rarefied-rare.rds")
+saveRDS(ps.ant.samples.I.prune, "../data-output/18S-antarctic-rarefied-intermediate.rds")
+```

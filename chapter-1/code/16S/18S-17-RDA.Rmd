@@ -1,0 +1,345 @@
+---
+title: "Redundancy Analysis"
+author: "Amy Solman"
+date: "09/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+# library(dplyr) #for manipulating data where you see %>% and computing summary stats
+# install.packages("dendextend")
+# library(dendextend) #for hierchical clustering
+# install.packages("indicspecies")
+# library(indicspecies) #for indicator species analysis
+# library(stringr) #for removing characters from string
+# library(fossil) #for creating distance matrix
+# # install.packages("betapart")
+# library(betapart) #for didtance decay analysis
+# library(ade4) #mantel tests
+# library(data.table)
+# Enable the r-universe repo
+# options(repos = c(
+#     fawda123 = 'https://fawda123.r-universe.dev',
+#     CRAN = 'https://cloud.r-project.org'))
+# 
+# # Install ggord
+# install.packages('ggord')
+# library(ggord)
+# library(car) #function for multicollinearity
+```
+
+Load data 
+```{r}
+#Load data files
+load("../data-output/18S-my-sequence-data.RData") #load all our pre-processed data files
+
+#load phyloseq object
+##################################################BOTH POLES#################################################
+ps.rar <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq objectcol
+
+#All glaciers merged abundances
+ps.glaciers.merged.RA <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-abundant.rds") #merged glaciers abundant phyloseq object
+ps.glaciers.merged.RR <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-rare.rds") #merged glaciers rare phyloseq object
+ps.glaciers.merged.I <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds") #merged glaciers intermediate phyloseq object
+```
+
+1 TOTAL TAXA 
+1.1 Modify data
+```{r}
+#pull out count table and metadata
+counts <- data.frame(t(otu_table(ps.rar)))
+meta <- data.frame(sample_data(ps.rar))
+
+#keep only variables we want to include in our mode
+meta_trim <- meta[,17:92]
+#calcualte area
+meta_trim$area <- pi*(meta_trim$NS/2)*(meta_trim$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta_trim <- meta_trim[ , !(names(meta_trim) %in% drops)]
+#remove more unneccessary columns
+meta_trim <- meta_trim[,-c(64:74)]
+#make dataframe numeric
+meta_trim[] <- lapply(meta_trim, as.numeric)
+
+#Replace NAs with median values
+
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+meta_med=data.frame(apply(meta_trim,2,f))
+
+#rename counts columns with class
+tax_tab <- data.frame(tax_table(ps.rar))
+#replace NAs with Unknown
+tax_tab[is.na(tax_tab)] <- "Unknown"
+colnames(counts) <- tax_tab$Class
+
+#aggregate count data
+x <- t(counts)
+new_df=aggregate(x, by=list(rownames(x)),sum)
+new_counts <- t(new_df)
+colnames(new_counts) <- new_counts[1,]
+new_counts <- new_counts[-1,]
+df <- data.frame(new_counts)
+#make dataframe numeric
+df[] <- lapply(df, as.numeric)
+
+
+```
+
+1.2 Redundancy Analysis
+```{r}
+rda_tree = rda(df ~ . , data=meta_med, na.action = na.exclude)
+rda_tree
+
+RsquareAdj(rda_tree)
+
+summary(rda_tree)
+```
+
+1.3 Stepwise selection of variables
+```{r}
+RDA1<-rda(df~1,meta_med)
+RDA2<-rda(df~.,meta_med)
+step.forward<-ordistep(RDA1,scope=formula(RDA2), direction="forward",perm.max=200,pstep=999)
+```
+
+1.4 Re-run RDA with reduced variables selected by forward selection
+```{r}
+RDA_red <- rda(df ~ Elevation + Water_Depth, data = meta_med)
+
+#Find variance inflation ratios
+vif.cca(RDA_red) #all vif < 10
+
+#Find R-squared
+RsquareAdj(RDA_red)
+
+#Plot
+#plot a graph of results
+plot(RDA_red, display=c("sp", "cn"), scaling=0, main="Total Taxa RDA Plot")
+```
+
+2 ABUNDANT TAXA 
+2.1 Modify data
+```{r}
+#pull out count table and metadata
+counts.ab <- data.frame(t(otu_table(ps.glaciers.merged.RA)))
+meta.ab <- data.frame(sample_data(ps.glaciers.merged.RA))
+
+#keep only variables we want to include in our mode
+meta_trim.ab <- meta[,17:92]
+#calcualte area
+meta_trim.ab$area <- pi*(meta_trim.ab$NS/2)*(meta_trim.ab$EW/2)
+#remove diamter info
+drops <- c("NS","EW")
+meta_trim.ab <- meta_trim.ab[ , !(names(meta_trim.ab) %in% drops)]
+#remove more unneccessary columns
+meta_trim.ab <- meta_trim.ab[,-c(64:74)]
+#make dataframe numeric
+meta_trim.ab[] <- lapply(meta_trim.ab, as.numeric)
+
+#Replace NAs with median values
+meta_med.ab=data.frame(apply(meta_trim.ab,2,f))
+
+#rename counts columns with class
+tax_tab.ab <- data.frame(tax_table(ps.glaciers.merged.RA))
+#replace NAs with Unknown
+tax_tab.ab[is.na(tax_tab.ab)] <- "Unknown"
+colnames(counts.ab) <- tax_tab.ab$Class
+
+#aggregate count data
+x <- t(counts.ab)
+new_df=aggregate(x, by=list(rownames(x)),sum)
+new_counts <- t(new_df)
+colnames(new_counts) <- new_counts[1,]
+new_counts <- new_counts[-1,]
+df.ab <- data.frame(new_counts)
+#make dataframe numeric
+df.ab[] <- lapply(df.ab, as.numeric)
+```
+
+2.2 Redundancy Analysis
+```{r}
+rda.ab = rda(df.ab ~ . , data=meta_med.ab, na.action = na.exclude)
+
+RsquareAdj(rda.ab)
+
+summary(rda.ab)
+```
+
+2.3 Stepwise selection of variables
+```{r}
+RDA1.ab<-rda(df.ab~1,meta_med.ab)
+RDA2.ab<-rda(df.ab~.,meta_med.ab)
+step.forward.ab<-ordistep(RDA1.ab,scope=formula(RDA2.ab), direction="forward",perm.max=200,pstep=999)
+```
+
+2.4 Re-run RDA with reduced variables selected by forward selection
+```{r}
+RDA_red.ab <- rda(df.ab ~ Elevation + Water_Depth + NO3.N_mueq, data = meta_med.ab)
+
+#Find variance inflation ratios
+vif.cca(RDA_red.ab) #all vif < 10
+
+#Find R-squared
+RsquareAdj(RDA_red.ab)
+
+#Plot
+#plot a graph of results
+plot(RDA_red.ab, display=c("sp", "cn"), scaling=0, main="Abundant Taxa RDA Plot")
+```
+
+3 INTERMEDIATE TAXA 
+
+3.1 Modify data
+```{r}
+#pull out count table and metadata
+counts.i <- data.frame(t(otu_table(ps.glaciers.merged.I)))
+meta.i <- data.frame(sample_data(ps.glaciers.merged.I))
+
+#keep only variables we want to include in our mode
+meta_trim.i <- meta[,17:92]
+#calcualte area
+meta_trim.i$area <- pi*(meta_trim.i$NS/2)*(meta_trim.i$EW/2)
+#remove diamter info
+meta_trim.i <- meta_trim.i[ , !(names(meta_trim.i) %in% drops)]
+#remove more unneccessary columns
+meta_trim.i <- meta_trim.i[,-c(64:74)]
+#make dataframe numeric
+meta_trim.i[] <- lapply(meta_trim.i, as.numeric)
+
+#Replace NAs with median values
+meta_med.i=data.frame(apply(meta_trim.i,2,f))
+
+#rename counts columns with class
+tax_tab.i <- data.frame(tax_table(ps.glaciers.merged.I))
+#replace NAs with Unknown
+tax_tab.i[is.na(tax_tab.i)] <- "Unknown"
+colnames(counts.i) <- tax_tab.i$Class
+
+#aggregate count data
+x <- t(counts.i)
+new_df=aggregate(x, by=list(rownames(x)),sum)
+new_counts <- t(new_df)
+colnames(new_counts) <- new_counts[1,]
+new_counts <- new_counts[-1,]
+df.i <- data.frame(new_counts)
+#make dataframe numeric
+df.i[] <- lapply(df.i, as.numeric)
+```
+
+3.2 Redundancy Analysis
+```{r}
+rda.i = rda(df.i ~ . , data=meta_med.i, na.action = na.exclude)
+
+RsquareAdj(rda.i)
+
+summary(rda.i)
+```
+
+3.3 Stepwise selection of variables
+```{r}
+RDA1.i<-rda(df.i~1,meta_med.i)
+RDA2.i<-rda(df.i~.,meta_med.i)
+step.forward.i<-ordistep(RDA1.i,scope=formula(RDA2.i), direction="forward",perm.max=200,pstep=999)
+```
+
+3.4 Re-run RDA with reduced variables selected by forward selection
+```{r}
+RDA_red.i <- rda(df.i ~ DOC + SiO2 + H + NO2 + HCO3_mueq, data = meta_med.i)
+
+#Find variance inflation ratios
+vif.cca(RDA_red.i) #all vif < 10
+
+#Find R-squared
+RsquareAdj(RDA_red.i)
+
+#Plot
+#plot a graph of results
+plot(RDA_red.i, display=c("sp", "cn"), scaling=0, main="Intermediate Taxa RDA Plot")
+```
+
+4 RARE TAXA 
+
+4.1 Modify data
+```{r}
+#pull out count table and metadata
+counts.ra <- data.frame(t(otu_table(ps.glaciers.merged.RR)))
+meta.ra <- data.frame(sample_data(ps.glaciers.merged.RR))
+
+#keep only variables we want to include in our mode
+meta_trim.ra <- meta.ra[,17:92]
+#calcualte area
+meta_trim.ra$area <- pi*(meta_trim.ra$NS/2)*(meta_trim.ra$EW/2)
+#remove diamter info
+meta_trim.ra <- meta_trim.ra[ , !(names(meta_trim.ra) %in% drops)]
+#remove more unneccessary columns
+meta_trim.ra <- meta_trim.ra[,-c(64:74)]
+#make dataframe numeric
+meta_trim.ra[] <- lapply(meta_trim.ra, as.numeric)
+
+#Replace NAs with median values
+meta_med.ra=data.frame(apply(meta_trim.ra,2,f))
+
+#rename counts columns with class
+tax_tab.ra <- data.frame(tax_table(ps.glaciers.merged.RR))
+#replace NAs with Unknown
+tax_tab.ra[is.na(tax_tab.ra)] <- "Unknown"
+colnames(counts.ra) <- tax_tab.ra$Class
+
+#aggregate count data
+x <- t(counts.ra)
+new_df=aggregate(x, by=list(rownames(x)),sum)
+new_counts <- t(new_df)
+colnames(new_counts) <- new_counts[1,]
+new_counts <- new_counts[-1,]
+df.ra <- data.frame(new_counts)
+#make dataframe numeric
+df.ra[] <- lapply(df.ra, as.numeric)
+```
+
+4.2 Redundancy Analysis
+```{r}
+rda.ra = rda(df.ra ~ . , data=meta_med.ra, na.action = na.exclude)
+
+RsquareAdj(rda.ra)
+
+summary(rda.ra)
+```
+
+4.3 Stepwise selection of variables
+```{r}
+RDA1.ra<-rda(df.ra~1,meta_med.ra)
+RDA2.ra<-rda(df.ra~.,meta_med.ra)
+step.forward.ra<-ordistep(RDA1.ra,scope=formula(RDA2.ra), direction="forward",perm.max=200,pstep=999)
+```
+
+4.4 Re-run RDA with reduced variables selected by forward selection
+```{r}
+RDA_red.ra <- rda(df.ra ~ DOC + C, data = meta_med.ra)
+
+#Find variance inflation ratios
+vif.cca(RDA_red.ra) #all vif < 10
+
+#Find R-squared
+RsquareAdj(RDA_red.ra)
+
+#Plot
+#plot a graph of results
+plot(RDA_red.ra, display=c("sp", "cn"), scaling=0, main="Rare Taxa RDA Plot")
+```

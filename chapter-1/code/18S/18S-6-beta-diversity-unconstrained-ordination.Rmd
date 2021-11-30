@@ -1,0 +1,1057 @@
+---
+title: "good-18S-5-beta-diversity-ordination"
+author: "Amy Solman"
+date: "04/10/2021"
+output: html_document
+---
+
+What do I want to achieve with this script:
+Are there significant differences in microbial community structure between glaciers/regions/poles (total, abundant, intermediate, rare)? Beta diversity: Weighted and unweighted unifrac distances
+
+So I want to do:
+Weighted/Unweighted unifrac distances + PCoA plots > differences in community structure
+Bray Curtis dissimilarity + NMDS plots > differences in community structure
+
+PERMANOVA - As stated earlier PERMANOVA is a permutational multivariate anova. But maybe it would help to understand how the test is most often used in microbial ecology. Say you have an ordination–like a PCA, NMDS, PCoA, whatever–and in this ordination you are showing gut microbiome samples from a sick host and a well host. The samples from either host overlap a little, but don't totally overlap. You want to know if folks that are sick have a different gut microbial assemblage than the folks that are healthy. A PERMANOVA lets you statistically determine if the centers (centroids) of the cluster of samples for the sick person differs from the center of the samples for the healthy person. > statistically test if community structure is significantly different between glaciers/regions/poles (total, abundant, intermediate, rare)
+
+ANOSIM
+The ANOSIM test is similar to an ANOVA hypothesis test, but it uses a dissimilarity matrix as input instead of raw data.
+It is non-parametric, so makes no assumptions about data.
+Useful for skewed abundance data.
+Because it's non-paramtric it uses ranked dissimilarities instead of actual distances - so it compliments NMDS plots.
+Used to determine if differences between two or more groups are significant.
+
+
+UNBALANCED NATURE OF THE DATA MUST BE CONSIDERED - MEANS RESULTS MAY BE UNRELIABLE
+
+Anderson MJ, Walsh DCI. PERMANOVA, ANOSIM, and the Mantel test in the face of heterogeneous dispersions: What null hypothesis are you testing? Ecological monographs [Internet] 2013; 83: 557. Available from: http://doi.org/10.1890/12-2010.1
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(dplyr) #for computing summary statistics
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+```
+
+Load data 
+```{r}
+#Load data files
+load("../data-output/18S-my-sequence-data.RData") #load all our pre-processed data files
+
+#load phyloseq object
+##################################################BOTH POLES#################################################
+ps <- readRDS("../data-output/18S-my-phyloseq-object.rds") #load unrarefied phyloseq object
+ps.rar <- readRDS("../data-output/18S-my-phyloseq-object-rarefied.rds") #load rarefied phyloseq objectcol
+
+#Global abundances i.e. globally abundant, globally rare, globally intermediate
+ps.global.RA <- readRDS("../data-output/18S-all-rarefied-abundant.rds") #load rarefied globally abundant phyloseq object
+ps.global.RR <- readRDS("../data-output/18S-all-rarefied-rare.rds") #load rarefied globally rare phyloseq object
+ps.global.I <- readRDS("../data-output/18S-all-rarefied-intermediate.rds") #load rarefied globally abundant phyloseq object
+
+#Both poles merged regional abundances
+ps.both.merged.RA <- readRDS("../data-output/18S-all-merged-rarefied-abundant.rds") #merged poles abundant phyloseq object
+ps.both.merged.RR <- readRDS("../data-output/18S-all-merged-rarefied-rare.rds") #merged poles rare phyloseq object
+ps.both.merged.I <- readRDS("../data-output/18S-all-merged-rarefied-intermediate.rds") #merged poles intermediate phyloseq object
+
+#All glaciers merged abundances
+ps.glaciers.merged.RA <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-abundant.rds") #merged glaciers abundant phyloseq object
+ps.glaciers.merged.RR <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-rare.rds") #merged glaciers rare phyloseq object
+ps.glaciers.merged.I <- readRDS("../data-output/18S-all-glaciers-merged-rarefied-intermediate.rds") #merged glaciers intermediate phyloseq object
+
+##################################################ARCTIC#################################################
+ps.arc <- readRDS("../data-output/18S-arctic-rarefied.rds")
+ps.arc.RA <- readRDS("../data-output/18S-arctic-rarefied-abundant.rds") #load rarefied arctic abundant phyloseq object
+ps.arc.RR <- readRDS("../data-output/18S-arctic-rarefied-rare.rds") #load rarefied arctic rare phyloseq object
+ps.arc.I <- readRDS("../data-output/18S-arctic-rarefied-intermediate.rds") #load rarefied arctic intermediate phyloseq object
+
+##################################################ANTARCTIC#################################################
+ps.ant <- readRDS("../data-output/18S-antarctic-rarefied.rds")
+ps.ant.RA <- readRDS("../data-output/18S-antarctic-rarefied-abundant.rds") #load rarefied antarctic abundant phyloseq object
+ps.ant.RR <- readRDS("../data-output/18S-antarctic-rarefied-rare.rds") #load rarefied antarctic rare phyloseq object
+ps.ant.I <- readRDS("../data-output/18S-antarctic-rarefied-intermediate.rds") #load rarefied antarctic intermediate phyloseq object
+```
+
+1 TOTAL ASVS
+
+1.1 Calculate Distances
+```{r}
+DistBC <- distance(ps.rar, method="bray")
+DistWU <- distance(ps.rar, method="wUniFrac")
+DistUU <- distance(ps.rar, method="UniFrac")
+```
+
+1.2 Perform ordination
+```{r}
+ordBC <- ordinate(ps.rar, method="PCoA", distance="bray")
+ordWU <- ordinate(ps.rar, method="PCoA", distance="wunifrac")
+ordUU <- ordinate(ps.rar, method="PCoA", distance="unifrac")
+```
+
+1.3 Scree plots
+How much of the total distance between samples is captures by the eigenvalues?
+```{r}
+plot_scree(ordBC, "Scree Plot: Bray-Curtis MDS")
+plot_scree(ordWU, "Scree Plot: Weighted Unifrac MDS")
+plot_scree(ordUU, "Scree Plot: Unweighted Unifrac MDS")
+```
+
+1.4 How much variation do the first two axis explain? These are the axis we will plot.
+```{r}
+(100*sum(ordBC$values$Relative_eig[1:2])) #6%
+(100*sum(ordWU$values$Relative_eig[1:2])) #77%
+(100*sum(ordUU$values$Relative_eig[1:2])) #27%
+```
+
+1.5 Plot the ordinations
+```{r}
+# Glacier
+plot_ordination(ps.rar, ordBC, color = "Glacier", shape="Pole") + 
+  #geom_point() +
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.rar, ordWU, color = "Glacier", shape="Pole") + 
+  #geom_point() +
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.rar, ordUU, color = "Glacier", shape="Pole") + 
+  #geom_point() +
+  ggtitle("PCoA: Unweighted Unifrac")
+
+#Region
+
+plot_ordination(ps.rar, ordBC, color = "Region", shape="Pole") + 
+  #geom_point() +
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.rar, ordWU, color = "Region", shape="Pole") + 
+  #geom_point() +
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.rar, ordUU, color = "Region", shape="Pole") + 
+  #geom_point() +
+  ggtitle("PCoA: Unweighted Unifrac")
+
+
+#Pole
+
+plot_ordination(ps.rar, ordBC, color = "Pole") + 
+  #geom_point() +
+  stat_ellipse(type="t") +
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.rar, ordWU, color = "Pole") + 
+  #geom_point() +
+  stat_ellipse() +
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.rar, ordUU, color = "Pole") + 
+  #geom_point() +
+  stat_ellipse() +
+  ggtitle("PCoA: Unweighted Unifrac")
+
+```
+
+1.6 NMDS Plot
+```{r}
+#set seed as starting position of samples in algorithm is random
+set.seed(666)
+
+# #seperate calculation of distance metric
+# NMDS1 <- metaMDS(DistBC, k = 2, trymax = 100, trace = F)
+# plot(NMDS1)
+
+#inline calculation of distance metric - this includes square root transformation and Wisconsin double standardization
+ps.rar_nmds <- ordinate(physeq = ps.rar, method="NMDS", distance="bray") 
+
+#plot
+plot_ordination(
+  physeq = ps.rar,
+  ordination = NMDS,
+  color = "Glacier",
+  title = "NMDS Plot"
+)
+
+plot_ordination(
+  physeq = ps.rar,
+  ordination = NMDS,
+  color = "Region",
+  title = "NMDS Plot"
+)
+
+plot_ordination(
+  physeq = ps.rar,
+  ordination = NMDS,
+  color = "Pole",
+  title = "NMDS Plot"
+)
+
+```
+
+1.7 Run ANOSIM for significant differences
+```{r}
+#Glaciers
+my_glaciers = get_variable(ps.rar, "Glacier")
+
+anosim_glaciers_bray = anosim(phyloseq::distance(ps.rar,"bray"),my_glaciers)
+anosim_glaciers_bray # p <0.05 so significant
+#R = 0.78 so high dissimilarity between glaciers
+summary(anosim_glaciers_bray)
+
+anosim_glaciers_wuni = anosim(phyloseq::distance(ps.rar,"wuniFrac"),my_glaciers)
+anosim_glaciers_wuni # p <0.05 so significant
+#R = 0.36 so medium dissimilarity between glaciers
+summary(anosim_glaciers_wuni)
+
+anosim_glaciers_uni = anosim(phyloseq::distance(ps.rar,"uniFrac"),my_glaciers)
+anosim_glaciers_uni # p <0.05 so significant
+#R = 0.51 so medium dissimilarity between glaciers
+summary(anosim_glaciers_uni)
+
+#Regions
+my_reg = get_variable(ps.rar, "Region")
+
+anosim_reg_bray = anosim(phyloseq::distance(ps.rar,"bray"),my_reg)
+anosim_reg_bray # p <0.05 so significant
+#R = 0.78 so high dissimilarity between glaciers
+summary(anosim_reg_bray)
+
+anosim_reg_wuni = anosim(phyloseq::distance(ps.rar,"wuniFrac"),my_reg)
+anosim_reg_wuni # p > 0.05 NOT significant
+summary(anosim_reg_wuni)
+
+anosim_reg_uni = anosim(phyloseq::distance(ps.rar,"uniFrac"),my_reg)
+anosim_reg_uni # p <0.05 significant
+#R = 0.40 so medium dissimilarity between glaciers
+summary(anosim_reg_uni)
+
+#Poles
+my_pol = get_variable(ps.rar, "Pole")
+
+anosim_pol_bray = anosim(phyloseq::distance(ps.rar,"bray"),my_pol)
+anosim_pol_bray # p > 0.05 NOT significant
+summary(anosim_pol_bray)
+
+anosim_pol_wuni = anosim(phyloseq::distance(ps.rar,"wuniFrac"),my_pol)
+anosim_pol_wuni # p < 0.05 significant
+#R = 0.14 so low dissimilarity between glaciers
+summary(anosim_pol_wuni)
+
+anosim_pol_uni = anosim(phyloseq::distance(ps.rar,"uniFrac"),my_pol)
+anosim_pol_uni # p < 0.05 significant
+#R = 0.46 so medium dissimilarity between glaciers
+summary(anosim_pol_uni)
+```
+
+1.8 Run ADONIS (PERMANOVA) for significant differences
+```{r}
+set.seed(1)
+
+#make a data frame from the sample_data
+metadata_df <- data.frame(sample_data(ps.rar))
+
+#Calculate bray curtis distance matrix
+ps.rar_bray <- phyloseq::distance(ps.rar, method = "bray")
+#Calculate Weighted Unifrac distance matrix
+ps.rar_wuni <- phyloseq::distance(ps.rar, method = "wunifrac")
+#Calculate Unweighted Unifrac distance matrix
+ps.rar_uni <- phyloseq::distance(ps.rar, method = "unifrac")
+
+# Adonis test
+#Glacier
+adonis(ps.rar_bray ~ Glacier, data = metadata_df) #p < 0.05
+adonis(ps.rar_wuni ~ Glacier, data = metadata_df) #p < 0.05
+adonis(ps.rar_uni ~ Glacier, data = metadata_df) #p < 0.05
+
+#Region
+adonis(ps.rar_bray ~ Region, data = metadata_df) #p < 0.05
+adonis(ps.rar_wuni ~ Region, data = metadata_df) #p < 0.05
+adonis(ps.rar_uni ~ Region, data = metadata_df) #p < 0.05
+
+#Pole
+adonis(ps.rar_bray ~ Pole, data = metadata_df) #p < 0.05
+adonis(ps.rar_wuni ~ Pole, data = metadata_df) #p < 0.05
+adonis(ps.rar_uni ~ Pole, data = metadata_df) #p < 0.05
+```
+
+1.9 Test for Homogeny of Dispersion
+```{r}
+#Glacier
+beta_bray_gla <- betadisper(ps.rar_bray, metadata_df$Glacier)
+permutest(beta_bray_gla) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_gla <- betadisper(ps.rar_wuni, metadata_df$Glacier)
+permutest(beta_wuni_gla) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_gla <- betadisper(ps.rar_uni, metadata_df$Glacier)
+permutest(beta_uni_gla) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+#Region
+beta_bray_reg <- betadisper(ps.rar_bray, metadata_df$Region)
+permutest(beta_bray_reg) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_reg <- betadisper(ps.rar_wuni, metadata_df$Region)
+permutest(beta_wuni_reg) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_reg <- betadisper(ps.rar_uni, metadata_df$Region)
+permutest(beta_uni_reg) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+#Pole
+beta_bray_pol <- betadisper(ps.rar_bray, metadata_df$Pole)
+permutest(beta_bray_pol) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_pol <- betadisper(ps.rar_wuni, metadata_df$Pole)
+permutest(beta_wuni_pol) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_pol <- betadisper(ps.rar_uni, metadata_df$Pole)
+permutest(beta_uni_pol) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+```
+
+2 ABUNDANT ASVS
+
+2.1 Calculate Distances
+```{r}
+DistBC_ab <- distance(ps.glaciers.merged.RA, method="bray")
+DistWU_ab <- distance(ps.glaciers.merged.RA, method="wUniFrac")
+DistUU_ab <- distance(ps.glaciers.merged.RA, method="UniFrac")
+```
+
+2.2 Perform ordination
+```{r}
+ordBC_ab <- ordinate(ps.glaciers.merged.RA, method="PCoA", distance="bray")
+ordWU_ab <- ordinate(ps.glaciers.merged.RA, method="PCoA", distance="wunifrac")
+ordUU_ab <- ordinate(ps.glaciers.merged.RA, method="PCoA", distance="unifrac")
+```
+
+2.3 Scree plots
+How much of the total distance between samples is captures by the eigenvalues?
+```{r}
+plot_scree(ordBC_ab, "Scree Plot: Bray-Curtis MDS")
+plot_scree(ordWU_ab, "Scree Plot: Weighted Unifrac MDS")
+plot_scree(ordUU_ab, "Scree Plot: Unweighted Unifrac MDS")
+```
+
+2.4 How much variation do the first two axis explain? These are the axis we will plot.
+```{r}
+(100*sum(ordBC_ab$values$Relative_eig[1:2])) #7%
+(100*sum(ordWU_ab$values$Relative_eig[1:2])) #54%
+(100*sum(ordUU_ab$values$Relative_eig[1:2])) #34%
+```
+
+2.5 Plot the ordinations
+```{r}
+# Glacier
+plot_ordination(ps.glaciers.merged.RA, ordBC_ab, color = "Glacier", shape="Pole") + 
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.glaciers.merged.RA, ordWU_ab, color = "Glacier", shape="Pole") + 
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.glaciers.merged.RA, ordUU_ab, color = "Glacier", shape="Pole") + 
+  ggtitle("PCoA: Unweighted Unifrac")
+
+#Region
+plot_ordination(ps.glaciers.merged.RA, ordBC_ab, color = "Region", shape="Pole") + 
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.glaciers.merged.RA, ordWU_ab, color = "Region", shape="Pole") + 
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.glaciers.merged.RA, ordUU_ab, color = "Region", shape="Pole") + 
+  ggtitle("PCoA: Unweighted Unifrac")
+
+
+#Pole
+plot_ordination(ps.glaciers.merged.RA, ordBC_ab, color = "Pole") + 
+  stat_ellipse(type="t") +
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.glaciers.merged.RA, ordWU_ab, color = "Pole") + 
+  stat_ellipse() +
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.glaciers.merged.RA, ordUU_ab, color = "Pole") + 
+  stat_ellipse() +
+  ggtitle("PCoA: Unweighted Unifrac")
+
+```
+
+2.6 NMDS Plot
+```{r}
+#set seed as starting position of samples in algorithm is random
+set.seed(666)
+
+#inline calculation of distance metric - this includes square root transformation and Wisconsin double standardization
+ps.glaciers.merged.RA_nmds <- ordinate(physeq = ps.glaciers.merged.RA, method="NMDS", distance="bray") 
+
+#plot
+plot_ordination(
+  physeq = ps.glaciers.merged.RA,
+  ordination = ps.glaciers.merged.RA_nmds,
+  color = "Glacier",
+  title = "NMDS Plot"
+)
+
+plot_ordination(
+  physeq = ps.glaciers.merged.RA,
+  ordination = ps.glaciers.merged.RA_nmds,
+  color = "Region",
+  title = "NMDS Plot"
+)
+
+plot_ordination(
+  physeq = ps.glaciers.merged.RA,
+  ordination = ps.glaciers.merged.RA_nmds,
+  color = "Pole",
+  title = "NMDS Plot"
+)
+
+#Alternatives
+# #extract community matrix
+# com <- as.matrix(as.data.frame(t(otu_table(ps.glaciers.merged.RA))))
+# #extract metadata
+# data <- as.data.frame(sample_data(ps.glaciers.merged.RA))
+# nmds = metaMDS(com, distance = "bray")
+# plot(nmds)
+# #extract NMDS scores (x and y coordinates)
+# data.scores = as.data.frame(scores(nmds))
+# data.scores$Sample = data$SampleID
+# data.scores$Glacier = data$Glacier
+# data.scores$Pole = data$Pole
+#  
+# head(data.scores)
+# 
+# ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+#     geom_point(size = 4, aes( shape = Pole, colour = Glacier))+ 
+#     theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+#     axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+#     legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+#     legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+#     axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+#     legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+#     panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+#     legend.key=element_blank()) + 
+#     labs(x = "NMDS1", colour = "Glacier", y = "NMDS2", shape = "Pole")
+```
+
+2.7 Run ANOSIM for significant differences
+```{r}
+#Glaciers
+my_gla_ab = get_variable(ps.glaciers.merged.RA, "Glacier")
+
+anosim_gla_bray_ab = anosim(phyloseq::distance(ps.glaciers.merged.RA,"bray"),my_gla_ab)
+anosim_gla_bray_ab # p <0.05 so significant
+#R = 0.10 so low dissimilarity between glaciers
+summary(anosim_gla_bray_ab)
+
+anosim_gla_wuni_ab = anosim(phyloseq::distance(ps.glaciers.merged.RA,"wuniFrac"),my_gla_ab)
+anosim_gla_wuni_ab # p <0.05 so significant
+#R = 0.37 so medium dissimilarity between glaciers
+summary(anosim_gla_wuni_ab)
+
+anosim_gla_uni_ab = anosim(phyloseq::distance(ps.glaciers.merged.RA,"uniFrac"),my_gla_ab)
+anosim_gla_uni_ab # p <0.05 so significant
+#R = 0.52 so medium dissimilarity between glaciers
+summary(anosim_gla_uni_ab)
+
+#Regions
+my_reg_ab = get_variable(ps.glaciers.merged.RA, "Region")
+
+anosim_reg_bray_ab = anosim(phyloseq::distance(ps.glaciers.merged.RA,"bray"),my_reg_ab)
+anosim_reg_bray_ab # p > 0.05 NOT significant
+#R = 0.78 so high dissimilarity between glaciers
+summary(anosim_reg_bray_ab)
+
+anosim_reg_wuni_ab = anosim(phyloseq::distance(ps.glaciers.merged.RA,"wuniFrac"),my_reg_ab)
+anosim_reg_wuni_ab # p > 0.05 NOT significant
+summary(anosim_reg_wuni_ab)
+
+anosim_reg_uni_ab = anosim(phyloseq::distance(ps.glaciers.merged.RA,"uniFrac"),my_reg_ab)
+anosim_reg_uni_ab # p <0.05 significant
+#R = 0.40 so medium dissimilarity between glaciers
+summary(anosim_reg_uni_ab)
+
+#Poles
+my_pol_ab = get_variable(ps.glaciers.merged.RA, "Pole")
+
+anosim_pol_bray_ab = anosim(phyloseq::distance(ps.glaciers.merged.RA,"bray"),my_pol_ab)
+anosim_pol_bray_ab # p > 0.05 NOT significant
+summary(anosim_pol_bray_ab)
+
+anosim_pol_wuni_ab = anosim(phyloseq::distance(ps.glaciers.merged.RA,"wuniFrac"),my_pol_ab)
+anosim_pol_wuni_ab # p < 0.05 significant
+#R = 0.13 so low dissimilarity between glaciers
+summary(anosim_pol_wuni_ab)
+
+anosim_pol_uni_ab = anosim(phyloseq::distance(ps.glaciers.merged.RA,"uniFrac"),my_pol_ab)
+anosim_pol_uni_ab # p < 0.05 significant
+#R = 0.46 so medium dissimilarity between glaciers
+summary(anosim_pol_uni_ab)
+```
+
+2.8 Run ADONIS (PERMANOVA) for significant differences
+```{r}
+set.seed(1)
+
+#make a data frame from the sample_data
+metadata_df_ab <- data.frame(sample_data(ps.glaciers.merged.RA))
+
+#Calculate bray curtis distance matrix
+ps.glaciers.merged.RA_bray <- phyloseq::distance(ps.glaciers.merged.RA, method = "bray")
+#Calculate Weighted Unifrac distance matrix
+ps.glaciers.merged.RA_wuni <- phyloseq::distance(ps.glaciers.merged.RA, method = "wunifrac")
+#Calculate Unweighted Unifrac distance matrix
+ps.glaciers.merged.RA_uni <- phyloseq::distance(ps.glaciers.merged.RA, method = "unifrac")
+
+# Adonis test
+#Glacier
+adonis(ps.glaciers.merged.RA_bray ~ Glacier, data = metadata_df_ab) #p < 0.05
+adonis(ps.glaciers.merged.RA_wuni ~ Glacier, data = metadata_df_ab) #p < 0.05
+adonis(ps.glaciers.merged.RA_uni ~ Glacier, data = metadata_df_ab) #p < 0.05
+
+#Region
+adonis(ps.glaciers.merged.RA_bray ~ Region, data = metadata_df_ab) #p < 0.05
+adonis(ps.glaciers.merged.RA_wuni ~ Region, data = metadata_df_ab) #p < 0.05
+adonis(ps.glaciers.merged.RA_uni ~ Region, data = metadata_df_ab) #p < 0.05
+
+#Pole
+adonis(ps.glaciers.merged.RA_bray ~ Pole, data = metadata_df_ab) #p < 0.05
+adonis(ps.glaciers.merged.RA_wuni ~ Pole, data = metadata_df_ab) #p < 0.05
+adonis(ps.glaciers.merged.RA_uni ~ Pole, data = metadata_df_ab) #p < 0.05
+```
+
+2.9 Test for Homogeny of Dispersion
+```{r}
+#Glacier
+beta_bray_gla_ab <- betadisper(ps.glaciers.merged.RA_bray, metadata_df_ab$Glacier)
+permutest(beta_bray_gla_ab) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_gla_ab <- betadisper(ps.glaciers.merged.RA_wuni, metadata_df_ab$Glacier)
+permutest(beta_wuni_gla_ab) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_gla_ab <- betadisper(ps.glaciers.merged.RA_uni, metadata_df_ab$Glacier)
+permutest(beta_uni_gla_ab) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+#Region
+beta_bray_reg_ab <- betadisper(ps.glaciers.merged.RA_bray, metadata_df_ab$Region)
+permutest(beta_bray_reg_ab) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_reg_ab <- betadisper(ps.glaciers.merged.RA_wuni, metadata_df_ab$Region)
+permutest(beta_wuni_reg_ab) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_uni_reg_ab <- betadisper(ps.glaciers.merged.RA_uni, metadata_df_ab$Region)
+permutest(beta_uni_reg_ab) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+#Pole
+beta_bray_pol_ab <- betadisper(ps.glaciers.merged.RA_bray, metadata_df_ab$Pole)
+permutest(beta_bray_pol_ab) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_pol_ab <- betadisper(ps.glaciers.merged.RA_wuni, metadata_df_ab$Pole)
+permutest(beta_wuni_pol) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_pol_ab <- betadisper(ps.glaciers.merged.RA_uni, metadata_df_ab$Pole)
+permutest(beta_uni_pol_ab) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+```
+
+3 INTERMEDIATE ASVS
+
+3.1 Calculate Distances
+```{r}
+DistBC_i <- distance(ps.glaciers.merged.I, method="bray")
+DistWU_i <- distance(ps.glaciers.merged.I, method="wUniFrac")
+DistUU_i <- distance(ps.glaciers.merged.I, method="UniFrac")
+```
+
+3.2 Perform ordination
+```{r}
+ordBC_i <- ordinate(ps.glaciers.merged.I, method="PCoA", distance="bray")
+ordWU_i <- ordinate(ps.glaciers.merged.I, method="PCoA", distance="wunifrac")
+ordUU_i <- ordinate(ps.glaciers.merged.I, method="PCoA", distance="unifrac")
+```
+
+3.3 Scree plots
+How much of the total distance between samples is captures by the eigenvalues?
+```{r}
+plot_scree(ordBC_i, "Scree Plot: Bray-Curtis MDS")
+plot_scree(ordWU_i, "Scree Plot: Weighted Unifrac MDS")
+plot_scree(ordUU_i, "Scree Plot: Unweighted Unifrac MDS")
+```
+
+3.4 How much variation do the first two axis explain? These are the axis we will plot.
+```{r}
+(100*sum(ordBC_i$values$Relative_eig[1:2])) #6%
+(100*sum(ordWU_i$values$Relative_eig[1:2])) #77%
+(100*sum(ordUU_i$values$Relative_eig[1:2])) #28%
+```
+
+3.5 Plot the ordinations
+```{r}
+# Glacier
+plot_ordination(ps.glaciers.merged.I, ordBC_i, color = "Glacier", shape="Pole") + 
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.glaciers.merged.I, ordWU_i, color = "Glacier", shape="Pole") + 
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.glaciers.merged.I, ordUU_i, color = "Glacier", shape="Pole") + 
+  ggtitle("PCoA: Unweighted Unifrac")
+
+#Region
+plot_ordination(ps.glaciers.merged.I, ordBC_i, color = "Region", shape="Pole") + 
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.glaciers.merged.I, ordWU_i, color = "Region", shape="Pole") + 
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.glaciers.merged.I, ordUU_i, color = "Region", shape="Pole") + 
+  ggtitle("PCoA: Unweighted Unifrac")
+
+
+#Pole
+plot_ordination(ps.glaciers.merged.I, ordBC_i, color = "Pole") + 
+  stat_ellipse(type="t") +
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.glaciers.merged.I, ordWU_i, color = "Pole") + 
+  stat_ellipse() +
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.glaciers.merged.I, ordUU_i, color = "Pole") + 
+  stat_ellipse() +
+  ggtitle("PCoA: Unweighted Unifrac")
+
+```
+
+3.6 NMDS Plot
+```{r}
+#set seed as starting position of samples in algorithm is random
+set.seed(666)
+
+#inline calculation of distance metric - this includes square root transformation and Wisconsin double standardization
+ps.glaciers.merged.I_nmds <- ordinate(physeq = ps.glaciers.merged.I, method="NMDS", distance="bray") 
+
+#plot
+plot_ordination(
+  physeq = ps.glaciers.merged.I,
+  ordination = ps.glaciers.merged.I_nmds,
+  color = "Glacier",
+  title = "NMDS Plot"
+)
+
+plot_ordination(
+  physeq = ps.glaciers.merged.I,
+  ordination = ps.glaciers.merged.I_nmds,
+  color = "Region",
+  title = "NMDS Plot"
+)
+
+plot_ordination(
+  physeq = ps.glaciers.merged.I,
+  ordination = ps.glaciers.merged.I_nmds,
+  color = "Pole",
+  title = "NMDS Plot"
+)
+
+#Alternatives
+# #extract community matrix
+# com <- as.matrix(as.data.frame(t(otu_table(ps.glaciers.merged.RA))))
+# #extract metadata
+# data <- as.data.frame(sample_data(ps.glaciers.merged.RA))
+# nmds = metaMDS(com, distance = "bray")
+# plot(nmds)
+# #extract NMDS scores (x and y coordinates)
+# data.scores = as.data.frame(scores(nmds))
+# data.scores$Sample = data$SampleID
+# data.scores$Glacier = data$Glacier
+# data.scores$Pole = data$Pole
+#  
+# head(data.scores)
+# 
+# ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+#     geom_point(size = 4, aes( shape = Pole, colour = Glacier))+ 
+#     theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+#     axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+#     legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+#     legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+#     axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+#     legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+#     panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+#     legend.key=element_blank()) + 
+#     labs(x = "NMDS1", colour = "Glacier", y = "NMDS2", shape = "Pole")
+```
+
+3.7 Run ANOSIM for significant differences
+```{r}
+#Glaciers
+my_gla_i = get_variable(ps.glaciers.merged.I, "Glacier")
+
+anosim_gla_bray_i = anosim(phyloseq::distance(ps.glaciers.merged.I,"bray"),my_gla_i)
+anosim_gla_bray_i # p <0.05 so significant
+#R = 0.10 so low dissimilarity between glaciers
+summary(anosim_gla_bray_i)
+
+anosim_gla_wuni_i = anosim(phyloseq::distance(ps.glaciers.merged.I,"wuniFrac"),my_gla_i)
+anosim_gla_wuni_i # p <0.05 so significant
+#R = 0.32 so medium dissimilarity between glaciers
+summary(anosim_gla_wuni_i)
+
+anosim_gla_uni_i = anosim(phyloseq::distance(ps.glaciers.merged.I,"uniFrac"),my_gla_i)
+anosim_gla_uni_i # p <0.05 so significant
+#R = 0.50 so medium dissimilarity between glaciers
+summary(anosim_gla_uni_i)
+
+#Regions
+my_reg_i = get_variable(ps.glaciers.merged.I, "Region")
+
+anosim_reg_bray_i = anosim(phyloseq::distance(ps.glaciers.merged.I,"bray"),my_reg_i)
+anosim_reg_bray_i # p > 0.05 NOT significant
+summary(anosim_reg_bray_i)
+
+anosim_reg_wuni_i = anosim(phyloseq::distance(ps.glaciers.merged.I,"wuniFrac"),my_reg_i)
+anosim_reg_wuni_i # p < 0.05 significant
+#R = 0.26
+summary(anosim_reg_wuni_i)
+
+anosim_reg_uni_i = anosim(phyloseq::distance(ps.glaciers.merged.I,"uniFrac"),my_reg_i)
+anosim_reg_uni_i # p <0.05 significant
+#R = 0.37 so medium dissimilarity between glaciers
+summary(anosim_reg_uni_i)
+
+#Poles
+my_pol_i = get_variable(ps.glaciers.merged.I, "Pole")
+
+anosim_pol_bray_i = anosim(phyloseq::distance(ps.glaciers.merged.I,"bray"),my_pol_i)
+anosim_pol_bray_i # p > 0.05 NOT significant
+summary(anosim_pol_bray_i)
+
+anosim_pol_wuni_i = anosim(phyloseq::distance(ps.glaciers.merged.I,"wuniFrac"),my_pol_i)
+anosim_pol_wuni_i # p < 0.05 significant
+#R = 0.24 so medium dissimilarity between glaciers
+summary(anosim_pol_wuni_i)
+
+anosim_pol_uni_i = anosim(phyloseq::distance(ps.glaciers.merged.I,"uniFrac"),my_pol_i)
+anosim_pol_uni_i # p < 0.05 significant
+#R = 0.40 so medium dissimilarity between glaciers
+summary(anosim_pol_uni_i)
+```
+
+3.8 Run ADONIS (PERMANOVA) for significant differences
+```{r}
+set.seed(1)
+
+#make a data frame from the sample_data
+metadata_df_i <- data.frame(sample_data(ps.glaciers.merged.I))
+
+#Calculate bray curtis distance matrix
+ps.glaciers.merged.I_bray <- phyloseq::distance(ps.glaciers.merged.I, method = "bray")
+#Calculate Weighted Unifrac distance matrix
+ps.glaciers.merged.I_wuni <- phyloseq::distance(ps.glaciers.merged.I, method = "wunifrac")
+#Calculate Unweighted Unifrac distance matrix
+ps.glaciers.merged.I_uni <- phyloseq::distance(ps.glaciers.merged.I, method = "unifrac")
+
+# Adonis test
+#Glacier
+adonis(ps.glaciers.merged.I_bray ~ Glacier, data = metadata_df_i) #p < 0.05
+adonis(ps.glaciers.merged.I_wuni ~ Glacier, data = metadata_df_i) #p < 0.05
+adonis(ps.glaciers.merged.I_uni ~ Glacier, data = metadata_df_i) #p < 0.05
+
+#Region
+adonis(ps.glaciers.merged.I_bray ~ Region, data = metadata_df_i) #p < 0.05
+adonis(ps.glaciers.merged.I_wuni ~ Region, data = metadata_df_i) #p < 0.05
+adonis(ps.glaciers.merged.I_uni ~ Region, data = metadata_df_i) #p < 0.05
+
+#Pole
+adonis(ps.glaciers.merged.I_bray ~ Pole, data = metadata_df_i) #p < 0.05
+adonis(ps.glaciers.merged.I_wuni ~ Pole, data = metadata_df_i) #p < 0.05
+adonis(ps.glaciers.merged.I_uni ~ Pole, data = metadata_df_i) #p < 0.05
+```
+
+3.9 Test for Homogeny of Dispersion
+```{r}
+#Glacier
+beta_bray_gla_i <- betadisper(ps.glaciers.merged.I_bray, metadata_df_i$Glacier)
+permutest(beta_bray_gla_i) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_gla_i <- betadisper(ps.glaciers.merged.I_wuni, metadata_df_i$Glacier)
+permutest(beta_wuni_gla_i) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_gla_i <- betadisper(ps.glaciers.merged.I_uni, metadata_df_i$Glacier)
+permutest(beta_uni_gla_i) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+#Region
+beta_bray_reg_i <- betadisper(ps.glaciers.merged.I_bray, metadata_df_i$Region)
+permutest(beta_bray_reg_i) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_reg_i <- betadisper(ps.glaciers.merged.I_wuni, metadata_df_i$Region)
+permutest(beta_wuni_reg_i) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_reg_i <- betadisper(ps.glaciers.merged.I_uni, metadata_df_i$Region)
+permutest(beta_uni_reg_i) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+#Pole
+beta_bray_pol_i <- betadisper(ps.glaciers.merged.I_bray, metadata_df_i$Pole)
+permutest(beta_bray_pol_i) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_pol_i <- betadisper(ps.glaciers.merged.I_wuni, metadata_df_i$Pole)
+permutest(beta_wuni_pol_i) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_pol_i <- betadisper(ps.glaciers.merged.I_uni, metadata_df_i$Pole)
+permutest(beta_uni_pol_i) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+```
+
+4 RARE ASVS
+
+4.1 Calculate Distances
+```{r}
+DistBC_ra <- distance(ps.glaciers.merged.RR, method="bray")
+DistWU_ra <- distance(ps.glaciers.merged.RR, method="wUniFrac")
+DistUU_ra <- distance(ps.glaciers.merged.RR, method="UniFrac")
+```
+
+4.2 Perform ordination
+```{r}
+ordBC_ra <- ordinate(ps.glaciers.merged.RR, method="PCoA", distance="bray")
+ordWU_ra <- ordinate(ps.glaciers.merged.RR, method="PCoA", distance="wunifrac")
+ordUU_ra <- ordinate(ps.glaciers.merged.RR, method="PCoA", distance="unifrac")
+```
+
+4.3 Scree plots
+How much of the total distance between samples is captures by the eigenvalues?
+```{r}
+plot_scree(ordBC_ra, "Scree Plot: Bray-Curtis MDS")
+plot_scree(ordWU_ra, "Scree Plot: Weighted Unifrac MDS")
+plot_scree(ordUU_ra, "Scree Plot: Unweighted Unifrac MDS")
+```
+
+4.4 How much variation do the first two axis explain? These are the axis we will plot.
+```{r}
+(100*sum(ordBC_ra$values$Relative_eig[1:2])) #9%
+(100*sum(ordWU_ra$values$Relative_eig[1:2])) #65%
+(100*sum(ordUU_ra$values$Relative_eig[1:2])) #24%
+```
+
+4.5 Plot the ordinations
+```{r}
+# Glacier
+plot_ordination(ps.glaciers.merged.RR, ordBC_ra, color = "Glacier", shape="Pole") + 
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.glaciers.merged.RR, ordWU_ra, color = "Glacier", shape="Pole") + 
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.glaciers.merged.RR, ordUU_ra, color = "Glacier", shape="Pole") + 
+  ggtitle("PCoA: Unweighted Unifrac")
+
+#Region
+plot_ordination(ps.glaciers.merged.RR, ordBC_ra, color = "Region", shape="Pole") + 
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.glaciers.merged.RR, ordWU_ra, color = "Region", shape="Pole") + 
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.glaciers.merged.RR, ordUU_ra, color = "Region", shape="Pole") + 
+  ggtitle("PCoA: Unweighted Unifrac")
+
+
+#Pole
+plot_ordination(ps.glaciers.merged.RR, ordBC_ra, color = "Pole") + 
+  stat_ellipse(type="t") +
+  ggtitle("PCoA: Bray-Curtis")
+
+plot_ordination(ps.glaciers.merged.RR, ordWU_ra, color = "Pole") + 
+  stat_ellipse() +
+  ggtitle("PCoA: Weighted Unifrac")
+
+plot_ordination(ps.glaciers.merged.RR, ordUU_ra, color = "Pole") + 
+  stat_ellipse() +
+  ggtitle("PCoA: Unweighted Unifrac")
+
+```
+
+4.6 NMDS Plot
+```{r}
+#set seed as starting position of samples in algorithm is random
+set.seed(666)
+
+#inline calculation of distance metric - this includes square root transformation and Wisconsin double standardization
+ps.glaciers.merged.RR_nmds <- ordinate(physeq = ps.glaciers.merged.RR, method="NMDS", distance="bray") 
+
+#plot
+plot_ordination(
+  physeq = ps.glaciers.merged.RR,
+  ordination = ps.glaciers.merged.RR_nmds,
+  color = "Glacier",
+  title = "NMDS Plot"
+)
+
+plot_ordination(
+  physeq = ps.glaciers.merged.RR,
+  ordination = ps.glaciers.merged.RR_nmds,
+  color = "Region",
+  title = "NMDS Plot"
+)
+
+plot_ordination(
+  physeq = ps.glaciers.merged.RR,
+  ordination = ps.glaciers.merged.RR_nmds,
+  color = "Pole",
+  title = "NMDS Plot"
+)
+
+#Alternatives
+# #extract community matrix
+# com <- as.matrix(as.data.frame(t(otu_table(ps.glaciers.merged.RA))))
+# #extract metadata
+# data <- as.data.frame(sample_data(ps.glaciers.merged.RA))
+# nmds = metaMDS(com, distance = "bray")
+# plot(nmds)
+# #extract NMDS scores (x and y coordinates)
+# data.scores = as.data.frame(scores(nmds))
+# data.scores$Sample = data$SampleID
+# data.scores$Glacier = data$Glacier
+# data.scores$Pole = data$Pole
+#  
+# head(data.scores)
+# 
+# ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+#     geom_point(size = 4, aes( shape = Pole, colour = Glacier))+ 
+#     theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+#     axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+#     legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+#     legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+#     axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+#     legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+#     panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+#     legend.key=element_blank()) + 
+#     labs(x = "NMDS1", colour = "Glacier", y = "NMDS2", shape = "Pole")
+```
+
+4.7 Run ANOSIM for significant differences
+```{r}
+#Glaciers
+my_gla_ra = get_variable(ps.glaciers.merged.RR, "Glacier")
+
+anosim_gla_bray_ra = anosim(phyloseq::distance(ps.glaciers.merged.RR,"bray"),my_gla_ra)
+anosim_gla_bray_ra # p <0.05 so significant
+#R = 0.08 so low dissimilarity between glaciers
+summary(anosim_gla_bray_ra)
+
+anosim_gla_wuni_ra = anosim(phyloseq::distance(ps.glaciers.merged.RR,"wuniFrac"),my_gla_ra)
+anosim_gla_wuni_ra # p <0.05 so significant
+#R = 0.26 so medium dissimilarity between glaciers
+summary(anosim_gla_wuni_ra)
+
+anosim_gla_uni_ra = anosim(phyloseq::distance(ps.glaciers.merged.RR,"uniFrac"),my_gla_ra)
+anosim_gla_uni_ra # p <0.05 so significant
+#R = 0.36 so medium dissimilarity between glaciers
+summary(anosim_gla_uni_ra)
+
+#Regions
+my_reg_ra = get_variable(ps.glaciers.merged.RR, "Region")
+
+anosim_reg_bray_ra = anosim(phyloseq::distance(ps.glaciers.merged.RR,"bray"),my_reg_ra)
+anosim_reg_bray_ra # p > 0.05 NOT significant
+summary(anosim_reg_bray_ra)
+
+anosim_reg_wuni_ra = anosim(phyloseq::distance(ps.glaciers.merged.RR,"wuniFrac"),my_reg_ra)
+anosim_reg_wuni_ra # p < 0.05 significant
+#R = 0.23 so low dissimilarity between glaciers
+summary(anosim_reg_wuni_ra)
+
+anosim_reg_uni_ra = anosim(phyloseq::distance(ps.glaciers.merged.RR,"uniFrac"),my_reg_ra)
+anosim_reg_uni_ra # p <0.05 significant
+#R = 0.20 so low dissimilarity between glaciers
+summary(anosim_reg_uni_ra)
+
+#Poles
+my_pol_ra = get_variable(ps.glaciers.merged.RR, "Pole")
+
+anosim_pol_bray_ra = anosim(phyloseq::distance(ps.glaciers.merged.RR,"bray"),my_pol_ra)
+anosim_pol_bray_ra # p > 0.05 NOT significant
+summary(anosim_pol_bray_ra)
+
+anosim_pol_wuni_ra = anosim(phyloseq::distance(ps.glaciers.merged.RR,"wuniFrac"),my_pol_ra)
+anosim_pol_wuni_ra # p < 0.05 significant
+#R = 0.20 so low dissimilarity between glaciers
+summary(anosim_pol_wuni_ra)
+
+anosim_pol_uni_ra = anosim(phyloseq::distance(ps.glaciers.merged.RR,"uniFrac"),my_pol_ra)
+anosim_pol_uni_ra # p < 0.05 significant
+#R = 0.21 so low dissimilarity between glaciers
+summary(anosim_pol_uni_ra)
+```
+
+4.8 Run ADONIS (PERMANOVA) for significant differences
+```{r}
+set.seed(1)
+
+#make a data frame from the sample_data
+metadata_df_ra <- data.frame(sample_data(ps.glaciers.merged.RR))
+
+#Calculate bray curtis distance matrix
+ps.glaciers.merged.RR_bray <- phyloseq::distance(ps.glaciers.merged.RR, method = "bray")
+#Calculate Weighted Unifrac distance matrix
+ps.glaciers.merged.RR_wuni <- phyloseq::distance(ps.glaciers.merged.RR, method = "wunifrac")
+#Calculate Unweighted Unifrac distance matrix
+ps.glaciers.merged.RR_uni <- phyloseq::distance(ps.glaciers.merged.RR, method = "unifrac")
+
+# Adonis test
+#Glacier
+adonis(ps.glaciers.merged.RR_bray ~ Glacier, data = metadata_df_ra) #p < 0.05
+adonis(ps.glaciers.merged.RR_wuni ~ Glacier, data = metadata_df_ra) #p < 0.05
+adonis(ps.glaciers.merged.RR_uni ~ Glacier, data = metadata_df_ra) #p < 0.05
+
+#Region
+adonis(ps.glaciers.merged.RR_bray ~ Region, data = metadata_df_ra) #p < 0.05
+adonis(ps.glaciers.merged.RR_wuni ~ Region, data = metadata_df_ra) #p < 0.05
+adonis(ps.glaciers.merged.I_uni ~ Region, data = metadata_df_ra) #p < 0.05
+
+#Pole
+adonis(ps.glaciers.merged.RR_bray ~ Pole, data = metadata_df_ra) #p < 0.05
+adonis(ps.glaciers.merged.RR_wuni ~ Pole, data = metadata_df_ra) #p < 0.05
+adonis(ps.glaciers.merged.RR_uni ~ Pole, data = metadata_df_ra) #p < 0.05
+```
+
+4.9 Test for Homogeny of Dispersion
+```{r}
+#Glacier
+beta_bray_gla_ra <- betadisper(ps.glaciers.merged.RR_bray, metadata_df_ra$Glacier)
+permutest(beta_bray_gla_ra) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_gla_ra <- betadisper(ps.glaciers.merged.RR_wuni, metadata_df_ra$Glacier)
+permutest(beta_wuni_gla_i) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_gla_ra <- betadisper(ps.glaciers.merged.I=RR_uni, metadata_df_ra$Glacier)
+permutest(beta_uni_gla_ra) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+#Region
+beta_bray_reg_ra <- betadisper(ps.glaciers.merged.RR_bray, metadata_df_ra$Region)
+permutest(beta_bray_reg_ra) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_reg_ra <- betadisper(ps.glaciers.merged.RR_wuni, metadata_df_ra$Region)
+permutest(beta_wuni_reg_ra) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_reg_ra <- betadisper(ps.glaciers.merged.RR_uni, metadata_df_ra$Region)
+permutest(beta_uni_reg_ra) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+#Pole
+beta_bray_pol_ra <- betadisper(ps.glaciers.merged.RR_bray, metadata_df_ra$Pole)
+permutest(beta_bray_pol_ra) # p < 0.05 suggesting groups do not have homogeny of dispersion and our results may be due to those heterogeneous dispersions, rather than a true result
+
+beta_wuni_pol_ra <- betadisper(ps.glaciers.merged.RR_wuni, metadata_df_ra$Pole)
+permutest(beta_wuni_pol_ra) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+
+beta_uni_pol_ra <- betadisper(ps.glaciers.merged.RR_uni, metadata_df_ra$Pole)
+permutest(beta_uni_pol_ra) # p > 0.05 suggesting groups do have homogeny of dispersion and our results are likely to be a true result
+```
+
+
+
