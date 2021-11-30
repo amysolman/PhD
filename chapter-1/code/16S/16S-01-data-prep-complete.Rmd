@@ -72,6 +72,16 @@ contam_asvs <- row.names(contam_df[contam_df$contaminant == TRUE, ])
 
 # Check the taxonomy of these contaminants
 contam_tab <- taxonomy[taxonomy$`Feature ID` %in% contam_asvs, ]
+
+#export contaminant table
+contam_tab <- contam_tab %>%
+  mutate(taxonomy=str_replace_all(string=Taxon, pattern="D_\\d*\\__", replacement="")) %>%
+  mutate(taxonomy=str_replace_all(string=taxonomy, pattern=";$", replacement="")) %>%
+separate(taxonomy, into=c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
+  select(-Taxon, -Confidence) %>%
+  column_to_rownames(var='Feature ID')
+
+write.csv(contam_tab, "../../results/16S/contaminants/contaminant-asvs.csv")
 ```
 
 #Step Four: Remove contaminents from count table,taxonomy table, metadata and tree
@@ -170,13 +180,17 @@ ps.merge2_clean <- merge_phyloseq(ps.merge_clean, tree_clean)
 ps.merge2_clean #perfect!
 ```
 
-#Step Seven: remove abiguous annotations
+#Step Seven: remove abiguous annotations and singletons
 ```{r}
 ps.ambig <- subset_taxa(ps.merge2, !is.na(Kingdom) & !Kingdom %in% c("Unassigned"))
 ps.ambig
 
+ps.ambig <- prune_taxa(taxa_sums(ps.ambig) > 1, ps.ambig) 
+
 ps.ambig_clean <- subset_taxa(ps.merge2_clean, !is.na(Kingdom) & !Kingdom %in% c("Unassigned"))
 ps.ambig_clean
+
+ps.ambig_clean <- prune_taxa(taxa_sums(ps.ambig_clean) > 1, ps.ambig_clean) 
 ```
 
 #Step Eight: Remove samples with less than 10000 sequences
@@ -195,12 +209,12 @@ ps.prune_clean
 
 #Step Nine: Rarefy data
 ```{r}
-#rarefy the data to 95% of the minimum sample depth
-ps.rar = rarefy_even_depth(ps.prune, rngseed=1, sample.size=0.95*min(sample_sums(ps.prune)), replace=F)
+#rarefy the data to minimum sample depth
+ps.rar = rarefy_even_depth(ps.prune, rngseed=1, sample.size=min(sample_sums(ps.prune)), replace=F)
 ps.rar
 sample_sums(ps.rar)
 
-ps.rar_clean = rarefy_even_depth(ps.prune_clean, rngseed=1, sample.size=0.95*min(sample_sums(ps.prune_clean)), replace=F)
+ps.rar_clean = rarefy_even_depth(ps.prune_clean, rngseed=1, sample.size=min(sample_sums(ps.prune_clean)), replace=F)
 ps.rar_clean
 sample_sums(ps.rar_clean)
 

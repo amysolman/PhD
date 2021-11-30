@@ -148,7 +148,12 @@ my_phyloseq <- phyloseq(ASV, TAX, META, tree)
 #Step Nine: remove abiguous annotations
 ```{r}
 ps.ambig <- subset_taxa(my_phyloseq, !is.na(Kingdom) & !Kingdom %in% c("Unassigned"))
+ps.ambig
+
+ps.ambig <- prune_taxa(taxa_sums(ps.ambig) > 1, ps.ambig) 
+ps.ambig
 ```
+
 
 #Step Eight: Remove samples with less than 10000 sequences
 ```{r}
@@ -164,7 +169,7 @@ ps.prune
 #Step Nine: Rarefy data
 ```{r}
 #rarefy the data to 95% of the minimum sample depth
-ps.rar = rarefy_even_depth(ps.prune, rngseed=1, sample.size=0.95*min(sample_sums(ps.prune)), replace=F)
+ps.rar = rarefy_even_depth(ps.prune, rngseed=1, sample.size=min(sample_sums(ps.prune)), replace=F)
 ps.rar
 sample_sums(ps.rar)
 

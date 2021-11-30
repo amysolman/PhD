@@ -23,12 +23,9 @@ library(plyr)
 
 #Step Two: Load data 
 ```{r}
-#Load data files
-#load("../output/16S-my-sequence-data.RData") #load all our pre-processed data files
-
 #load phyloseq object
-ps <- readRDS("../output/16S-phyloseq-object.rds") #load unrarefied phyloseq object
-ps.rar <- readRDS("../output/16S-phyloseq-object-rarefied.rds") #load rarefied phyloseq object
+ps.rar <- readRDS("../../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds") #load unrarefied phyloseq object
+# ps.rar <- readRDS("../output/16S-phyloseq-object-rarefied.rds") #load rarefied phyloseq object
 ```
 
 #Step Three: Find the local relative abundance of each ASV in each sample
@@ -59,21 +56,28 @@ ps.rel.ant.filter
 ```
 
 #Step Five: Filter taxa by abundance (1 = 100%, 0.1 = 10%, 0.01 = 1%, 0.001 = 0.1%, 0.0001 = 0.01%, 0.00001 = 0.001%)
+Li et al (2021) Regionally rare = <0.001% mean local abundance, regionally abundant = > 0.1% mean local abundance.
+Zhang et al., (2021) Rare = < 0.01% mean relative abundance, abundant = > 0.1% mean relative abundance
+Jiao et al., (2019) Rare = < 0.01% mean relative abundance, abundant = > 0.01% mean relative abundance
+Jiao et al., (2017) Rare = < 0.001% mean relative abundance, abundant = > 0.05% mean relative abundance
+Zhang et al., (2020) Rare = < 0.1% mean relative abundance, abundant = > 1% mean relative abundance 
+Yan et al., (2017) Rare = < 0.1% mean relative abundance, abundant = > 1% mean relative abundance
+Jiang et al., (2019) Rare = < 0.001% mean relative abundance, abundant = > 0.05% mean relative abundance
 ```{r}
 #RARE ARCTIC: only keep taxa with mean local relative abundance less than 0.001%
 ps.rel.arc.filter.rare <- filter_taxa(ps.rel.arc.filter, function(x) mean(x) < 0.00001, TRUE)
 #RARE ANTARCTIC
 ps.rel.ant.filter.rare <- filter_taxa(ps.rel.ant.filter, function(x) mean(x) < 0.00001, TRUE)
 
-#ABUNDANT ARCTIC: only keep taxa with mean local relative abundance more than 0.1%
-ps.rel.arc.filter.abun <- filter_taxa(ps.rel.arc.filter, function(x) mean(x) > 0.001, TRUE)
+#ABUNDANT ARCTIC: only keep taxa with mean local relative abundance more than 0.05%
+ps.rel.arc.filter.abun <- filter_taxa(ps.rel.arc.filter, function(x) mean(x) > 0.0005, TRUE)
 #ABUNDANT ANTARCTIC
-ps.rel.ant.filter.abun <- filter_taxa(ps.rel.ant.filter, function(x) mean(x) > 0.001, TRUE)
+ps.rel.ant.filter.abun <- filter_taxa(ps.rel.ant.filter, function(x) mean(x) > 0.0005, TRUE)
 
-#INTERMEDIATE ARCTIC: only keep taxa with mean local relative abundance more than 0.001% and less than 0.1%
-ps.rel.arc.filter.int <- filter_taxa(ps.rel.arc.filter, function(x) mean(x) > 0.00001 & mean(x) < 0.001, TRUE)
+#INTERMEDIATE ARCTIC: only keep taxa with mean local relative abundance more than 0.001% and less than 0.05%
+ps.rel.arc.filter.int <- filter_taxa(ps.rel.arc.filter, function(x) mean(x) > 0.00001 & mean(x) < 0.0005, TRUE)
 #INTERMEDIATE ANTARCTIC
-ps.rel.ant.filter.int <- filter_taxa(ps.rel.ant.filter, function(x) mean(x) > 0.00001 & mean(x) < 0.001, TRUE)
+ps.rel.ant.filter.int <- filter_taxa(ps.rel.ant.filter, function(x) mean(x) > 0.00001 & mean(x) < 0.0005, TRUE)
 
 ```
 
@@ -105,21 +109,21 @@ arc.subset.abun <- subset(otu_table(ps.rel.arc), rownames(otu_table(ps.rel.arc))
 ps.ps.rel.arc.filter.abun <- merge_phyloseq(arc.subset.abun, tax_table(ps.rel.arc), sample_data(ps.rel.arc), phy_tree(ps.rel.arc))
 ant.subset.abun <- subset(otu_table(ps.rel.ant), rownames(otu_table(ps.rel.ant)) %in% rownames(otu_table(ps.rel.ant.filter.abun)))
 ps.ps.rel.ant.filter.abun <- merge_phyloseq(ant.subset.abun, tax_table(ps.rel.ant), sample_data(ps.rel.ant), phy_tree(ps.rel.ant))
-ps.abun <- combine_phyloseq(ps.ps.rel.arc.filter.abun, ps.ps.rel.ant.filter.abun, ps)
+ps.abun <- combine_phyloseq(ps.ps.rel.arc.filter.abun, ps.ps.rel.ant.filter.abun, ps.rar)
 
 #Intermediate
 arc.subset.int <- subset(otu_table(ps.rel.arc), rownames(otu_table(ps.rel.arc)) %in% rownames(otu_table(ps.rel.arc.filter.int)))
 ps.ps.rel.arc.filter.int <- merge_phyloseq(arc.subset.int, tax_table(ps.rel.arc), sample_data(ps.rel.arc), phy_tree(ps.rel.arc))
 ant.subset.int <- subset(otu_table(ps.rel.ant), rownames(otu_table(ps.rel.ant)) %in% rownames(otu_table(ps.rel.ant.filter.int)))
 ps.ps.rel.ant.filter.int <- merge_phyloseq(ant.subset.int, tax_table(ps.rel.ant), sample_data(ps.rel.ant), phy_tree(ps.rel.ant))
-ps.int <- combine_phyloseq(ps.ps.rel.arc.filter.int, ps.ps.rel.ant.filter.int, ps)
+ps.int <- combine_phyloseq(ps.ps.rel.arc.filter.int, ps.ps.rel.ant.filter.int, ps.rar)
 
 #Rare
 arc.subset.rare <- subset(otu_table(ps.rel.arc), rownames(otu_table(ps.rel.arc)) %in% rownames(otu_table(ps.rel.arc.filter.rare)))
 ps.ps.rel.arc.filter.rare <- merge_phyloseq(arc.subset.rare, tax_table(ps.rel.arc), sample_data(ps.rel.arc), phy_tree(ps.rel.arc))
 ant.subset.rare <- subset(otu_table(ps.rel.ant), rownames(otu_table(ps.rel.ant)) %in% rownames(otu_table(ps.rel.ant.filter.rare)))
 ps.ps.rel.ant.filter.rare <- merge_phyloseq(ant.subset.rare, tax_table(ps.rel.ant), sample_data(ps.rel.ant), phy_tree(ps.rel.ant))
-ps.rare <- combine_phyloseq(ps.ps.rel.arc.filter.rare, ps.ps.rel.ant.filter.rare, ps)
+ps.rare <- combine_phyloseq(ps.ps.rel.arc.filter.rare, ps.ps.rel.ant.filter.rare, ps.rar)
 ```
 
 Remove any samples with zero counts from each of our communities
@@ -136,26 +140,12 @@ ps.rare <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
 
 #Step Six: Export phyloseq objects
 ```{r}
-saveRDS(ps.rar, "../output/16S-phyloseq-object-rarefied.rds")
+saveRDS(ps.rar, "../../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds")
 #Now I'm going to export my phyloseq objects
 #Total rare
-saveRDS(ps.rare, "../output/16S-total-rare.rds")
+saveRDS(ps.rare, "../../results/16S/phylo-objects/16S-total-rare.rds")
 #Total Abundant
-saveRDS(ps.abun, "../output/16S-total-abundant.rds")
+saveRDS(ps.abun, "../../results/16S/phylo-objects/16S-total-abundant.rds")
 #Total Intermediate 
-saveRDS(ps.int, "../output/16S-total-intermediate.rds")
-
-# #ARCTIC RARE
-# saveRDS(ps.rel.arc.filter.rare, "../output/16S-arctic-rare.rds")
-# #ARCTIC ABUNDANT
-# saveRDS(ps.rel.arc.filter.abun, "../output/16S-arctic-abundant.rds")
-# #ARCTIC INTERMEDIATE
-# saveRDS(ps.rel.arc.filter.int, "../output/16S-arctic-intermediate.rds")
-# 
-# #ANTARCTIC RARE
-# saveRDS(ps.rel.ant.filter.rare, "../output/16S-antarctic-rare.rds")
-# #ANTARCTIC ABUNDANT
-# saveRDS(ps.rel.ant.filter.abun, "../output/16S-antarctic-abundant.rds")
-# #ANTARCTIC INTERMEDIATE
-# saveRDS(ps.rel.ant.filter.int, "../output/16S-antarctic-intermediate.rds")
+saveRDS(ps.int, "../../results/16S/phylo-objects/16S-total-intermediate.rds")
 ```
