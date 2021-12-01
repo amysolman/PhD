@@ -1,0 +1,320 @@
+---
+title: "16S-14-CCA"
+author: "Amy Solman"
+date: "29/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Canonical correspondence analysis
+1) Clear workspace and load packages
+2) Import data
+3) Extract species, environmental and spatial data
+4) Subset environmental data to variables of interest
+5) Perform CCA and partial CCA
+6) Select variables that be explain the species matrix
+7) Calculate Variance inflation Factors for our environmental variables and remove those with collinearity
+8) Re-run CCA, variable selection and VIP analysis
+9) Call model to see results
+10) Test significance of model
+11) Plot model
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(vegan) #for diversity indices
+library(dplyr) #for coalesce function
+library(stringr)
+```
+
+Load Data
+```{r}
+#TOTAL DATASET
+ps <- readRDS("../../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds")
+
+#Total Abundant
+ps.abun <- readRDS("../../results/16S/phylo-objects/16S-total-abundant.rds")
+#Total Intermediate
+ps.int <- readRDS("../../results/16S/phylo-objects/16S-total-intermediate.rds")
+#Total Rare
+ps.rare <- readRDS("../../results/16S/phylo-objects/16S-total-rare.rds")
+```
+
+Function for getting asv data
+```{r}
+count_data <- function(phylo){
+  spe <- data.frame(t(otu_table(phylo)))
+  return(spe)
+}
+
+# #Test function
+# phylo = ps
+# res <- count_data(ps)
+```
+
+Function for getting environmental data
+```{r}
+diversity_and_meta <- function(phylo){
+  
+#Get metadata of samples
+samp_data <- data.frame(sample_data(phylo))
+
+#list of variables we're interested in 
+keeps <- c("Distance_To_Sea", "Elevation", "Water_Depth", "Sediment_Depth", "Total_Depth","Conductivity", "pH", "DOC_mgL.1",
+           "Cl_merge", "SO4_merge", "Na_merge", "K_merge", "Mg_merge","Ca_merge", "HCO3_merge", "Radius", "EW", "NS")
+samp_data <- samp_data[ , (names(samp_data) %in% keeps)]
+
+#get cryoconite hole areas
+area1 <- pi*samp_data$Radius^2
+area2 <- pi*(samp_data$NS/2)*(samp_data$EW/2)
+samp_data$Area <- coalesce(area1,area2)
+
+# diversity_index <- estimate_richness(phylo)
+# #Merge into datafrome
+# samp_data$Observed <- diversity_index$Observed
+# samp_data$Shannon <- diversity_index$Shannon
+
+drops <- c("EW", "NS", "Radius")
+samp_data <- samp_data[ , !(names(samp_data) %in% drops)]
+
+#make sure data are numeric
+samp_data[1:16] <- data.frame(lapply(samp_data[1:16],as.numeric))
+
+#change sample names 
+names(samp_data) <- c("Distance_To_Sea", "Elevation", "Water_Depth", "Sediment_Depth", "Total_Depth","Conductivity", "pH", "DOC_mgL.1", "Cl", "SO4", "Na", "K", "Mg","Ca", "HCO3", "Area")
+
+  #remove columns with more than 50% missing variables
+  samp_data_trim <- samp_data[ lapply( samp_data, function(x) sum(is.na(x)) / length(x) ) < 0.5 ]
+  
+  #Only keep complete cases
+  samp_data_trim_complete <- samp_data_trim[complete.cases(samp_data_trim),]
+  
+return(samp_data_trim_complete)
+}
+
+#Test function
+# phylo = ps
+# res <- diversity_and_meta(ps)
+```
+
+Function for getting spatial data
+```{r}
+get_my_long_lat <- function(phylo){
+  
+#get metadata
+meta <- data.frame(sample_data(phylo))
+
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta)){
+  if (meta$Pole[i] == "Antarctic"){
+    meta$Glacier_Latitude[i] <- c(paste0("-", meta$Glacier_Latitude[i]))
+    meta$Cryoconite_Latitude[i] <- c(paste0("-", meta$Cryoconite_Latitude[i]))
+  }
+}
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta$Glacier_Latitude <- as.numeric(str_sub(meta$Glacier_Latitude,1,nchar(meta$Glacier_Latitude)-1))
+meta$Glacier_Longitude <- as.numeric(str_sub(meta$Glacier_Longitude,1,nchar(meta$Glacier_Longitude)-1))
+
+glac_lat <- meta$Glacier_Latitude
+glac_long <- meta$Glacier_Longitude
+
+#get latitude of each sample
+cryo_lat <- as.numeric(meta$Cryoconite_Latitude)
+#get longitude of each sample
+cryo_long <- as.numeric(meta$Cryoconite_Longitude)
+
+#replace any missing cryoconite coords with those of it's glacier
+for (j in 1:length(cryo_lat)){
+  if (is.na(cryo_lat[j])){
+    cryo_lat[j] <- glac_lat[j]
+    cryo_long[j] <- glac_long[j]
+  }
+}
+
+#put into matrix
+long.lat <- as.data.frame(cbind(cryo_long, cryo_lat))
+rownames(long.lat) = rownames(meta)
+
+return(long.lat)
+
+}
+
+# #Test function
+# phylo = ps
+# res <- get_my_long_lat(ps)
+```
+
+Function to get data and perform CCA
+```{r}
+get_my_CCA <- function(phylo, type){
+  
+  spe = count_data(phylo)
+  env = diversity_and_meta(phylo)
+  spatial = get_my_long_lat(phylo)
+  
+  #trim species counts and spatial data to match environmental data
+  spe_trim <- spe[(rownames(spe) %in% rownames(env)),]
+  spatial_trim <- spatial[(rownames(spatial) %in% rownames(env)),]
+  
+  if (type == "Full"){
+    ccamodel <- cca(spe_trim~., env)
+    
+  } else if (type == "Partial"){
+    
+    envspatial<-cbind(env,spatial_trim)
+    nams <- names(envspatial)
+    partialccamodel <- formula(paste("spe_trim ~", paste(nams[1: (length(envspatial)-(length(spatial_trim)) )], collapse = " + "),"+ Condition(", paste(nams[(length(envspatial)-(length(spatial_trim)-1) ):length(envspatial)], collapse ="+"),")"))
+
+  ccamodel<-cca(partialccamodel, envspatial)
+
+  }
+  
+  #use ordistep to select the variables that best explain variation in the community 
+  finalmodel<- ordistep(ccamodel, scope=formula(ccamodel))
+  
+  return(finalmodel)
+  
+}
+
+#Test function
+# type = "Full"
+# phylo = ps
+#model_res <- get_my_CCA(ps, "Partial")
+```
+
+Function to carry out CCA, find variables with collinearity, remove them from the model and re-run the model
+```{r}
+rm_collinearity <- function(phylo, type){
+  
+  #initial CCA
+  model <- get_my_CCA(phylo, type)
+  
+  #Get VIF 
+  vif <- as.data.frame(vif.cca(model))
+  
+  #create a vector for keeping our non-collinearity variables
+  env_to_keep <- vector()
+  
+  for (i in 1:nrow(vif)){
+    
+          if(vif$`vif.cca(model)`[i] < 10){
+      env_to_keep <- c(env_to_keep, rownames(vif)[i])
+    }
+    
+  }
+  
+  spe = count_data(phylo)
+  env = diversity_and_meta(phylo)
+  spatial = get_my_long_lat(phylo)
+  
+  if (type == "Full"){
+  #only keep the good variables in our env dataframe
+  env_trim <- as.data.frame(env[ , (names(env) %in% env_to_keep)])
+  #get column names
+  names(env_trim) <- env_to_keep
+  rownames(env_trim) <- rownames(env)
+  } else if (type == "Partial"){
+    
+  env_to_keep_df <- as.data.frame(env_to_keep)
+  env_to_keep <- env_to_keep_df %>%
+  filter(!str_detect(env_to_keep, "cryo"))
+  env_to_keep <- as.vector(env_to_keep$env_to_keep)
+    #only keep the good variables in our env dataframe
+  env_trim <- as.data.frame(env[ , (names(env) %in% env_to_keep)])
+  #get column names
+  names(env_trim) <- env_to_keep
+  rownames(env_trim) <- rownames(env)
+  }
+  
+  #trim species counts and spatial data to match environmental data
+  spe_trim <- spe[(rownames(spe) %in% rownames(env_trim)),]
+  spatial_trim <- spatial[(rownames(spatial) %in% rownames(env_trim)),]
+  
+    if (type == "Full"){
+    ccamodel <- cca(spe_trim~., env_trim)
+    
+  } else if (type == "Partial"){
+    
+    envspatial<-cbind(env_trim,spatial_trim)
+    nams <- names(envspatial)
+    partialccamodel <- formula(paste("spe_trim ~", paste(nams[1: (length(envspatial)-(length(spatial_trim)) )], collapse = " + "),"+ Condition(", paste(nams[(length(envspatial)-(length(spatial_trim)-1) ):length(envspatial)], collapse ="+"),")"))
+
+  ccamodel<-cca(partialccamodel, envspatial)
+
+  }
+  
+  #use ordistep to select the variables that best explain variation in the community 
+  finalmodel<- ordistep(ccamodel, scope=formula(ccamodel))
+  
+  return(finalmodel)
+  
+}
+
+#Test function
+# type = "Partial"
+# phylo = ps
+# model_res1 <- rm_collinearity(ps, "Full")
+# model_res2 <- rm_collinearity(ps, "Partial")
+```
+
+Function for viewing model results, ANOVA and plotting
+```{r}
+whats_in_my_model <- function(phylo, type, community){
+  
+  finalmodel <- rm_collinearity(phylo, type)
+  
+  #finalmodel
+  
+  #testing the significance of the model
+  signif <- anova.cca(finalmodel)
+  # # Testing the significance of terms (environmental variables):
+  # anova.cca(finalmodel, by="terms")
+  # # Testing the significance of CCA axes (at least the first two or three should present a significant p value):
+  # anova.cca(finalmodel, by="axis")
+  
+  pdf(paste0("../../results/16S/graphs/CCA/", community, "-", type, "-CCA.pdf"))
+  
+  #plot the model
+  #show only species scores
+  plot(finalmodel, xlim=c(-1.5,2), ylim=c(-1,1.5), display=c("sp","cn","wa"))
+  text(-1, 1, paste0("p= ", as.numeric(signif$`Pr(>F)`)[1]))
+  text(-1, 0.7, paste0("F= ", as.numeric(round(signif$F[1], digits=4))))
+  title(main=paste0(community, " ", type, " CCA"))
+  
+   #store the plot
+   # p <- recordPlot()
+   # plot.new() ## clean up device
+   # p # redraw
+   #  
+   # #save the plot
+   #  pdf(paste0("../../results/16S/graphs/CCA/", community, "-CCA.pdf"))
+   #  print(p)
+    dev.off()
+}
+
+
+#Test function
+# type = "Full"
+# phylo = ps
+# community = "Total"
+whats_in_my_model(ps, "Full", "Total")
+```
+
+Let's plot and print the CCAs
+```{r}
+whats_in_my_model(ps, "Full", "Total")
+whats_in_my_model(ps, "Partial", "Total")
+whats_in_my_model(ps.abun, "Full", "Abundant")
+whats_in_my_model(ps.abun, "Partial", "Abundant")
+whats_in_my_model(ps.int, "Full", "Intermediate")
+whats_in_my_model(ps.int, "Partial", "Intermediate")
+whats_in_my_model(ps.rare, "Full", "Rare")
+whats_in_my_model(ps.rare, "Partial", "Rare")
+```
