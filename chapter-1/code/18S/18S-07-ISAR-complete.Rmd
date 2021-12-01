@@ -1,0 +1,155 @@
+---
+title: "Island Species-Area Relationship"
+author: "Amy Solman"
+date: "07/10/2021"
+output: html_document
+---
+This script will look for a significant correlation between cryoconite hole area and species richness/Shannon/ diversity.
+
+I'm going to plot hole area against diversity in a scatter plot.
+
+I'm going to carry out linear regression of log10(Diversity) against log10(Area) to estimate the c and z coefficients (where z is the strength of the relationship).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+library(ggplot2) #for making plots
+library(dplyr) #for manipulating data where you see %>% and computing summary stats and coalesce function
+# install.packages("dendextend")
+# library(dendextend) #for hierchical clustering
+# install.packages("indicspecies")
+# library(indicspecies) #for indicator species analysis
+
+```
+
+Step Two: Load data 
+```{r}
+#TOTAL DATASET
+ps <- readRDS("../../results/18S/phylo-objects/18S-phyloseq-object-rarefied.rds")
+
+#Total Abundant
+ps.abun <- readRDS("../../results/18S/phylo-objects/18S-total-abundant.rds")
+#Total Intermediate
+ps.int <- readRDS("../../results/18S/phylo-objects/18S-total-intermediate.rds")
+#Total Rare
+ps.rare <- readRDS("../../results/18S/phylo-objects/18S-total-rare.rds")
+```
+
+Function to return the p-value (https://gettinggeneticsdone.blogspot.com/2011/01/rstats-function-for-extracting-f-test-p.html)
+```{r}
+lmp <- function (modelobject) {
+    if (class(modelobject) != "lm") stop("Not an object of class 'lm' ")
+    f <- summary(modelobject)$fstatistic
+    p <- pf(f[1],f[2],f[3],lower.tail=F)
+    attributes(p) <- NULL
+    return(p)
+}
+
+```
+
+Function to get observed species and shannon diversity with metadata
+```{r}
+#Function testing area
+# phylo = ps
+# index = "Observed"
+# group = 1
+# data <- diversity_and_meta(ps)
+
+diversity_and_meta <- function(phylo){
+#Get metadata of samples
+samp_data <- data.frame(sample_data(phylo))
+
+#list of variables we're interested in 
+keeps <- c("SampleID", "Name", "Glacier", "Pole", "Radius", "EW", "NS")
+samp_data <- samp_data[ , (names(samp_data) %in% keeps)]
+
+#get cryoconite hole areas
+area1 <- pi*samp_data$Radius^2
+area2 <- pi*(samp_data$NS/2)*(samp_data$EW/2)
+samp_data$Area <- coalesce(area1,area2)
+drops <- c("EW", "NS", "Radius")
+samp_data <- samp_data[ , !(names(samp_data) %in% drops)]
+
+#Get diversity data
+Observed <- estimate_richness(phylo, measures=c("Observed"))
+Shannon <- estimate_richness(phylo, measures=c("Shannon"))
+samp_data$Observed <- Observed$Observed
+samp_data$Shannon <- Shannon$Shannon
+
+#make sure data are numeric
+samp_data[5:7] <- data.frame(lapply(samp_data[5:7],as.numeric))
+
+#change sample names 
+names(samp_data) <- c("SampleID", "Name", "Glacier", "Pole", "Area", "Observed","Shannon")
+  
+return(samp_data)
+}
+```
+
+Function to fit and plot linear regression model on log10 transformed data
+```{r}
+#Function testing area
+# phylo = ps
+# index = "Shannon"
+# group = 1
+# community = "Total"
+# ISAR_plot <- ISAR_fit_and_plot()
+
+ISAR_fit_and_plot <- function(phylo, index, community){
+  
+  #get data
+  samp_data <- diversity_and_meta(phylo)
+  data1 <- samp_data[,index]
+  data2 <- samp_data$Area
+  samp_data$log_index <- log10(data1)
+  samp_data$log_area <- log10(data2)
+  samp_data_comp <- samp_data[complete.cases(samp_data),]
+  
+  #Linear regression model of richness and area
+lm_ISAR <- lm(log_index ~ log_area, data = samp_data_comp)
+
+summary(lm_ISAR) #c = 2.14, z=0.15
+
+#Plot the fit
+p <- ggplot(samp_data_comp, aes(x=log_area, y=log_index)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  annotate(geom="text", x = max(samp_data_comp$log_area)/2, y = max(samp_data_comp$log_index)*0.95, label=paste0("p=", as.numeric(round(lmp(lm_ISAR), 3)), " z=", as.numeric(round(lm_ISAR$coefficients[2], 3))),
+              color="red")+
+  ggtitle(paste0(community, " Community ISAR"))+
+  theme_bw()+
+  ylab(paste0("Log10 ", index))+
+  xlab("Log10 Area (cm2)")
+
+#save plot
+    pdf(paste0("../../results/18S/graphs/ISAR/", community, "-", index, "-ISAR.pdf"))
+    print(p)
+    dev.off()
+  
+return(p)
+}
+
+```
+
+Plot my ISAR
+```{r}
+ISAR_fit_and_plot(ps, "Observed","Total")
+ISAR_fit_and_plot(ps, "Shannon","Total")
+ISAR_fit_and_plot(ps.abun, "Observed","Abundant")
+ISAR_fit_and_plot(ps.abun, "Shannon","Abundant")
+ISAR_fit_and_plot(ps.int, "Observed","Intermediate")
+ISAR_fit_and_plot(ps.int, "Shannon","Intermediate")
+ISAR_fit_and_plot(ps.rare, "Observed","Rare")
+ISAR_fit_and_plot(ps.rare, "Shannon","Rare")
+```
+
+
