@@ -1,0 +1,261 @@
+---
+title: "Mantel Tests"
+author: "Amy Solman"
+date: "11/10/2021"
+output: html_document
+---
+
+In this script I will use Mantel and Partial Mantel tests to verify the contributions of environmental and spatial factors in shaping these communities.
+
+Mantel tests are correlation tests that determine the correlation between two matrices.
+
+I need to define three matrices:
+1) Species abundance dissimilarity matrix
+2) Environmental parameter distance matrix
+3) Geographic distance matrix
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(vegan)
+library(geosphere)
+library(ggplot2)
+#install.packages("ggsignif")
+#library(ggsignif)
+```
+
+Load Data
+```{r}
+#TOTAL DATASET
+ps <- readRDS("../../results/18S/phylo-objects/18S-phyloseq-object-rarefied.rds")
+
+#Total Abundant
+ps.abun <- readRDS("../../results/18S/phylo-objects/18S-total-abundant.rds")
+#Total Intermediate
+ps.int <- readRDS("../../results/18S/phylo-objects/18S-total-intermediate.rds")
+#Total Rare
+ps.rare <- readRDS("../../results/18S/phylo-objects/18S-total-rare.rds")
+```
+
+
+Function for getting count data  and transforming 
+```{r}
+my_counts_hell <- function(phylo){
+  
+  spe <- data.frame(t(otu_table(phylo)))
+
+  # #get out taxonomy table
+  # tax_tab <- data.frame(tax_table(phylo))
+  # #replace NAs with Unknown
+  # tax_tab[is.na(tax_tab)] <- "Unknown"
+  # colnames(spe) <- tax_tab[, level]
+  # 
+  # #aggregate count data
+  # x <- t(spe)
+  # new_df=aggregate(x, by=list(rownames(x)),sum)
+  # new_counts <- t(new_df)
+  # colnames(new_counts) <- new_counts[1,]
+  # new_counts <- new_counts[-1,]
+  # df <- data.frame(new_counts)
+  # #make dataframe numeric
+  # df[] <- lapply(df, as.numeric)
+  # df <- df[,! names(df) %in% c("Unknown")]
+  
+  # Hellinger-transform the species dataset
+  spp.h <- as.data.frame(decostand(spe, "hellinger"))
+  
+  return(spp.h)
+}
+
+#Function testing area
+# phylo = ps
+# level = "Phylum"
+#df1 <- agg_my_counts_hell(ps, "Phylum")
+```
+
+Function for getting environmental data
+```{r}
+get_my_meta <- function(phylo){
+  
+#Get metadata of samples
+samp_data <- data.frame(sample_data(phylo))
+
+#list of variables we're interested in 
+# keeps <- c("Group", "Distance_To_Sea", "Elevation", "Water_Depth", "Sediment_Depth", "Total_Depth","Conductivity", "pH", "DOC_mgL.1",
+#            "Cl_merge", "SO4_merge", "Na_merge", "K_merge", "Mg_merge","Ca_merge", "HCO3_merge", "Radius", "EW", "NS")
+keeps <- c("Group", "Conductivity", "pH",
+           "Cl_merge", "SO4_merge", "Na_merge", "K_merge", "Mg_merge","Ca_merge", "Radius", "EW", "NS")
+samp_data <- samp_data[ , (names(samp_data) %in% keeps)]
+
+#get cryoconite hole areas
+area1 <- pi*samp_data$Radius^2
+area2 <- pi*(samp_data$NS/2)*(samp_data$EW/2)
+samp_data$Area <- coalesce(area1,area2)
+
+# diversity_index <- estimate_richness(phylo)
+# #Merge into datafrome
+# samp_data$Observed <- diversity_index$Observed
+# samp_data$Shannon <- diversity_index$Shannon
+
+drops <- c("EW", "NS", "Radius")
+samp_data <- samp_data[ , !(names(samp_data) %in% drops)]
+
+#make sure data are numeric
+samp_data[1:10] <- data.frame(lapply(samp_data[1:10],as.numeric))
+
+#change sample names 
+names(samp_data) <- c("Group", "Conductivity", "pH", "Cl", "SO4", "Na", "K", "Mg","Ca", "Area")
+
+  # #remove columns with more than 50% missing variables
+  # samp_data_trim <- samp_data[ lapply( samp_data, function(x) sum(is.na(x)) / length(x) ) < 0.5 ]
+  # 
+  # #Only keep complete cases
+  # samp_data_trim_complete <- samp_data_trim[complete.cases(samp_data_trim),]
+  
+return(samp_data)
+}
+
+#Test function
+# phylo = ps
+# res <- diversity_and_meta(ps)
+```
+
+Function for getting spatial data
+```{r}
+get_my_long_lat <- function(phylo){
+  
+#get metadata
+meta <- data.frame(sample_data(phylo))
+
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta)){
+  if (meta$Pole[i] == "Antarctic"){
+    meta$Glacier_Latitude[i] <- c(paste0("-", meta$Glacier_Latitude[i]))
+    meta$Cryoconite_Latitude[i] <- c(paste0("-", meta$Cryoconite_Latitude[i]))
+  }
+}
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta$Glacier_Latitude <- as.numeric(str_sub(meta$Glacier_Latitude,1,nchar(meta$Glacier_Latitude)-1))
+meta$Glacier_Longitude <- as.numeric(str_sub(meta$Glacier_Longitude,1,nchar(meta$Glacier_Longitude)-1))
+
+glac_lat <- meta$Glacier_Latitude
+glac_long <- meta$Glacier_Longitude
+
+#get latitude of each sample
+cryo_lat <- as.numeric(meta$Cryoconite_Latitude)
+#get longitude of each sample
+cryo_long <- as.numeric(meta$Cryoconite_Longitude)
+
+#replace any missing cryoconite coords with those of it's glacier
+for (j in 1:length(cryo_lat)){
+  if (is.na(cryo_lat[j])){
+    cryo_lat[j] <- glac_lat[j]
+    cryo_long[j] <- glac_long[j]
+  }
+}
+
+#put into matrix
+long.lat <- as.data.frame(cbind(cryo_long, cryo_lat))
+rownames(long.lat) = rownames(meta)
+
+return(long.lat)
+
+}
+
+# #Test function
+# phylo = ps
+# res <- get_my_long_lat(ps)
+```
+
+Function for carrying out and plotting results of Mantel and Partial Mantel Tests
+```{r}
+# phylo = ps
+# community = "Total"
+
+plot_my_mantel <- function(phylo, community){
+  
+spp.h <- my_counts_hell(phylo)
+meta <- get_my_meta(phylo)
+long.lat <- get_my_long_lat(phylo)
+
+#taxa
+dist.abun <- vegdist(spp.h, method='bray')
+#env
+#scale data 
+scale.env = scale(meta, center = TRUE, scale = TRUE)
+dist.env <- dist(scale.env, method='euclidean')
+
+#geo
+d.geo <- distm(long.lat, fun=distHaversine)
+dist.geo <- as.dist(d.geo)
+# dist.geo <-vegdist(long.lat, method="euclidean")
+
+#abundance vs environmental 
+abund_env = mantel(dist.abun, dist.env, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_env
+
+#abundance vs geographic 
+abund_geo  = mantel(dist.abun, dist.geo, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_geo
+
+# Environmental while controlling for geographic
+env_cont_geo = mantel.partial(dist.abun, dist.env, dist.geo, method="pearson", permutations=9999)
+env_cont_geo
+
+# Geographic while controlling for environmental
+geo_cont_env = mantel.partial(dist.abun, dist.geo, dist.env, method="pearson", permutations=9999)
+geo_cont_env
+
+#Dataframe of results
+results <- data.frame(Factors=c("Environmental", "Spatial", "Env Cont Spatial", "Spatial Cont Env"), RStat=c(abund_env$statistic, abund_geo$statistic, env_cont_geo$statistic, geo_cont_env$statistic), Pval=c(abund_env$signif, abund_geo$signif, env_cont_geo$signif, geo_cont_env$signif))
+
+#Plot results 
+env <- abund_env$statistic
+spa <- abund_geo$statistic
+env_spa <- env_cont_geo$statistic
+spa_env <- geo_cont_env$statistic
+
+stat_df <- data.frame(mod=c("env", "spa", "env | spa", "spa | env"), stat=c(env, spa, env_spa, spa_env))
+
+#create label dataframe
+#label.df <- data.frame(mod = c("env"),stat = c(0.22)) #add significance labels if necessary
+
+p <- ggplot(data=stat_df, aes(x=mod, y=stat))+
+  geom_bar(stat="identity")+
+  ggtitle(paste0(community, " Taxa Mantel/Partial Mantel Tests for Cor with Enviro/Spatial Factors"))+
+  xlab("Factors")+
+  ylab("Correlation Coefficient")
+  #geom_text(data = label.df, label = "***")
+
+#save plot
+    pdf(paste0("../../results/18S/graphs/mantel-tests/", community, "-mantel-partial-mantel-test.pdf"))
+    print(p)
+    dev.off()
+  
+    return(results)
+}
+
+
+```
+
+Run mantel tests
+```{r}
+res_total <- plot_my_mantel(ps, "Total")
+res_abun <- plot_my_mantel(ps.abun, "Abundant")
+res_int <- plot_my_mantel(ps.int, "Intermediate")
+res_rare <- plot_my_mantel(ps.rare, "Rare")
+
+#combine dataframes and export 
+final_df <- rbind(res_total, res_abun, res_int, res_rare)
+final_df$Community <- c(rep("Total", 4), rep("Abundant", 4), rep("Intermediate", 4), rep("Rare", 4))
+final_df$RStat <- round(final_df$RStat, digits=4)
+final_df$Pval <- round(final_df$Pval, digits=4)
+write.csv(final_df, "../../results/18S/tables/mantel-test-results.csv")
+```

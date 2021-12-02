@@ -5,6 +5,10 @@ date: "29/11/2021"
 output: html_document
 ---
 
+Great tutorial: https://fromthebottomoftheheap.net/slides/advanced-vegan-webinar-2020/advanced-vegan#1
+http://www.hiercourse.com/docs/Rnotes_multivariate.pdf
+https://fukamilab.github.io/BIO202/06-B-constrained-ordination.html
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```

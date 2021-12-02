@@ -6,7 +6,7 @@ output: html_document
 ---
 
 http://dmcglinn.github.io/quant_methods/lessons/multivariate_models.html
-
+https://fukamilab.github.io/BIO202/06-B-constrained-ordination.html 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
