@@ -1,0 +1,115 @@
+---
+title: "null-plots"
+author: "Amy Solman"
+date: "03/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Import data 
+```{r}
+rm(list=ls())
+pro.abun.eco.turnover.df <- read.table("../../../results/16S/tables/null-model/16S-abundant-eco.turnover.df.txt")
+pro.int.eco.turnover.df <- read.table("../../../results/16S/tables/null-model/16S-intermediate-eco.turnover.df.txt")
+pro.rare.eco.turnover.df <- read.table("../../../results/16S/tables/null-model/16S-rare-eco.turnover.df.txt")
+pro.total.eco.turnover.df <- read.table("../../../results/16S/tables/null-model/16S-total-eco.turnover.df.txt")
+
+pro.abun.within.bNTI.df <- read.table("../../../results/16S/tables/null-model/16S-abundant-within.bNTI.df.txt")
+pro.int.within.bNTI.df <- read.table("../../../results/16S/tables/null-model/16S-intermediate-within.bNTI.df.txt")
+pro.rare.within.bNTI.df <- read.table("../../../results/16S/tables/null-model/16S-rare-within.bNTI.df.txt")
+pro.total.within.bNTI.df <- read.table("../../../results/16S/tables/null-model/16S-total-within.bNTI.df.txt")
+
+pro.abun.final_data <- read.table("../../../results/16S/tables/null-model/16S-abundant-final_data.txt")
+pro.int.final_data <- read.table("../../../results/16S/tables/null-model/16S-intermediate-final_data.txt")
+pro.rare.final_data <- read.table("../../../results/16S/tables/null-model/16S-rare-final_data.txt")
+pro.total.final_data <- read.table("../../../results/16S/tables/null-model/16S-total-final_data.txt")
+
+euk.abun.eco.turnover.df <- read.table("../../../results/18S/tables/null-model/18S-abundant-eco.turnover.df.txt")
+euk.int.eco.turnover.df <- read.table("../../../results/18S/tables/null-model/18S-intermediate-eco.turnover.df.txt")
+euk.rare.eco.turnover.df <- read.table("../../../results/18S/tables/null-model/18S-rare-eco.turnover.df.txt")
+euk.total.eco.turnover.df <- read.table("../../../results/18S/tables/null-model/18S-total-eco.turnover.df.txt")
+
+euk.abun.within.bNTI.df <- read.table("../../../results/18S/tables/null-model/18S-abundant-within.bNTI.df.txt")
+euk.int.within.bNTI.df <- read.table("../../../results/18S/tables/null-model/18S-intermediate-within.bNTI.df.txt")
+euk.rare.within.bNTI.df <- read.table("../../../results/18S/tables/null-model/18S-rare-within.bNTI.df.txt")
+euk.total.within.bNTI.df <- read.table("../../../results/18S/tables/null-model/18S-total-within.bNTI.df.txt")
+
+euk.abun.final_data <- read.table("../../../results/18S/tables/null-model/18S-abundant-final_data.txt")
+euk.int.final_data <- read.table("../../../results/18S/tables/null-model/18S-intermediate-final_data.txt")
+euk.rare.final_data <- read.table("../../../results/18S/tables/null-model/18S-rare-final_data.txt")
+euk.total.final_data <- read.table("../../../results/18S/tables/null-model/18S-total-final_data.txt")
+
+```
+
+```{r}
+#plot the results!
+
+eco.bNTI.plot.func <- function(df, kingdom, class){
+  
+  p <- ggplot(df, aes(x=Glacier, y=bNTI)) +
+  geom_boxplot(outlier.shape=1) +
+  geom_hline(yintercept = 2, linetype=2, size=0.5) +
+  geom_hline(yintercept = -2, linetype=2, size=0.5) +
+  labs(x="Glacier", y="BNTI") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text = element_text(size=12),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(size=14))+
+  #ylim(-4, 6)+
+  ggtitle(paste0(kingdom, " ", class, " BNTI Results"))
+  pdf(paste0("../../../results/", kingdom, "/graphs/null-model/", kingdom, "-",class,"-BNTI-results.pdf"))
+  print(p)
+  dev.off()
+  
+}
+
+eco.bNTI.plot.func(pro.abun.within.bNTI.df, "16S", "Abundant")
+eco.bNTI.plot.func(pro.int.within.bNTI.df, "16S", "Intermediate")
+eco.bNTI.plot.func(pro.rare.within.bNTI.df, "16S", "Rare")
+eco.bNTI.plot.func(pro.total.within.bNTI.df, "16S", "Total")
+eco.bNTI.plot.func(euk.abun.within.bNTI.df, "18S", "Abundant")
+eco.bNTI.plot.func(euk.int.within.bNTI.df, "18S", "Intermediate")
+eco.bNTI.plot.func(euk.rare.within.bNTI.df, "18S", "Rare")
+eco.bNTI.plot.func(euk.total.within.bNTI.df, "18S", "Total")
+```
+
+```{r}
+#Plot RC Bray
+RCbray_plot <- function(df, kingdom, class){
+  
+  p = ggplot(df, aes(x=Glacier, y=perc, fill=process)) +
+  geom_bar(stat="identity", color="black") +
+  scale_fill_manual(values = c("white", "grey75", "grey50", "grey30", "black")) + 
+  labs(x="Glacier", y="Percent of site pairs", fill="Process") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.text = element_text(size=12),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(size=14),
+        legend.key.size = unit(10, "mm"),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14))+
+  theme(aspect.ratio=4/10)+
+    ggtitle(paste0(kingdom, " ", class, " RC Bray Results"))
+  pdf(paste0("../../../results/", kingdom, "/graphs/null-model/", kingdom, "-",class,"-RC-bray-results.pdf"))
+  print(p)
+  dev.off()
+}
+
+RCbray_plot(pro.abun.final_data, "16S", "Abundant")
+RCbray_plot(pro.int.final_data, "16S", "Intermediate")
+RCbray_plot(pro.rare.final_data, "16S", "Rare")
+RCbray_plot(pro.total.final_data, "16S", "Total")
+RCbray_plot(euk.abun.final_data, "18S", "Abundant")
+RCbray_plot(euk.int.final_data, "18S", "Intermediate")
+RCbray_plot(euk.rare.final_data, "18S", "Rare")
+RCbray_plot(euk.total.final_data, "18S", "Total")
+```
+
+

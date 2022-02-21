@@ -1,0 +1,212 @@
+---
+title: "18S-3-rare-abundant"
+author: "Amy Solman"
+date: "05/08/2021"
+output: html_document
+---
+In this script I'm going to divide my cryoconite data into subcommunities based on their regional abundance.
+Following Liu et al. (2015), Li et al., (2021)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Step One: Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(phyloseq)
+library(dplyr) 
+library(plyr)
+```
+
+#Step Two: Load data 
+```{r}
+#load phyloseq object
+ps.rar <- readRDS("../../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds") #load unrarefied phyloseq object
+# ps.rar <- readRDS("../output/16S-phyloseq-object-rarefied.rds") #load rarefied phyloseq object
+```
+
+#Step Three: Find the local relative abundance of each ASV in each sample
+```{r}
+#check out rarefied object has the same number of reads per sample
+sample_sums(ps.rar)
+
+#transform to relative abundance data
+ps.rel  = transform_sample_counts(ps.rar, function(x) x / sum(x) )
+
+#sample sums should all now = 1
+sample_sums(ps.rel)
+ps.rel
+```
+
+Function to find abundance class of ASV by Region
+```{r}
+# data <- data.frame(sample_data(ps.rar))
+# phylo <- ps.rar
+# space <- "Region"
+# name <- "McMurdo_Dry_Valleys"
+# rare <- 0.00001
+# abundant <- 0.0005
+am_i_abundant_region <- function(phylo, name, rare, abundant){
+  
+  #transform to relative abundance data
+  phylo2  = transform_sample_counts(phylo, function(x) x / sum(x) )
+  
+  #subset data by region name (e.g. Region, McMurdo_Dry_Valleys)
+  phylo3 <- subset_samples(phylo2, Region == name)
+  
+  #remove ASVs with 0 relative abundance
+  phylo3.filter <- filter_taxa(phylo3, function(x) sum(x) > 0, TRUE)
+  
+  #define rare taxa
+  phylo3.filter.rare <- filter_taxa(phylo3.filter, function(x) mean(x) <= rare, TRUE)
+  
+  #define abundant taxa
+  phylo3.filter.abun <- filter_taxa(phylo3.filter, function(x) mean(x) >= abundant, TRUE)
+  
+  #define intermediate taxa 
+  phylo3.filter.int <- filter_taxa(phylo3.filter, function(x) mean(x) > rare & mean(x) < abundant, TRUE)
+  
+  #get ASV IDs and abundance class into a dataframe
+  # rare_ID <- rownames(data.frame(otu_table(phylo3.filter.rare)))
+  # abun_ID <- rownames(data.frame(otu_table(phylo3.filter.abun)))
+  # int_ID <- rownames(data.frame(otu_table(phylo3.filter.int)))
+  # my_IDs_and_abundance <- data.frame(ASV_ID = c(rare_ID, abun_ID, int_ID), Abun_Class= c(rep("Rare", length(rare_ID)), rep("Abundant", length(abun_ID)), rep("Intermediate", length(int_ID))))
+  
+  my_phylos <- list(phylo3.filter.rare, phylo3.filter.abun, phylo3.filter.int)
+  
+  return(my_phylos)
+  
+}
+
+```
+
+Function to subset phyloseq objects by ASV class
+```{r}
+phylo <- ps.rar
+#space <- "Region"
+name <- "McMurdo_Dry_Valleys"
+rare <- 0.00001
+abundant <- 0.0005
+
+phylo_abundance_subset <- function(phylo, name, rare, abundant){
+  
+  df <- am_i_abundant_region(phylo, name, rare, abundant)
+  
+  #
+  
+  
+}
+
+```
+
+#Step Four: Subset data by pole and remove ASVs with 0 relative abundance
+```{r}
+#subset data by pole
+ps.rel.arc <- subset_samples(ps.rel, Pole == "Arctic")
+ps.rel.ant <- subset_samples(ps.rel, Pole == "Antarctic")
+
+#remove ASVs with 0 relative abundance
+ps.rel.arc.filter <- filter_taxa(ps.rel.arc, function(x) sum(x) > 0, TRUE)
+ps.rel.ant.filter <- filter_taxa(ps.rel.ant, function(x) sum(x) > 0, TRUE)
+
+ps.rel.arc.filter
+ps.rel.ant.filter
+```
+
+#Step Five: Filter taxa by abundance (1 = 100%, 0.1 = 10%, 0.01 = 1%, 0.001 = 0.1%, 0.0001 = 0.01%, 0.00001 = 0.001%)
+Li et al (2021) Regionally rare = <0.001% mean local abundance, regionally abundant = > 0.1% mean local abundance.
+Zhang et al., (2021) Rare = < 0.01% mean relative abundance, abundant = > 0.1% mean relative abundance
+Jiao et al., (2019) Rare = < 0.01% mean relative abundance, abundant = > 0.01% mean relative abundance
+Jiao et al., (2017) Rare = < 0.001% mean relative abundance, abundant = > 0.05% mean relative abundance
+Zhang et al., (2020) Rare = < 0.1% mean relative abundance, abundant = > 1% mean relative abundance 
+Yan et al., (2017) Rare = < 0.1% mean relative abundance, abundant = > 1% mean relative abundance
+Jiang et al., (2019) Rare = < 0.001% mean relative abundance, abundant = > 0.05% mean relative abundance
+```{r}
+#RARE ARCTIC: only keep taxa with mean local relative abundance less than 0.001%
+ps.rel.arc.filter.rare <- filter_taxa(ps.rel.arc.filter, function(x) mean(x) < 0.00001, TRUE)
+#RARE ANTARCTIC
+ps.rel.ant.filter.rare <- filter_taxa(ps.rel.ant.filter, function(x) mean(x) < 0.00001, TRUE)
+
+#ABUNDANT ARCTIC: only keep taxa with mean local relative abundance more than 0.05%
+ps.rel.arc.filter.abun <- filter_taxa(ps.rel.arc.filter, function(x) mean(x) > 0.0005, TRUE)
+#ABUNDANT ANTARCTIC
+ps.rel.ant.filter.abun <- filter_taxa(ps.rel.ant.filter, function(x) mean(x) > 0.0005, TRUE)
+
+#INTERMEDIATE ARCTIC: only keep taxa with mean local relative abundance more than 0.001% and less than 0.05%
+ps.rel.arc.filter.int <- filter_taxa(ps.rel.arc.filter, function(x) mean(x) > 0.00001 & mean(x) < 0.0005, TRUE)
+#INTERMEDIATE ANTARCTIC
+ps.rel.ant.filter.int <- filter_taxa(ps.rel.ant.filter, function(x) mean(x) > 0.00001 & mean(x) < 0.0005, TRUE)
+
+```
+
+Merge by abundance
+```{r}
+combine_phyloseq <- function(phylo1, phylo2, phylo3){
+  #get our arctic abundance count table
+abun_count1 <- data.frame(otu_table(phylo1), check.names = FALSE)
+names(abun_count1) <- sample_data(phylo1)$SampleID
+abun_count1$ASV <- row.names(abun_count1)
+#get our antarctic abundance count table
+abun_count2 <- data.frame(otu_table(phylo2), check.names = FALSE)
+names(abun_count2) <- sample_data(phylo2)$SampleID
+abun_count2$ASV <- row.names(abun_count2)
+x <- dplyr::bind_rows(abun_count1, abun_count2)
+x[is.na(x)] <- 0
+#aggregate rows by ASV ID
+y <- ddply(x,"ASV",numcolwise(sum))
+row.names(y) <- y$ASV
+y <- subset(y, select=-c(ASV))
+
+my_subset <- subset(otu_table(phylo3), rownames(otu_table(phylo3)) %in% row.names(y))
+new_physeq <- merge_phyloseq(my_subset, tax_table(phylo3), sample_data(phylo3), phy_tree(phylo3))
+return(new_physeq)
+}
+
+#Abundant
+arc.subset.abun <- subset(otu_table(ps.rel.arc), rownames(otu_table(ps.rel.arc)) %in% rownames(otu_table(ps.rel.arc.filter.abun)))
+ps.ps.rel.arc.filter.abun <- merge_phyloseq(arc.subset.abun, tax_table(ps.rel.arc), sample_data(ps.rel.arc), phy_tree(ps.rel.arc))
+ant.subset.abun <- subset(otu_table(ps.rel.ant), rownames(otu_table(ps.rel.ant)) %in% rownames(otu_table(ps.rel.ant.filter.abun)))
+ps.ps.rel.ant.filter.abun <- merge_phyloseq(ant.subset.abun, tax_table(ps.rel.ant), sample_data(ps.rel.ant), phy_tree(ps.rel.ant))
+ps.abun <- combine_phyloseq(ps.ps.rel.arc.filter.abun, ps.ps.rel.ant.filter.abun, ps.rar)
+
+#Intermediate
+arc.subset.int <- subset(otu_table(ps.rel.arc), rownames(otu_table(ps.rel.arc)) %in% rownames(otu_table(ps.rel.arc.filter.int)))
+ps.ps.rel.arc.filter.int <- merge_phyloseq(arc.subset.int, tax_table(ps.rel.arc), sample_data(ps.rel.arc), phy_tree(ps.rel.arc))
+ant.subset.int <- subset(otu_table(ps.rel.ant), rownames(otu_table(ps.rel.ant)) %in% rownames(otu_table(ps.rel.ant.filter.int)))
+ps.ps.rel.ant.filter.int <- merge_phyloseq(ant.subset.int, tax_table(ps.rel.ant), sample_data(ps.rel.ant), phy_tree(ps.rel.ant))
+ps.int <- combine_phyloseq(ps.ps.rel.arc.filter.int, ps.ps.rel.ant.filter.int, ps.rar)
+
+#Rare
+arc.subset.rare <- subset(otu_table(ps.rel.arc), rownames(otu_table(ps.rel.arc)) %in% rownames(otu_table(ps.rel.arc.filter.rare)))
+ps.ps.rel.arc.filter.rare <- merge_phyloseq(arc.subset.rare, tax_table(ps.rel.arc), sample_data(ps.rel.arc), phy_tree(ps.rel.arc))
+ant.subset.rare <- subset(otu_table(ps.rel.ant), rownames(otu_table(ps.rel.ant)) %in% rownames(otu_table(ps.rel.ant.filter.rare)))
+ps.ps.rel.ant.filter.rare <- merge_phyloseq(ant.subset.rare, tax_table(ps.rel.ant), sample_data(ps.rel.ant), phy_tree(ps.rel.ant))
+ps.rare <- combine_phyloseq(ps.ps.rel.arc.filter.rare, ps.ps.rel.ant.filter.rare, ps.rar)
+```
+
+Remove any samples with zero counts from each of our communities
+```{r}
+#Total
+ps.rar <- prune_samples(sample_sums(ps.rar) > 0, ps.rar)
+#Abundant
+ps.abun <- prune_samples(sample_sums(ps.abun) > 0, ps.abun)
+#Intermediate
+ps.int <- prune_samples(sample_sums(ps.int) > 0, ps.int)
+#Rare
+ps.rare <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
+```
+
+#Step Six: Export phyloseq objects
+```{r}
+saveRDS(ps.rar, "../../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds")
+#Now I'm going to export my phyloseq objects
+#Total rare
+saveRDS(ps.rare, "../../results/16S/phylo-objects/16S-total-rare.rds")
+#Total Abundant
+saveRDS(ps.abun, "../../results/16S/phylo-objects/16S-total-abundant.rds")
+#Total Intermediate 
+saveRDS(ps.int, "../../results/16S/phylo-objects/16S-total-intermediate.rds")
+```

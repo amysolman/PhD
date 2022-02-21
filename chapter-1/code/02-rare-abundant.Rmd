@@ -1,0 +1,247 @@
+---
+title: "02-rare-abundant-regional"
+author: "Amy Solman"
+date: "05/08/2021"
+output: html_document
+---
+In this script I'm going to divide my cryoconite data into subcommunities based on their abundance.
+Following Liu et al. (2015), Li et al., (2021)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(phyloseq)
+library(dplyr) 
+library(plyr)
+#install.packages("BiodiversityR") #for rank abundance plot
+#library(BiodiversityR)
+library(ggplot2)
+```
+
+Load data 
+```{r}
+#load phyloseq object
+ps_pro <- readRDS("../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds") 
+ps_euk <- readRDS("../results/18S/phylo-objects/18S-phyloseq-object-rarefied.rds") 
+```
+
+Abundance cut-offs
+```{r}
+#These are the cut-offs from the literature
+# rare_range <- c(0.001, 0.00001, 0.0001, 0.0001, 0.00001, 0.00001, 0.0005, 0.001, 0.0001, 0.001, 0.00001)
+# abundant_range <- c(0.01, 0.0005, 0.0001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.01, 0.0005)
+
+rare_mid <- 0.0001
+rare_low <- rare_mid/2
+rare_high <- rare_mid*2
+abun_mid <- 0.001
+abun_low <- abun_mid/2
+abun_high <- abun_mid*2
+
+cutoffs.df = data.frame(Scenario=c(1,2,3,4,5,6,7,8,9), Description=c("Low-Low", "Mid-Low", "High-Low", "Low-Mid", "Mid-Mid", "High-Mid", "Low-High", "Mid-High", "High-High"), Rare=c(rare_low, rare_mid, rare_high, rare_low, rare_mid, rare_high, rare_low, rare_mid, rare_high), Abundant=c(abun_low, abun_low, abun_low, abun_mid, abun_mid, abun_mid, abun_high, abun_high, abun_high))
+
+write.csv(cutoffs.df, "../results/all/tables/abundance-classes/scenarios.csv")
+
+```
+
+Plot mean relative abundance of each ASV (x axis) by number of ASVs (y axis)
+```{r}
+#Function testing area
+# phylo <- ps_pro
+# kingdom = "16S"
+# area = "Pole"
+
+abundance_frequences_cutoffs <- function(phylo, kingdom, area){
+  
+areas <- unique(data.frame(sample_data(phylo))[,area])
+
+#create empty dataframe
+new_df <- data.frame(x=as.numeric(), freq=as.numeric(), Region=as.character())
+
+#loop through the areas to build our data frame for plotting
+
+for (i in 1:length(areas)){
+  
+#create logical vector of samples that are for a specific region
+log_vec <- data.frame(sample_data(phylo))[,area] == areas[i]
+
+#prune data using logical vector
+sub_data <- prune_samples(log_vec, phylo)
+  
+#transform to relative abundance
+rel = transform_sample_counts(sub_data, function(x) x / sum(x) )
+
+#remove rows with zero relative abundance
+rel = filter_taxa(rel, function(x) mean(x) > 0, TRUE)
+
+#get count table
+rel_asv <- data.frame(otu_table(rel))
+
+#find column means
+mean_rel_abun <- rowMeans(rel_asv)
+
+#count the mean relative abundances
+df <- count(mean_rel_abun)
+df$Area <- areas[i]
+new_df <- rbind(new_df, df)
+}
+
+p <- ggplot(new_df, aes(x=x, y=freq, color=Area)) + 
+  geom_point()+
+  geom_vline(xintercept = rare_low, linetype="dotted", 
+                color = "blue", size=0.5)+
+    geom_vline(xintercept = rare_mid, linetype="solid", 
+                color = "blue", size=0.5)+
+    geom_vline(xintercept = rare_high, linetype="dotted", 
+                color = "blue", size=0.5)+
+  geom_vline(xintercept = abun_low, linetype="dotted", 
+                color = "red", size=0.5)+
+    geom_vline(xintercept = abun_mid, linetype="solid", 
+                color = "red", size=0.5)+
+    geom_vline(xintercept = abun_high, linetype="dotted", 
+                color = "red", size=0.5)+
+  scale_x_continuous(trans='log10')+
+  xlab("Log10 Mean Relative Abundance")+
+  ylab("Frequency")+
+  ggtitle(paste0("Frequency of Mean Relative Abundance of ", kingdom, " ASVs by ", area))+
+  theme_bw()
+
+    pdf(paste0("../results/", kingdom, "/graphs/abundance-class/", kingdom, "-abundance-frequency-cutoffs-", area,".pdf"))
+    print(p)
+    dev.off()
+}
+
+```
+
+Function to merge phyloseq objects of same abundance class
+```{r}
+combine_phyloseq <- function(phylo1, phylo2, phylo3){
+  #get our arctic abundance count table
+abun_count1 <- data.frame(otu_table(phylo1), check.names = FALSE)
+names(abun_count1) <- sample_data(phylo1)$SampleID
+abun_count1$ASV <- row.names(abun_count1)
+#get our antarctic abundance count table
+abun_count2 <- data.frame(otu_table(phylo2), check.names = FALSE)
+names(abun_count2) <- sample_data(phylo2)$SampleID
+abun_count2$ASV <- row.names(abun_count2)
+x <- dplyr::bind_rows(abun_count1, abun_count2)
+x[is.na(x)] <- 0
+#aggregate rows by ASV ID
+y <- ddply(x,"ASV",numcolwise(sum))
+row.names(y) <- y$ASV
+y <- subset(y, select=-c(ASV))
+
+my_subset <- subset(otu_table(phylo3), rownames(otu_table(phylo3)) %in% row.names(y))
+new_physeq <- merge_phyloseq(my_subset, tax_table(phylo3), sample_data(phylo3), phy_tree(phylo3))
+return(new_physeq)
+}
+```
+
+Function for getting phyloseq objects by abundance under one scenario
+```{r}
+#Function testing area
+# out <- get_my_phyloseq_objects(ps_pro, 0.00005, 0.0005)
+# phylo = ps_euk
+# rare = rare_mid
+# abundant= abun_mid
+# subset_area <- "Region"
+# mean_abun <- rowMeans(data.frame(otu_table(ps1_rel)))
+# mean_abun_rare <- mean_abun[mean_abun <= 0.00005]
+
+
+get_my_phyloseq_objects <- function(phylo, rare, abundant, area){
+  
+  #get a list of subset areas
+  areas <- unique(data.frame(sample_data(phylo))[,area])
+  
+  for (i in 1:length(areas)){
+  
+  #create logical vector of samples that are for a specific area
+  log_vec <- data.frame(sample_data(phylo))[,area] == areas[i]
+  
+  #prune data using logical vector
+  sub_data <- prune_samples(log_vec, phylo)
+
+  #get relative abundances
+  ps_rel  = transform_sample_counts(sub_data, function(x) x / sum(x) )
+  
+  #remove ASVs with zero relative abundance
+  ps_rel_no_zero = filter_taxa(ps_rel, function(x) sum(x) > 0, TRUE)
+  
+  #filter taxa by mean relative abundance
+  ps_rel_rare1 = filter_taxa(ps_rel_no_zero, function(x) mean(x) <= rare, TRUE)
+  ps_rel_abundant1 = filter_taxa(ps_rel_no_zero, function(x) mean(x) >= abundant, TRUE)
+  ps_rel_intermediate1 = filter_taxa(ps_rel_no_zero, function(x) mean(x) > rare && mean(x) < abundant, TRUE)
+  
+  #on the first area change the names of the phylo seq objects to 2
+  if (i == 1){
+    ps_rel_rare2 = ps_rel_rare1
+    ps_rel_abundant2 = ps_rel_abundant1
+    ps_rel_intermediate2 = ps_rel_intermediate1
+
+  } else {
+    
+    #if we're not on the first area then merge with the previous area
+    ps_rel_rare2 = combine_phyloseq(ps_rel_rare1, ps_rel_rare2, phylo)
+    ps_rel_abundant2 = combine_phyloseq(ps_rel_abundant1, ps_rel_abundant2, phylo)
+    ps_rel_intermediate2 = combine_phyloseq(ps_rel_intermediate1, ps_rel_intermediate2, phylo)
+    
+  }
+
+}
+  
+  #save phyloseq object to list ready to be returned
+  list<-list()
+  list[[1]] <- ps_rel_rare2
+  list[[2]] <- ps_rel_abundant2
+  list[[3]] <- ps_rel_intermediate2
+  
+  return(list)
+  
+}
+```
+
+Function: Get my phyloseq objects under different scenarios
+```{r}
+get_multi_scenarios <- function(phylo, df, area, kingdom){
+  res <- list()
+for (i in 1:nrow(df)){
+  rare = df$Rare[i]
+  abundant= df$Abundant[i]
+  x <- get_my_phyloseq_objects(phylo, rare, abundant, area)
+  
+  #save phyloseq obejcts
+  saveRDS(x[[1]], paste0("../results/", kingdom, "/phylo-objects/", kingdom, "-", area, "-rare-scenario-", i, ".rds"))
+  saveRDS(x[[2]], paste0("../results/", kingdom, "/phylo-objects/", kingdom, "-", area, "-abundant-scenario-", i, ".rds"))
+  saveRDS(x[[3]], paste0("../results/", kingdom, "/phylo-objects/", kingdom, "-", area, "-intermediate-scenario-", i, ".rds"))
+}
+}
+
+#Function testing area
+#pro_multi_list_res <- get_multi_lists(ps_pro, cutoffs.df)
+# phylo = ps_euk
+# df = cutoffs.df
+# area = "Pole"
+# kingdom = "16S"
+```
+
+Now create the phyloseq objects ready to export!
+```{r}
+#16S
+abundance_frequences_cutoffs(ps_pro, "16S", "Pole")
+abundance_frequences_cutoffs(ps_pro, "16S", "Region")
+get_multi_scenarios(ps_pro, cutoffs.df, "Pole", "16S")
+get_multi_scenarios(ps_pro, cutoffs.df, "Region", "16S")
+
+#18S
+abundance_frequences_cutoffs(ps_euk, "18S", "Pole")
+abundance_frequences_cutoffs(ps_euk, "18S", "Region")
+get_multi_scenarios(ps_euk, cutoffs.df, "Pole", "18S")
+get_multi_scenarios(ps_euk, cutoffs.df, "Region", "18S")
+```

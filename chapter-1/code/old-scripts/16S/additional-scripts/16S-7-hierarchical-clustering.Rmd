@@ -1,0 +1,147 @@
+---
+title: "Hierarchical Clustering"
+author: "Amy Solman"
+date: "06/10/2021"
+output: html_document
+---
+This script will examine how samples cluster, based on Bray-Curtis dissimilarity.
+
+I will colour code sample names to assess the extent to which samples from glaciers, regions and poles cluster.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+# library(ggpubr) #for making my boxplots
+# library(FSA) #for dunn's test
+# library(vegan) #for diversity indices
+# library(ggplot2) #for making plots
+# library(dplyr) #for manipulating data where you see %>% and computing summary stats
+#install.packages("dendextend")
+library(dendextend) #for hierchical clustering
+
+```
+
+Load Data
+```{r}
+#TOTAL DATASET
+ps <- readRDS("../output/16S-phyloseq-object-rarefied.rds")
+
+#Total Abundant
+ps.abun <- readRDS("../output/16S-total-abundant.rds")
+#Total Intermediate
+ps.int <- readRDS("../output/16S-total-intermediate.rds")
+#Total Rare
+ps.rare <- readRDS("../output/16S-total-rare.rds")
+```
+
+Remove any samples with zero counts from each of our communities
+```{r}
+#Total
+ps <- prune_samples(sample_sums(ps) > 0, ps)
+#Abundant
+ps.abun <- prune_samples(sample_sums(ps.abun) > 0, ps.abun)
+#Intermediate
+ps.int <- prune_samples(sample_sums(ps.int) > 0, ps.int)
+#Rare
+ps.rare <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
+```
+
+Total Taxa
+```{r}
+#first get relative abundances
+ps.rel.abund = phyloseq::transform_sample_counts(ps, function(x){x / sum(x)})
+
+#extract asv table
+ps.rel.asv <- data.frame(phyloseq::otu_table(ps.rel.abund))
+ps.rel.asv <- t(ps.rel.asv)
+
+#calculate dissimilarities
+bc_dist <- vegan::vegdist(ps.rel.asv, method = "bray")
+
+#save as dendrogram
+x <- as.dendrogram(hclust(bc_dist, method="ward.D2"))
+
+#get colour codes
+metadata <- data.frame(phyloseq::sample_data(ps.rel.abund))
+colours <- c(Arctic = "red", Antarctic = "blue")
+labels_colors(x) <- colours[metadata$Pole][order.dendrogram(x)]
+#Plot
+plot(x) #The dissimilarity of these samples is close to 1, suggesting their community compositions are all significantly dissimilar. There is clustering according to pole, so these communities are more similar.
+```
+
+Abundant Taxa
+```{r}
+#first get relative abundances
+ps.rel.abund.ab = phyloseq::transform_sample_counts(ps.abun, function(x){x / sum(x)})
+
+#extract asv table
+ps.rel.asv.ab <- data.frame(phyloseq::otu_table(ps.rel.abund.ab))
+ps.rel.asv.ab <- t(ps.rel.asv.ab)
+
+#calculate dissimilarities
+bc_dist.ab <- vegan::vegdist(ps.rel.asv.ab, method = "bray")
+as.matrix(bc_dist.ab)[1:5, 1:5]
+
+#save as dendrogram
+x.ab <- as.dendrogram(hclust(bc_dist.ab, method="ward.D2"))
+
+#get colour codes
+metadata.ab <- data.frame(phyloseq::sample_data(ps.rel.abund.ab))
+colours <- c(Arctic = "red", Antarctic = "blue")
+labels_colors(x.ab) <- colours[metadata.ab$Pole][order.dendrogram(x.ab)]
+#Plot
+plot(x.ab) #The dissimilarity of these samples is close to 1, suggesting their community compositions are all significantly dissimilar. There is clustering according to pole, so these communities are more similar.
+```
+
+Intermediate Taxa
+```{r}
+#first get relative abundances
+ps.rel.abund.i = phyloseq::transform_sample_counts(ps.int, function(x){x / sum(x)})
+
+#extract asv table
+ps.rel.asv.i <- data.frame(phyloseq::otu_table(ps.rel.abund.i))
+ps.rel.asv.i <- t(ps.rel.asv.i)
+
+#calculate dissimilarities
+bc_dist.i <- vegan::vegdist(ps.rel.asv.i, method = "bray")
+as.matrix(bc_dist.i)[1:5, 1:5]
+
+#save as dendrogram
+x.i <- as.dendrogram(hclust(bc_dist.i, method="ward.D2"))
+
+#get colour codes
+metadata.i <- data.frame(phyloseq::sample_data(ps.rel.abund.i))
+colours <- c(Arctic = "red", Antarctic = "blue")
+labels_colors(x.i) <- colours[metadata.i$Pole][order.dendrogram(x.i)]
+#Plot
+plot(x.i) #The dissimilarity of these samples is close to 1, suggesting their community compositions are all significantly dissimilar. There is clustering according to pole, so these communities are more similar.
+```
+
+Rare Taxa
+```{r}
+#first get relative abundances
+ps.rel.abund.ra = phyloseq::transform_sample_counts(ps.rare, function(x){x / sum(x)})
+
+#extract asv table
+ps.rel.asv.ra <- data.frame(phyloseq::otu_table(ps.rel.abund.ra))
+ps.rel.asv.ra <- t(ps.rel.asv.ra)
+
+#calculate dissimilarities
+bc_dist.ra <- vegan::vegdist(ps.rel.asv.ra, method = "bray")
+as.matrix(bc_dist.ra)[1:5, 1:5]
+
+#save as dendrogram
+x.ra <- as.dendrogram(hclust(bc_dist.ra, method="ward.D2"))
+
+#get colour codes
+metadata.ra <- data.frame(phyloseq::sample_data(ps.rel.abund.ra))
+colours <- c(Arctic = "red", Antarctic = "blue")
+labels_colors(x.ra) <- colours[metadata.ra$Pole][order.dendrogram(x.ra)]
+#Plot
+plot(x.ra) #The dissimilarity of these samples is close to 1, suggesting their community compositions are all significantly dissimilar. There is clustering according to pole, so these communities are more similar.
+```

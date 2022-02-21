@@ -1,0 +1,50 @@
+Version 1.4 (released September, 2012)
+	* VP.COL.1.4.r: 
+		- the function presented errors when using the input matrix had a different number of rows than the example
+		- choice between "dominant" and "rare" members of the community
+	* COtables.1.4.r: 
+		- choice between "dominant" and "rare" members of the community
+	
+Version 1.3 (released August, 2011)
+	* taxa.pooler.1.3: the function presented errors when the input data set contained a full annotation of all OTUs, few lines were added to the script according to the following:
+
+	Old taxa.pooler.1.2: 
+
+  M<-M1[-which(apply(M1,1,function(x)any(is.na(x)))),] #to remove OTUs with no "full" annotation (e.g. from phylum to genus level)
+
+	New taxa.pooler.1.3:
+
+if(nrow(M1[-which(apply(M1,1,function(x)any(is.na(x)))),])==0){
+  M<-M1
+  } else {
+  M<-M1[-which(apply(M1,1,function(x)any(is.na(x)))),]
+  }
+
+	* taxa.pooler.1.3 - New feature: additional option to create binary (presence/absence) tables for further analyses
+	* Manual updated accordingly
+	* New Manual version "quick and easy": command lines as a text file to be copied and paste easily
+
+
+********************************************************************************
+Version 1.2 (released July, 2010)
+	* taxa.pooler: if one would like to use the function for further description of the community composition (analyses that might be complementary to MultiCoLA analyses), the taxa.pooler function was improved. As the unique() function and the factor() function do not order the data in the same way (for example, way of handling the NA or new self-assigned names for the taxonomy) thus the row names might be wrongly assigned. Hence, the taxa.pooler was modified according to the following:
+	
+	Old taxa.pooler.1.1: 
+	row.names(N)<-unique(M[,sa+j])    #name of unique taxa
+
+	New taxa.pooler.1.2:
+	row.names(N)<-sort(unique.default(M[,sa+j]))  #name of unique taxa
+
+
+********************************************************************************
+Version 1.1 (released April, 2010)
+	* cutoff.impact:
+		- Add choice to work on dominant types or rare types fraction of the matrix
+		- Choice to show the details of the NMDS calculations or not
+	* COtables: new function to store the truncated tables
+	* Manual updated accordingly
+	* The other functions were not modified
+
+
+********************************************************************************
+Version 1.0 (released March, 2010)

@@ -1,0 +1,400 @@
+---
+title: "Neutral Model"
+author: "Amy Solman"
+date: "12/10/2021"
+output: html_document
+---
+This script will fit Sloan's Neutral Model to my data.
+
+What is Sloan's Neutral Model?
+Sloan's Neutral Model is a mathematical model that explains observed relative abundance (percentage of community a taxa represents) and the frequency with which that taxa is observed (the number of samples it is found in) can be explained by a neutral community model (NCM).
+
+The NCM is a stochastic, birth-death immigration process. IT reproduces the observed species abundance distribution.
+
+If a community are RANDOMLY ASSEMBLED then the frequency with which taxa are observed (the percentage of samples they are found in) should increase as a function of the average abundance of taxa across all samples.
+
+We use it to assess whether the observed composition of communities is consistent with neutral community assembly.
+
+How do you fit a neutral model to your data?
+1 Clear workspace and install packages
+2 Read in data
+1 Get ASV count table
+2 Get the mean relative abundance of each ASV across all samples
+3 Calculate frequency data for each ASV
+4 Put relative abundance and frequency data into dataframe for plotting
+5 Fit the neutral model
+6 Get ASV frequencies as predicted by stochastic processes
+7 Calculate RSquared value for model fitting and model fit stats
+8 Get data for plotting
+9 Plot the model fit
+
+Code developed from this paper:
+Contribution of neutral processes to the assembly of gut microbial communities in the zebrafish over host development
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Install Packages
+```{r}
+rm(list=ls())
+##Fits the neutral model from Sloan et al. 2006 to an OTU table and returns several fitting statistics. Alternatively, will return predicted occurrence frequencies for each OTU based on their abundance in the metacommunity
+#Install the following packages if they haven't been availabled in your computer yet 
+library(Hmisc) #binconf function
+library(minpack.lm) #for non-linear model fitting
+# library(stats4) #mle function
+library(dplyr) #for %>% function
+library(tibble) #function rownames_to_column
+#install.packages("GUniFrac") #for Rarefy funtion
+library(GUniFrac)
+library(phyloseq)
+```
+
+Function to import subcommunity data
+```{r}
+get_my_communities <- function(domain, area){
+  big_list <- list()
+my_list <- list()
+for (i in 1:9){
+  my_list[[1]] <- readRDS(paste0("../results/", domain, "/phylo-objects/", domain, "-", area, "-abundant-scenario-", i, ".rds"))
+  my_list[[2]] <- readRDS(paste0("../results/", domain, "/phylo-objects/", domain, "-", area, "-intermediate-scenario-", i, ".rds"))
+  my_list[[3]] <- readRDS(paste0("../results/", domain, "/phylo-objects/", domain, "-", area, "-rare-scenario-", i, ".rds"))
+  
+  big_list[[i]] <- my_list
+  
+}
+
+return(big_list)
+}
+
+```
+
+Load data 
+```{r}
+#Prokaryotic datasets
+pro <- readRDS("../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds")
+pro_pole_data <- get_my_communities("16S", "Pole")
+pro_region_data <- get_my_communities("16S", "Region")
+
+#Eukaryotic datasets
+euk <- readRDS("../results/18S/phylo-objects/18S-phyloseq-object-rarefied.rds")
+euk_pole_data <- get_my_communities("18S", "Pole")
+euk_region_data <- get_my_communities("18S", "Region")
+```
+
+Function for getting abundance classes
+```{r}
+
+get_my_abundance_class <- function(phylo, scenario){
+  
+    #remove ASVs with zero reads in new phyloseq object
+  phylo.prune <- prune_taxa(taxa_sums(phylo) > 0, phylo) 
+
+  # Extract the ASV table from the phyloseq object
+  ASV.table = data.frame(t(otu_table(phylo.prune)), check.names = FALSE)
+  
+  #put the ASV IDs into a new dataframe
+  abundance_classes <- data.frame(ID=names(ASV.table))
+  
+  #Add classification of each ASV to data frame
+  #get a list of ASV IDs
+  abun = data.frame(ID=row.names(data.frame(tax_table(scenario[[1]]))))
+  abun$Abundance = "Abundant"
+  int = data.frame(ID=row.names(data.frame(tax_table(scenario[[2]]))))
+  int$Abundance = "Intermediate"
+  rare = data.frame(ID=row.names(data.frame(tax_table(scenario[[3]]))))
+  rare$Abundance = "Rare"
+  
+  df <- rbind(abun, int, rare)
+  
+  #create table of ID occurences
+  n_occur <- data.frame(table(df$ID), check.names = FALSE)
+  
+  #which IDs occur more than once
+  x <- df[df$ID %in% n_occur$Var1[n_occur$Freq > 1],]
+  
+  #get the IDs ONCE
+  y <- unique(x$ID)
+  
+  #create df of variable ASVs
+  var <- data.frame(ID=as.character(), Abundance=as.character())
+  
+  #show rows 
+  for (i in 1:length(y)){
+    z <- df[df$ID == y[i], ] 
+    a <- paste0(z$Abundance[1], "/", z$Abundance[2])
+    var[i,]$ID = z$ID[1]
+    var[i,]$Abundance = a
+  }
+  
+  #remove variable ASV IDs from df
+  df2 <- df[!df$ID %in% var$ID,]
+  
+  #add variable data to df
+  df3 <- rbind(df2, var)
+  
+  return(df3)
+}
+
+
+#Function testing area
+# abun_classes <- get_my_abundance_class(phylo, paste0(domain, "_pole_data"))
+# phylo = pro
+# scenario = pro_pole_data[[1]]
+```
+
+Function for plotting neutral model both poles
+```{r}
+#Testing area for function
+phylo = pro
+scenario = pro_pole_data[[1]]
+domain = "16S"
+
+neutral_model_plot <- function(phylo, scenario, domain){
+  
+  #remove ASVs with zero reads in new phyloseq object
+  phylo.prune <- prune_taxa(taxa_sums(phylo) > 0, phylo) 
+
+  # Extract the ASV table from the phyloseq object
+  ASV.table = data.frame(t(otu_table(phylo.prune)), check.names = FALSE)
+  
+  #get abundance classes
+  abun_classes <- get_my_abundance_class(phylo.prune, scenario)
+
+
+#get the mean number of reads per sample (mean sum of each row)
+N <- mean(apply(ASV.table, 1, sum)) #this is the number of reads in each sample 
+
+#get the mean number of reads for each ASV across all samples (mean of each column)
+p.m <- apply(ASV.table, 2, mean) #what is the mean number of times an ASV appears in each sample
+
+#Remove any zeros
+p.m <- p.m[p.m != 0] #remove any ASVs with zero counts
+
+#divide the number of mean reads by the total number of reads per sample (mean relative abundance of each ASV globally)
+p <- p.m/N #mean relative abundance of each ASV
+
+#make ASV.table into presence/absence table
+ASV.table.bi <- 1*(ASV.table>0)
+
+#find the mean of frequence of each column (ASV) e.g. the mean number of samples each ASV is found in
+freq.table <- apply(ASV.table.bi, 2, mean) 
+
+#only keep ASVs with a frequency other than 0
+freq.table <- freq.table[freq.table != 0] #only keep data that isn't zero
+
+#put the average relative abundance of each taxa into a dataframe
+p.df = data.frame(p) %>%
+  rownames_to_column(var="ASV") 
+
+#Make into dataframe with ASV name and frequence of occurence (percentage of samples the ASV is present in )
+freq.df = data.frame(ASV=names(freq.table), freq=freq.table) 
+
+#Combine dataframes and arrange by relative abundance 
+C <- inner_join(p.df,freq.df, by="ASV") %>%
+  arrange(p)
+
+# Remove rows with any zero (absent in either source pool or local communities). You already did this, but just to make sure we will do it again.
+C.no0 <- C %>%
+  filter(freq != 0, p != 0)
+
+#Calculate the limit of detection
+d <- 1/N
+
+#get vectors of our mean relative abundances and frequencies
+p.list <- C.no0$p #this creates a vector of the mean relative abundances of each ASV
+freq.list <- C.no0$freq #this creates a list of the mean frequency of each ASV
+
+##Fit model parameter m (immigration rate) using Non-linear least squares (NLS)
+m.fit <- nlsLM(freq.list ~ pbeta(d, N*m*p.list, N*m*(1-p.list), lower.tail=FALSE), start=list(m=0.001)) #using the mean relative abundances of each ASV, the mean frequency of each ASV, the size of the metacommunity and the detection limit, estimate the dispersal rate of the study area using non-linear least squares fitting.
+
+freq.pred <- pbeta(d, N*coef(m.fit)*p.list, N*coef(m.fit)*(1-p.list), lower.tail=FALSE) #get the predicted ASV frequencies under stochastic processes
+
+#Get R2 value
+#how different are the predicted values from our real values
+Rsqr <- 1 - (sum((freq.list - freq.pred)^2))/(sum((freq.list - mean(freq.list))^2)) #get the R2 result of observed frequencies against predicted frequencies
+
+#get the confidence intervals for m
+m.ci <- confint(m.fit, 'm', level=0.95)
+
+#get a summary of the model fitting
+m.sum <- summary(m.fit) 
+
+#get the estimated coefficient of our model fitting
+m.coef = coef(m.fit) 
+
+# Get table of model fit stats
+fitstats <- data.frame(m=m.coef, m.low.ci=m.ci[1], m.up.ci=m.ci[2],
+                       Rsqr=Rsqr, p.value=m.sum$parameters[4], N=N,
+                       Samples=nrow(ASV.table), Richness=length(p.list),
+                       Detect=d)
+
+# Get confidence interval for predictions
+freq.pred.ci <- binconf(freq.pred*nrow(ASV.table), nrow(ASV.table), alpha=0.05, method="wilson", return.df=TRUE)
+
+# Get table of predictions
+pred.df <- data.frame(metacomm_RA=p.list, frequency=freq.pred,
+                      frequency_lowerCI=freq.pred.ci[,2],
+                      frequency_upperCI=freq.pred.ci[,3]) %>%
+  unique()
+
+# Get table of observed occupancy and abundance
+obs.df = C.no0 %>%
+  rename(metacomm_RA = p, frequency=freq)
+
+#add abundance classifications to obs.df
+#obs.df$abun_class <- abun_class$Abundance
+abun_classes$ASV <- abun_classes$ID
+new.df <- merge(obs.df, abun_classes, by=c("ASV"))
+
+ggplot(data=new.df) +
+    geom_point(data=new.df, aes(x=log10(metacomm_RA), y=frequency, color=Abundance),
+               alpha=.2, size=2) +
+    geom_line(data=pred.df, aes(x=log10(metacomm_RA), y=frequency), color="black") +
+    geom_line(data=pred.df, aes(x=log10(metacomm_RA), y=frequency_lowerCI), linetype=2, color="black") +
+    geom_line(data=pred.df, aes(x=log10(metacomm_RA), y=frequency_upperCI), linetype=2, color="black") +
+    geom_text(data=fitstats, aes(label = paste("R^2 == ", round(Rsqr, 3))),
+              x=-4.9, y=0.75, size=4, parse=TRUE) +
+    geom_text(data=fitstats, aes(label = paste("italic(m) ==", round(m, 4))),
+              x=-4.9, y=0.68, size=4, parse=TRUE) +
+    labs(x="Log10 abundance in\nmetacommunity", y="Frequency detected") +
+    theme_bw() +
+    theme(axis.line = element_line(color="black"),
+          #legend.position = "none",
+          axis.title = element_text(size=14),
+          axis.text = element_text(size=12))+
+  ggtitle(paste0(domain, " Neutral Model Plot"))
+
+#save plot
+    pdf(paste0("../../results/16S/graphs/neutral-model/16S-neutral-model.pdf"))
+    print(p)
+    dev.off()
+    
+  ########################################################################  
+    #find how many ASVs are above and below prediction
+    prediction_results <- new.df
+    length(unique(prediction_results$metacomm_RA))
+    
+    upper <- vector()
+    lower <- vector()
+    
+    for (i in 1:nrow(prediction_results)){
+      
+      for (j in 1:nrow(pred.df)){
+            
+      if(prediction_results$metacomm_RA[i] == pred.df$metacomm_RA[j]){
+        
+        upper <- c(upper, pred.df$frequency_upperCI[j])
+        lower <- c(lower, pred.df$frequency_lowerCI[j])
+              } 
+        
+      }
+
+    }
+    
+    #add upper and lower to data frame
+    prediction_results$frequency_upperCI <- upper
+    prediction_results$frequency_lowerCI <- lower
+    
+    #divide dataframe by abundance class
+    pred_res_abun <- prediction_results %>% filter(Abundance == "Abundant")
+    pred_res_int <- prediction_results %>% filter(Abundance == "Intermediate")
+    pred_res_rare <- prediction_results %>% filter(Abundance == "Rare")
+    
+    #What percentage of frequency are between the CI?
+        abun <- vector()
+    for (k in 1:nrow(pred_res_abun)){
+      if (pred_res_abun$frequency[k] > pred_res_abun$frequency_lowerCI[k] && pred_res_abun$frequency[k] < pred_res_abun$frequency_upperCI[k]){
+        abun <- c(abun, "Neutral distribution")
+      } else if (pred_res_abun$frequency[k] > pred_res_abun$frequency_lowerCI[k] && pred_res_abun$frequency[k] > pred_res_abun$frequency_upperCI[k]) {
+        abun <- c(abun, "Above prediction")
+      } else {
+        abun <- c(abun, "Below prediction")
+      }
+    }
+        abun_tab <- data.frame(table(abun))
+        abun_tab$Abundance <- "Abundant"
+        names(abun_tab) <- c("Prediction","Num", "Abundance")
+    
+        int <- vector()
+    for (k in 1:nrow(pred_res_int)){
+      if (pred_res_int$frequency[k] > pred_res_int$frequency_lowerCI[k] && pred_res_int$frequency[k] < pred_res_int$frequency_upperCI[k]){
+        int <- c(int, "Neutral distribution")
+      } else if (pred_res_int$frequency[k] > pred_res_int$frequency_lowerCI[k] && pred_res_int$frequency[k] > pred_res_int$frequency_upperCI[k]) {
+        int <- c(int, "Above prediction")
+      } else {
+        int <- c(int, "Below prediction")
+      }
+    }
+    
+            int_tab <- data.frame(table(int))
+        int_tab$Abundance <- "Intermediate"
+        names(int_tab) <- c("Prediction","Num", "Abundance")
+    
+        rare <- vector()
+    for (k in 1:nrow(pred_res_rare)){
+      if (pred_res_rare$frequency[k] > pred_res_rare$frequency_lowerCI[k] && pred_res_rare$frequency[k] < pred_res_rare$frequency_upperCI[k]){
+        rare <- c(rare, "Neutral distribution")
+      } else if (pred_res_rare$frequency[k] > pred_res_rare$frequency_lowerCI[k] && pred_res_rare$frequency[k] > pred_res_rare$frequency_upperCI[k]) {
+        rare <- c(rare, "Above prediction")
+      } else {
+        rare <- c(rare, "Below prediction")
+      }
+    }
+        rare_tab <- data.frame(table(rare))
+        rare_tab$Abundance <- "Rare"
+        names(rare_tab) <- c("Prediction","Num", "Abundance")
+        
+        #combin dataframes
+        neutral_res <- rbind(abun_tab, int_tab, rare_tab)
+        
+        #plot results
+  p1 <-ggplot(neutral_res, aes(x = Abundance, y = Num, fill = Prediction)) +
+  geom_bar(position="fill", stat="identity") +
+  ylab("Relative ratio")+
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ggtitle("16S: Number of ASVs above, within and below neutral predictions")
+print(p1)
+ggsave("../../results/16S/graphs/neutral-model/16S-prediction-ratio.pdf")
+
+
+#Add prediction to dataframe and re-plot
+pred_res_abun$Predictions <- abun
+pred_res_int$Predictions <- int
+pred_res_rare$Predictions <- rare
+
+all_pred <- rbind(pred_res_abun, pred_res_int, pred_res_rare)
+
+p2 <- ggplot(data=all_pred) +
+    geom_point(data=all_pred, aes(x=log10(metacomm_RA), y=frequency, color=Predictions),
+               alpha=.2, size=2) +
+    geom_line(data=pred.df, aes(x=log10(metacomm_RA), y=frequency), color="black") +
+    geom_line(data=pred.df, aes(x=log10(metacomm_RA), y=frequency_lowerCI), linetype=2, color="black") +
+    geom_line(data=pred.df, aes(x=log10(metacomm_RA), y=frequency_upperCI), linetype=2, color="black") +
+    geom_text(data=fitstats, aes(label = paste("R^2 == ", round(Rsqr, 3))),
+              x=-4.9, y=0.75, size=4, parse=TRUE) +
+    geom_text(data=fitstats, aes(label = paste("italic(m) ==", round(m, 4))),
+              x=-4.9, y=0.68, size=4, parse=TRUE) +
+    labs(x="Log10 abundance in\nmetacommunity", y="Frequency detected") +
+    theme_bw() +
+    theme(axis.line = element_line(color="black"),
+          #legend.position = "none",
+          axis.title = element_text(size=14),
+          axis.text = element_text(size=12))+
+  ggtitle("16S Neutral Model Plot")
+
+#save plot
+    pdf(paste0("../../results/16S/graphs/neutral-model/16S-neutral-model-predictions.pdf"))
+    print(p2)
+    dev.off()
+    
+}
+
+```
+
+Run model
+```{r}
+# neutral_model_plot(ps, "Arctic")
+# neutral_model_plot(ps, "Antarctic")
+
+neutral_model_plot_2(ps)
+```

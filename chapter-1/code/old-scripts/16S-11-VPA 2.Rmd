@@ -1,0 +1,551 @@
+---
+title: "Variation Partitioning Analysis"
+author: "Amy Solman"
+date: "11/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+VPA
+1) Load species data and transform
+2) Load environmental data
+3) Load Lat and Long coords
+4) Select significant environmental variables using forward selection
+5) Generate dbMEMs
+6) Select significant dbMEMs using forward selection
+7) Carry out variation partitioning of species data with environmental matrix and spatial matrix
+
+http://www.hiercourse.com/docs/Rnotes_multivariate.pdf
+
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(vegan)
+library(stringr)
+library(car)
+library(adespatial)
+library(phyloseq)
+library(dplyr)
+```
+
+Load Data
+```{r}
+#TOTAL DATASET
+ps <- readRDS("../../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds")
+
+#Total Abundant
+ps.abun <- readRDS("../../results/16S/phylo-objects/16S-total-abundant.rds")
+#Total Intermediate
+ps.int <- readRDS("../../results/16S/phylo-objects/16S-total-intermediate.rds")
+#Total Rare
+ps.rare <- readRDS("../../results/16S/phylo-objects/16S-total-rare.rds")
+```
+
+Function for getting count data and aggregating by taxonomy and transforming 
+```{r}
+agg_my_counts_hell <- function(phylo, level){
+  
+  spe <- data.frame(t(otu_table(phylo)))
+
+  #get out taxonomy table
+  tax_tab <- data.frame(tax_table(phylo))
+  #replace NAs with Unknown
+  tax_tab[is.na(tax_tab)] <- "Unknown"
+  colnames(spe) <- tax_tab[, level]
+
+  #aggregate count data
+  x <- t(spe)
+  new_df=aggregate(x, by=list(rownames(x)),sum)
+  new_counts <- t(new_df)
+  colnames(new_counts) <- new_counts[1,]
+  new_counts <- new_counts[-1,]
+  df <- data.frame(new_counts)
+  #make dataframe numeric
+  df[] <- lapply(df, as.numeric)
+  df <- df[,! names(df) %in% c("Unknown")]
+  
+  # Hellinger-transform the species dataset
+  spp.h <- as.data.frame(decostand(df, "hellinger"))
+  
+  return(spp.h)
+}
+
+#Function testing area
+# phylo = ps
+# level = "Phylum"
+#df1 <- agg_my_counts_hell(ps, "Phylum")
+```
+
+Function for getting environmental data
+```{r}
+get_my_meta <- function(phylo){
+  
+#Get metadata of samples
+samp_data <- data.frame(sample_data(phylo))
+
+#list of variables we're interested in 
+# keeps <- c("Group", "Distance_To_Sea", "Elevation", "Water_Depth", "Sediment_Depth", "Total_Depth","Conductivity", "pH", "DOC_mgL.1",
+#            "Cl_merge", "SO4_merge", "Na_merge", "K_merge", "Mg_merge","Ca_merge", "HCO3_merge", "Radius", "EW", "NS")
+keeps <- c("Group", "Conductivity", "pH",
+           "Cl_merge", "SO4_merge", "Na_merge", "K_merge", "Mg_merge","Ca_merge", "Radius", "EW", "NS")
+samp_data <- samp_data[ , (names(samp_data) %in% keeps)]
+
+#get cryoconite hole areas
+area1 <- pi*samp_data$Radius^2
+area2 <- pi*(samp_data$NS/2)*(samp_data$EW/2)
+samp_data$Area <- coalesce(area1,area2)
+
+# diversity_index <- estimate_richness(phylo)
+# #Merge into datafrome
+# samp_data$Observed <- diversity_index$Observed
+# samp_data$Shannon <- diversity_index$Shannon
+
+drops <- c("EW", "NS", "Radius")
+samp_data <- samp_data[ , !(names(samp_data) %in% drops)]
+
+#make sure data are numeric
+samp_data[1:10] <- data.frame(lapply(samp_data[1:10],as.numeric))
+
+#change sample names 
+names(samp_data) <- c("Group", "Conductivity", "pH", "Cl", "SO4", "Na", "K", "Mg","Ca", "Area")
+
+  # #remove columns with more than 50% missing variables
+  # samp_data_trim <- samp_data[ lapply( samp_data, function(x) sum(is.na(x)) / length(x) ) < 0.5 ]
+  # 
+  # #Only keep complete cases
+  # samp_data_trim_complete <- samp_data_trim[complete.cases(samp_data_trim),]
+  
+return(samp_data)
+}
+
+#Test function
+# phylo = ps
+# res <- diversity_and_meta(ps)
+```
+
+Function for getting spatial data
+```{r}
+get_my_long_lat <- function(phylo){
+  
+#get metadata
+meta <- data.frame(sample_data(phylo))
+
+#put a negative sign in front of all the south latitude coords
+for (i in 1:nrow(meta)){
+  if (meta$Pole[i] == "Antarctic"){
+    meta$Glacier_Latitude[i] <- c(paste0("-", meta$Glacier_Latitude[i]))
+    meta$Cryoconite_Latitude[i] <- c(paste0("-", meta$Cryoconite_Latitude[i]))
+  }
+}
+
+#Some of our cryoconite holes don't have specific coords so we'll use the glacier coordinates
+#remove letters from glacier coord strings
+meta$Glacier_Latitude <- as.numeric(str_sub(meta$Glacier_Latitude,1,nchar(meta$Glacier_Latitude)-1))
+meta$Glacier_Longitude <- as.numeric(str_sub(meta$Glacier_Longitude,1,nchar(meta$Glacier_Longitude)-1))
+
+glac_lat <- meta$Glacier_Latitude
+glac_long <- meta$Glacier_Longitude
+
+#get latitude of each sample
+cryo_lat <- as.numeric(meta$Cryoconite_Latitude)
+#get longitude of each sample
+cryo_long <- as.numeric(meta$Cryoconite_Longitude)
+
+#replace any missing cryoconite coords with those of it's glacier
+for (j in 1:length(cryo_lat)){
+  if (is.na(cryo_lat[j])){
+    cryo_lat[j] <- glac_lat[j]
+    cryo_long[j] <- glac_long[j]
+  }
+}
+
+#put into matrix
+long.lat <- as.data.frame(cbind(cryo_long, cryo_lat))
+rownames(long.lat) = rownames(meta)
+
+return(long.lat)
+
+}
+
+# #Test function
+# phylo = ps
+# res <- get_my_long_lat(ps)
+```
+
+Function for initial selection of significant variables
+```{r}
+get_my_variables <- function(phylo, level, group){
+  
+  spp.h <- agg_my_counts_hell(phylo, level)
+  environment <- get_my_meta(phylo)
+  
+  #subset environmental data by group
+  environment_sub <- environment[environment$Group == group, ]
+  #only keep columns with more than 50% data and then keep only complete cases
+  environment_sub <- environment_sub[ lapply( environment_sub, function(x) sum(is.na(x)) / length(x) ) < 0.5 ]
+  environment_sub <- environment_sub[complete.cases(environment_sub),]
+  #remove group column
+  environment_sub <- environment_sub[, ! names(environment_sub) %in% c("Group")]
+  
+  #trim spp.h to have the same samples as environment
+  spp.h_trim <- spp.h[(rownames(spp.h) %in% rownames(environment_sub)),]
+  #remove columns with zero counts
+  spp.h_trim <- spp.h_trim[, colSums(spp.h_trim != 0) > 0]
+  
+  #Redundancy Analysis
+  spe.env <- rda(spp.h_trim, environment_sub)
+  
+  #check for model significance
+  out <- anova(spe.env, permutations = how(nperm=999))
+  
+  if (as.numeric(out$`Pr(>F)`[1]) < 0.05){
+    
+    #get the R2 value
+    R2a.all.env <- RsquareAdj(spe.env)$adj.r.squared
+    
+    #get list of selected variables
+    env.sel <- forward.sel(spp.h_trim, environment_sub, adjR2thresh=R2a.all.env, nperm=9999) 
+    
+    # #put them in order
+    # env.sign <- sort(env.sel$order)
+    # 
+    # #subset data by selected variables
+    # env.red <- as.data.frame(environment_sub[,c(env.sign)])
+    # names(env.red) <- colnames(environment_sub)[env.sign]
+    # rownames(env.red) <- rownames(environment_sub)
+    
+    # #re-run redundancy analysis
+    # env.rda.selected <- rda(spp.h_trim, env.red)
+    # 
+    # #Check for variance inflation factors (remove anything with VIF > 10)
+    # print(vif.cca(env.rda.selected))
+
+    
+    return(env.sel)
+    
+  } else {
+    print("Model not signficant p > 0.05")
+  }
+}
+
+#Function testing area
+# phylo = ps
+# level = "Class"
+# group = 1
+#result <- get_my_variables(ps, "Phylum", 1)
+```
+
+Function for running analysis with significant variables ONLY and removing any final variables with VIF > 10
+```{r}
+rerun_and_check_for_vif <- function(phylo, level, group){
+  
+  best_variables <- get_my_variables(phylo, level, group)
+  
+  spp.h <- agg_my_counts_hell(phylo, level)
+  environment <- get_my_meta(phylo)
+  
+  #subset environmental data by group
+  environment_sub <- environment[environment$Group == group, ]
+  #only keep columns with more than 50% data and then keep only complete cases
+  environment_sub <- environment_sub[ lapply( environment_sub, function(x) sum(is.na(x)) / length(x) ) < 0.5 ]
+  environment_sub <- environment_sub[complete.cases(environment_sub),]
+  #remove group column
+  environment_sub <- environment_sub[, ! names(environment_sub) %in% c("Group")]
+  #subset variables by those in best_variables
+  environment_sub_best <- as.data.frame(environment_sub[,  names(environment_sub) %in% best_variables[,1]])
+  names(environment_sub_best) <- colnames(environment_sub)[env.sign]
+  rownames(environment_sub_best) <- rownames(environment_sub)
+  
+  #trim spp.h to have the same samples as environment
+  spp.h_trim <- spp.h[(rownames(spp.h) %in% rownames(environment_sub_best)),]
+  #remove columns with zero counts
+  spp.h_trim <- spp.h_trim[, colSums(spp.h_trim != 0) > 0]
+  
+  #Redundancy Analysis
+  spe.env <- rda(spp.h_trim, environment_sub_best)
+  
+  #check for model significance
+  out <- anova(spe.env, permutations = how(nperm=999))
+  
+  #Check for variance inflation factors (remove anything with VIF > 10)
+  vif <- as.data.frame(vif.cca(spe.env))
+  
+  #create a vector for keeping our non-collinearity variables
+  env_to_keep <- vector()
+  
+  for (i in 1:nrow(vif)){
+    
+          if(vif.cca(spe.env)[i] < 10){
+      env_to_keep <- c(env_to_keep, rownames(vif)[i])
+          }
+    
+  }
+  
+  #subset variables by those in env_to_keep
+  environment_sub_final <- as.data.frame(environment_sub_best[,  names(environment_sub_best) %in% env_to_keep])
+  names(environment_sub_final) <- env_to_keep
+  rownames(environment_sub_final) <- rownames(spp.h_trim)
+  
+  # #trim spp.h to have the same samples as environment
+  # spp.h_trim <- spp.h[(rownames(spp.h) %in% rownames(environment_sub_best)),]
+  # #remove columns with zero counts
+  # spp.h_trim <- spp.h_trim[, colSums(spp.h_trim != 0) > 0]
+  
+  #Redundancy Analysis
+  spe.env <- rda(spp.h_trim, environment_sub_final)
+  # 
+  # #check for model significance
+  # out <- anova(spe.env, permutations = how(nperm=999))
+  
+  return(spe.env)
+  
+}
+
+#Function testing area
+# phylo = ps
+# level = "Class"
+# group = 1
+#res <- rerun_and_check_for_vif(ps, "Phylum", 1)
+```
+
+Function for generating dbMEMs and scores
+```{r}
+get_my_dbMDM_scores <- function(phylo){
+  
+  coords <- get_my_long_lat(phylo)
+  
+  #represent spatial patterns through PCNMs (dbMEM)
+  cryo_pcnm <- pcnm(dist(coords))
+  
+  #get scores for dbMEM
+  cryo_dbMEM <- as.data.frame(scores(cryo_pcnm))
+  
+  return(cryo_dbMEM)
+}
+
+```
+
+Function for selecting significant dbMEMs
+```{r}
+get_my_significant_dbMEMs <- function(phylo, level){
+  
+  spp.h <- agg_my_counts_hell(phylo, level)
+  cryo_dbMEM <- get_my_dbmem_scores(phylo)
+  
+  #Redundancy Analysis
+  spe.dbMEM <- rda(spp.h, cryo_dbMEM)
+  
+  #check for model significance
+  out <- anova(spe.dbMEM, permutations = how(nperm=999))
+  
+  if (as.numeric(out$`Pr(>F)`[1]) < 0.05){
+    
+    #get the R2 value
+    R2a.all.dbMEM <- RsquareAdj(spe.dbMEM)$adj.r.squared
+    
+    #get list of selected variables
+    dbMEM.sel <- forward.sel(spp.h, cryo_dbMEM, adjR2thresh=R2a.all.dbMEM, nperm=9999) 
+
+    return(dbMEM.sel)
+    
+  } else {
+    print("Model not signficant p > 0.05")
+  }
+}
+
+#Function testing area
+# phylo = ps
+# level = "Phylum"
+get_my_dbMEMs(ps,"Phylum", 1)
+get_my_dbMEMs(ps.abun,"Phylum", 1)
+get_my_dbMEMs(ps.int,"Phylum", 1)
+get_my_dbMEMs(ps.rare,"Phylum", 1)
+```
+
+Function for running VPA with selected variables
+```{r}
+dbMEM_VPA_final <- function(phylo, level){
+  
+  #get our spatial factors
+  signif_dbMEMs <- get_my_significant_dbMEMs(phylo, level)
+  
+  #get our community data
+  spp.h <- agg_my_counts_hell(phylo, level)
+  #get all our factors
+  all_dbMEMs <- get_my_dbmem_scores(phylo)
+
+  #subset variables by those in best_dbMEMs
+  dbMEM_best <- as.data.frame(all_dbMEMs[,  names(all_dbMEMs) %in% signif_dbMEMs[,1]])
+  names(dbMEMs_best) <- colnames(all_dbMEMs)[signif_dbMEMs]
+  rownames(environment_sub_best) <- rownames(all_dbMEMs)
+  
+  #Redundancy Analysis
+  spe.env <- rda(spp.h_trim, environment_sub_best)
+  
+  #check for model significance
+  out <- anova(spe.env, permutations = how(nperm=999))
+  
+  #Check for variance inflation factors (remove anything with VIF > 10)
+  vif <- as.data.frame(vif.cca(spe.env))
+  
+  #create a vector for keeping our non-collinearity variables
+  env_to_keep <- vector()
+  
+  for (i in 1:nrow(vif)){
+    
+          if(vif.cca(spe.env)[i] < 10){
+      env_to_keep <- c(env_to_keep, rownames(vif)[i])
+          }
+    
+  }
+  
+  #subset variables by those in env_to_keep
+  environment_sub_final <- as.data.frame(environment_sub_best[,  names(environment_sub_best) %in% env_to_keep])
+  names(environment_sub_final) <- env_to_keep
+  rownames(environment_sub_final) <- rownames(spp.h_trim)
+  
+  # #trim spp.h to have the same samples as environment
+  # spp.h_trim <- spp.h[(rownames(spp.h) %in% rownames(environment_sub_best)),]
+  # #remove columns with zero counts
+  # spp.h_trim <- spp.h_trim[, colSums(spp.h_trim != 0) > 0]
+  
+  #Redundancy Analysis
+  spe.env <- rda(spp.h_trim, environment_sub_final)
+  # 
+  # #check for model significance
+  # out <- anova(spe.env, permutations = how(nperm=999))
+  
+  return(spe.env)
+  
+}
+
+#Function testing area
+# phylo = ps
+# level = "Class"
+# group = 1
+#res <- rerun_and_check_for_vif(ps, "Phylum", 1)
+```
+1.6 Select significant dbMEMs
+```{r}
+#Redundancy Analysis
+spe.geo <- rda(spp.h, cryo_dbMEM)
+
+#check for model significance
+anova(spe.geo, permutations = how(nperm=999)) #p<0.05 so continue
+
+R2a.all.geo <- RsquareAdj(spe.geo)$adj.r.squared
+
+#get list of selected variables
+var.sel <- forward.sel(spp.h, cryo_dbMEM, adjR2thresh=R2a.all.geo, nperm=9999) 
+
+#put them in order
+geo.sign <- sort(var.sel$order)
+
+
+#subset data by selected variables
+geo.red <- cryo_dbMEM[,c(geo.sign)]
+
+#re-run redundancy analysis
+geo.rda.selected <- rda(spp.h, geo.red)
+
+#Check for variance inflation factors (remove anything with VIF > 10)
+vif.cca(geo.rda.selected)
+```
+
+Alternative selection method
+```{r}
+##########ALTERNATIVE WAY TO SELECT VARIABLES###########
+#This method chose the same environmental variables but different spatial factors
+phylo = ps
+
+#get taxa, environment and dbMEM data
+spp.h <- agg_my_counts_hell(phylo, level)
+environment <- get_my_meta(phylo)
+dbMEM <- get_my_dbMDM_scores(phylo)
+
+  #remove columns with more than 50% missing variables
+  env_trim <- environment[ lapply(environment, function(x) sum(is.na(x)) / length(x) ) < 0.5 ]
+  #Only keep complete cases
+  env_trim_complete <- env_trim[complete.cases(env_trim),]
+  
+#subset species and spatial data by remaining environmental samples
+spp.h_trim <- spp.h[(rownames(spp.h) %in% rownames(env_trim_complete)),]
+dbMEM_trim <- dbMEM[(rownames(dbMEM) %in% rownames(env_trim_complete)),]
+#remove columns with zero counts
+spp.h_trim <- spp.h_trim[, colSums(spp.h_trim != 0) > 0]
+
+#Do distance based redundance analysis
+# environmental matrix as predictor
+cap.env <- capscale(spp.h_trim ~ ., data=env_trim_complete, distance='bray')
+cap.env
+# spatial matrix as predictor
+cap.pcnm <- capscale(spp.h_trim ~ ., data=dbMEM_trim, distance='bray')
+cap.pcnm
+
+# select particular variables to proceed with (here we use both forward and backward selection but could use either one separately)
+# set up the null cases with no predictors
+mod0.env <- capscale(spp.h_trim ~ 1, data=env_trim_complete, distance='bray')
+mod0.pcnm <- capscale(spp.h_trim ~ 1, data=dbMEM_trim, distance='bray')
+
+# select variables in each predictor table
+step.env <- ordistep(mod0.env, scope=formula(cap.env))
+step.pcnm <- ordistep(mod0.pcnm, scope=formula(cap.pcnm))
+
+#subset data by selected variables
+# env.red2 <- environment[,c(2,3,36)]
+# geo.red2 <- cryo_dbMEM[,c(1, 4:6)]
+
+#re-run distance-based redundancy analysis
+env.cap.selected2 <- capscale(spp.h ~., data=env.red2, disatnce='bray')
+geo.cap.selected2 <- capscale(spp.h ~., data=geo.red2, disatnce='bray')
+
+#Check for variance inflation factors (remove anything with VIF > 10)
+vif.cca(env.cap.selected2)
+vif.cca(geo.cap.selected2)
+
+```
+1.8 Carry out variation partitioning of species data with environmental matrix and spatial matrix
+```{r}
+# Variation partitioning
+spe.part <- varpart(spp.h, env.red, geo.red)
+spe.part2 <- varpart(spp.h, env.red, geo.red2) #with different spatial factors
+
+spe.part
+spe.part2
+
+plot (spe.part, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+plot (spe.part2, digits = 2, Xnames = c('Environmental', 'Spatial'), bg = c('navy', 'tomato'))
+
+# Tests of all testable fractions
+#Test of fractions a+b+c - the global model 
+anova(rda(spp.h, env.red, geo.red)) #p < 0.05
+anova(rda(spp.h, env.red, geo.red2)) #p < 0.05
+
+# Test of fractions [a+b]
+#simple effect of environmental variables
+anova(rda(spp.h, env.red), step=1000) #p < 0.05
+
+# Test of fractions [b+c]
+#simple effect of spatial variables
+anova(rda(spp.h, geo.red), step=1000) #p < 0.05
+anova(rda(spp.h, geo.red2), step=1000) #p < 0.05
+
+#bind dataframes so we can do partial redundancy analysis
+tot.pars <- cbind(env.red, geo.red)
+tot.pars2 <- cbind(env.red, geo.red2)
+
+# # Test of fraction [c]
+# #Conditional (partial) effect of spatial factors
+
+anova(rda(spp.h ~ Elevation + Water_Depth + NO3.N_mueq + Condition(PCNM1 + PCNM2 + PCNM4 + PCNM5), data=tot.pars))
+anova(rda(spp.h ~ Elevation + Water_Depth + NO3.N_mueq + Condition(PCNM1 + PCNM4 + PCNM5 + PCNM6), data=tot.pars2))
+
+# Test of fraction [a]
+# #Conditional (partial) effect of environmental factors
+anova(rda(spp.h ~ PCNM1 + PCNM2 + PCNM4 + PCNM5 + Condition(Elevation + Water_Depth + NO3.N_mueq), data=tot.pars))
+anova(rda(spp.h ~ PCNM1 + PCNM4 + PCNM5 + PCNM6 + Condition(Elevation + Water_Depth + NO3.N_mueq), data=tot.pars2))
+```

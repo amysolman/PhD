@@ -1,0 +1,385 @@
+---
+title: "18S-3-rare-abundant"
+author: "Amy Solman"
+date: "05/08/2021"
+output: html_document
+---
+In this script I'm going to divide my cryoconite data into subcommunities based on their regional abundance.
+Following Liu et al. (2015), Li et al., (2021)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear workspace and load packages
+```{r}
+rm(list=ls())
+graphics.off()
+
+library(phyloseq)
+library(dplyr) 
+library(plyr)
+#install.packages("BiodiversityR") #for rank abundance plot
+library(BiodiversityR)
+library(ggplot2)
+```
+
+Load data 
+```{r}
+#load phyloseq object
+ps_pro <- readRDS("../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds") 
+ps_euk <- readRDS("../results/18S/phylo-objects/18S-phyloseq-object-rarefied.rds") 
+```
+
+Abundance cut-offs
+```{r}
+#These are the cut-offs from the literature
+rare_range <- c(0.001, 0.00001, 0.0001, 0.0001, 0.00001, 0.00001, 0.0005, 0.001, 0.0001, 0.001, 0.00001)
+abundant_range <- c(0.01, 0.0005, 0.0001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.01, 0.0005)
+
+#I've made my mid-range cut-offs the mode of all literature figures, low = half the mid, high = twice the mid
+rare_mid <- 0.0001
+rare_low <- rare_mid/2
+rare_high <- rare_mid*2
+abun_mid <- 0.001
+abun_low <- abun_mid/2
+abun_high <- abun_mid*2
+```
+
+Plot mean relative abundance of each ASV (x axis) by number of ASVs (y axis)
+```{r}
+abundance_frequences_cutoffs <- function(phylo, pole, kingdom){
+  
+  #transform to relative abundance
+rel = transform_sample_counts(phylo, function(x) x / sum(x) )
+
+#remove rows with zero relative abundance
+rel = filter_taxa(rel, function(x) mean(x) > 0, TRUE)
+
+#get count table
+rel_asv <- data.frame(otu_table(rel))
+
+#find column means
+mean_rel_abun <- rowMeans(rel_asv)
+
+#count the mean relative abundances
+df <- count(mean_rel_abun)
+
+p <- ggplot(df, aes(x=x, y=freq)) + 
+  geom_point()+
+  geom_vline(xintercept = rare_low, linetype="dotted", 
+                color = "blue", size=0.5)+
+    geom_vline(xintercept = rare_mid, linetype="solid", 
+                color = "blue", size=0.5)+
+    geom_vline(xintercept = rare_high, linetype="dotted", 
+                color = "blue", size=0.5)+
+  geom_vline(xintercept = abun_low, linetype="dotted", 
+                color = "red", size=0.5)+
+    geom_vline(xintercept = abun_mid, linetype="solid", 
+                color = "red", size=0.5)+
+    geom_vline(xintercept = abun_high, linetype="dotted", 
+                color = "red", size=0.5)+
+  scale_x_continuous(trans='log10')+
+  xlab("Log10 Mean Relative Abundance")+
+  ylab("Frequency")+
+  ggtitle(paste0("Frequency of Mean Relative Abundance of ", kingdom, " ", pole, " ASVs"))+
+  theme_bw()
+
+    pdf(paste0("../results/", kingdom, "/graphs/abundance-class/", kingdom, "-", pole, "-abundance-frequency-cutoffs.pdf"))
+    print(p)
+    dev.off()
+    
+    
+  #export list of ASVs with classifications
+  #list of ASVs with mean relative abundance
+  df2 <- data.frame(ASV=row.names(rel_asv), RelAbun=mean_rel_abun)
+
+  return(df2)
+}
+
+```
+
+Function to find abundance classes 
+```{r}
+
+abundance_classes <- function(df, rare, abundant){
+    res <- vector()
+    
+  for (i in 1:nrow(df)){
+    
+    
+    if(df$RelAbun[i] <= rare){
+      res <- c(res, "Rare")
+    } else if(df$RelAbun[i] >=  abundant){
+          res <- c(res, "Abundant")
+    }else {
+  res <- c(res, "Intermediate")
+    }
+    
+    
+  }
+    
+    return(res)
+        }
+      
+```
+
+Function to get abundance classes of ASVs and return dataframe
+```{r}
+
+findabundance <- function(df){
+  
+  #Scenarios
+  #One: rare low and abundant low
+  One <- abundance_classes(df, rare_low, abun_low)
+  #Two: rare mid and abundant low
+  Two <- abundance_classes(df, rare_mid, abun_low)
+  #Three: rare high and abundant low
+  Three <- abundance_classes(df, rare_high, abun_low)
+  #Four: rare low and abundant mid
+  Four <- abundance_classes(df, rare_low, abun_mid)
+  #Five: rare mid and abundant mid
+  Five <- abundance_classes(df, rare_mid, abun_mid)
+  #Six: rare high and abundant mid
+  Six <- abundance_classes(df, rare_high, abun_mid)
+  #Seven: rare low and abundant high
+  Seven <- abundance_classes(df, rare_low, abun_high)
+  #Eight: rare mid and abundant high
+  Eight <- abundance_classes(df, rare_mid, abun_high)
+  #Nine: rare high and abundant high
+  Nine <- abundance_classes(df, rare_high, abun_high)
+ 
+  df$Low_Low <- One
+  df$Mid_Low <- Two
+  df$High_Low <- Three
+  df$Low_Mid <- Four
+  df$Mid_Mid <- Five
+  df$High_Mid <- Six
+  df$Low_High <- Seven
+  df$Mid_High <-Eight
+  df$High_High <- Nine
+  
+  return(df)
+  
+}
+```
+
+Exract ASVs in abundance cut-offs
+```{r}
+#get list of rare, abundant and intermediate ASVs under the 9 scenarios
+  pole = "Arctic"
+  phylo = ps_pro
+  kingdom = "16S"
+  
+  ps <- subset_samples(phylo, Pole == pole)
+  my_data <- abundance_frequences_cutoffs(ps, pole, kingdom)
+  data <- findabundance(my_data)
+
+  j <- 1
+  
+  for (i in 3:ncol(data)){
+  rare_asvs <- rownames(data[data[,i] == "Rare",])
+  abun_asvs <- rownames(data[data[,i] == "Abundant",])
+  int_asvs <- rownames(data[data[,i] == "Intermediate",])
+  
+  assign(paste0(kingdom, "-",  pole ,"-Rare-Scenario-" , j), rare_asvs)
+  assign(paste0(kingdom, "-",  pole ,"-Abundant-Scenario-" , j), abun_asvs)
+  assign(paste0(kingdom, "-",  pole ,"-Intermediate-Scenario-" , j), int_asvs)
+  
+  j = j + 1
+  }
+  
+  
+  pole = "Antarctic"
+  
+  ps <- subset_samples(phylo, Pole == pole)
+  my_data <- abundance_frequences_cutoffs(ps, pole, kingdom)
+  data <- findabundance(my_data)
+
+  j <- 1
+  
+  for (i in 3:ncol(data)){
+  rare_asvs <- rownames(data[data[,i] == "Rare",])
+  abun_asvs <- rownames(data[data[,i] == "Abundant",])
+  int_asvs <- rownames(data[data[,i] == "Intermediate",])
+  
+  assign(paste0(kingdom, "-",  pole ,"-Rare-Scenario-" , j), rare_asvs)
+  assign(paste0(kingdom, "-",  pole ,"-Abundant-Scenario-" , j), abun_asvs)
+  assign(paste0(kingdom, "-",  pole ,"-Intermediate-Scenario-" , j), int_asvs)
+  
+  
+  j = j + 1
+  }
+  
+  pole = "Arctic"
+  phylo = ps_euk
+  kingdom = "18S"
+  
+  ps <- subset_samples(phylo, Pole == pole)
+  my_data <- abundance_frequences_cutoffs(ps, pole, kingdom)
+  data <- findabundance(my_data)
+
+  j <- 1
+  
+  for (i in 3:ncol(data)){
+  rare_asvs <- rownames(data[data[,i] == "Rare",])
+  abun_asvs <- rownames(data[data[,i] == "Abundant",])
+  int_asvs <- rownames(data[data[,i] == "Intermediate",])
+  
+  assign(paste0(kingdom, "-",  pole ,"-Rare-Scenario-" , j), rare_asvs)
+  assign(paste0(kingdom, "-",  pole ,"-Abundant-Scenario-" , j), abun_asvs)
+  assign(paste0(kingdom, "-",  pole ,"-Intermediate-Scenario-" , j), int_asvs)
+  
+  
+  j = j + 1
+  }
+  
+  pole = "Antarctic"
+  
+  ps <- subset_samples(phylo, Pole == pole)
+  my_data <- abundance_frequences_cutoffs(ps, pole, kingdom)
+  data <- findabundance(my_data)
+
+  j <- 1
+  
+  for (i in 3:ncol(data)){
+  rare_asvs <- rownames(data[data[,i] == "Rare",])
+  abun_asvs <- rownames(data[data[,i] == "Abundant",])
+  int_asvs <- rownames(data[data[,i] == "Intermediate",])
+  
+  assign(paste0(kingdom, "-",  pole ,"-Rare-Scenario-" , j), rare_asvs)
+  assign(paste0(kingdom, "-",  pole ,"-Abundant-Scenario-" , j), abun_asvs)
+  assign(paste0(kingdom, "-",  pole ,"-Intermediate-Scenario-" , j), int_asvs)
+
+  
+  
+  j = j + 1
+  }
+```
+
+Merge by abundance
+```{r}
+combine_phyloseq <- function(phylo1, phylo2, phylo3){
+  #get our arctic abundance count table
+abun_count1 <- data.frame(otu_table(phylo1), check.names = FALSE)
+names(abun_count1) <- sample_data(phylo1)$SampleID
+abun_count1$ASV <- row.names(abun_count1)
+#get our antarctic abundance count table
+abun_count2 <- data.frame(otu_table(phylo2), check.names = FALSE)
+names(abun_count2) <- sample_data(phylo2)$SampleID
+abun_count2$ASV <- row.names(abun_count2)
+x <- dplyr::bind_rows(abun_count1, abun_count2)
+x[is.na(x)] <- 0
+#aggregate rows by ASV ID
+y <- ddply(x,"ASV",numcolwise(sum))
+row.names(y) <- y$ASV
+y <- subset(y, select=-c(ASV))
+
+my_subset <- subset(otu_table(phylo3), rownames(otu_table(phylo3)) %in% row.names(y))
+new_physeq <- merge_phyloseq(my_subset, tax_table(phylo3), sample_data(phylo3), phy_tree(phylo3))
+return(new_physeq)
+}
+
+# #Abundant
+# arc.subset.abun <- subset(otu_table(ps.rel.arc), rownames(otu_table(ps.rel.arc)) %in% rownames(otu_table(ps.rel.arc.filter.abun)))
+# ps.ps.rel.arc.filter.abun <- merge_phyloseq(arc.subset.abun, tax_table(ps.rel.arc), sample_data(ps.rel.arc), phy_tree(ps.rel.arc))
+# ant.subset.abun <- subset(otu_table(ps.rel.ant), rownames(otu_table(ps.rel.ant)) %in% rownames(otu_table(ps.rel.ant.filter.abun)))
+# ps.ps.rel.ant.filter.abun <- merge_phyloseq(ant.subset.abun, tax_table(ps.rel.ant), sample_data(ps.rel.ant), phy_tree(ps.rel.ant))
+# ps.abun <- combine_phyloseq(ps.ps.rel.arc.filter.abun, ps.ps.rel.ant.filter.abun, ps.rar)
+# 
+# #Intermediate
+# arc.subset.int <- subset(otu_table(ps.rel.arc), rownames(otu_table(ps.rel.arc)) %in% rownames(otu_table(ps.rel.arc.filter.int)))
+# ps.ps.rel.arc.filter.int <- merge_phyloseq(arc.subset.int, tax_table(ps.rel.arc), sample_data(ps.rel.arc), phy_tree(ps.rel.arc))
+# ant.subset.int <- subset(otu_table(ps.rel.ant), rownames(otu_table(ps.rel.ant)) %in% rownames(otu_table(ps.rel.ant.filter.int)))
+# ps.ps.rel.ant.filter.int <- merge_phyloseq(ant.subset.int, tax_table(ps.rel.ant), sample_data(ps.rel.ant), phy_tree(ps.rel.ant))
+# ps.int <- combine_phyloseq(ps.ps.rel.arc.filter.int, ps.ps.rel.ant.filter.int, ps.rar)
+# 
+# #Rare
+# arc.subset.rare <- subset(otu_table(ps.rel.arc), rownames(otu_table(ps.rel.arc)) %in% rownames(otu_table(ps.rel.arc.filter.rare)))
+# ps.ps.rel.arc.filter.rare <- merge_phyloseq(arc.subset.rare, tax_table(ps.rel.arc), sample_data(ps.rel.arc), phy_tree(ps.rel.arc))
+# ant.subset.rare <- subset(otu_table(ps.rel.ant), rownames(otu_table(ps.rel.ant)) %in% rownames(otu_table(ps.rel.ant.filter.rare)))
+# ps.ps.rel.ant.filter.rare <- merge_phyloseq(ant.subset.rare, tax_table(ps.rel.ant), sample_data(ps.rel.ant), phy_tree(ps.rel.ant))
+# ps.rare <- combine_phyloseq(ps.ps.rel.arc.filter.rare, ps.ps.rel.ant.filter.rare, ps.rar)
+```
+
+Subset our phyloseq objects: Prokaryotic Rare
+```{r}
+pro.arc <- subset_samples(ps_pro, Pole == "Arctic")
+pro.ant <- subset_samples(ps_pro, Pole == "Antarctic")
+
+#Pro Arctic Rare One
+my_subset <- subset(otu_table(pro.arc), rownames(otu_table(pro.arc)) %in% as.vector(`16S-Arctic-Rare-Scenario-1`))
+pro.arc.rare.one <- merge_phyloseq(my_subset, tax_table(pro.arc), sample_data(pro.arc), phy_tree(pro.arc))
+
+#Pro Antarctic Rare One
+my_subset <- subset(otu_table(pro.ant), rownames(otu_table(pro.ant)) %in% as.vector(`16S-Antarctic-Rare-Scenario-1`))
+pro.ant.rare.one <- merge_phyloseq(my_subset, tax_table(pro.ant), sample_data(pro.ant), phy_tree(pro.ant))
+
+#Rare prokaryotic ASVs under scenario one
+pro.rare.one <- combine_phyloseq(pro.arc.rare.one, pro.ant.rare.one, ps_pro)
+
+
+#Pro Arctic Rare Two
+my_subset <- subset(otu_table(pro.arc), rownames(otu_table(pro.arc)) %in% as.vector(`16S-Arctic-Rare-Scenario-2`))
+pro.arc.rare.two <- merge_phyloseq(my_subset, tax_table(pro.arc), sample_data(pro.arc), phy_tree(pro.arc))
+
+#Pro Antarctic Rare Two
+my_subset <- subset(otu_table(pro.ant), rownames(otu_table(pro.ant)) %in% as.vector(`16S-Antarctic-Rare-Scenario-2`))
+pro.ant.rare.two <- merge_phyloseq(my_subset, tax_table(pro.ant), sample_data(pro.ant), phy_tree(pro.ant))
+
+#Rare prokaryotic ASVs under scenario two
+pro.rare.two <- combine_phyloseq(pro.arc.rare.two, pro.ant.rare.two, ps_pro)
+
+
+#Pro Arctic Rare Three
+my_subset <- subset(otu_table(pro.arc), rownames(otu_table(pro.arc)) %in% as.vector(`16S-Arctic-Rare-Scenario-3`))
+pro.arc.rare.three <- merge_phyloseq(my_subset, tax_table(pro.arc), sample_data(pro.arc), phy_tree(pro.arc))
+
+#Pro Antarctic Rare Three
+my_subset <- subset(otu_table(pro.ant), rownames(otu_table(pro.ant)) %in% as.vector(`16S-Antarctic-Rare-Scenario-3`))
+pro.ant.rare.three <- merge_phyloseq(my_subset, tax_table(pro.ant), sample_data(pro.ant), phy_tree(pro.ant))
+
+#Rare prokaryotic ASVs under scenario three
+pro.rare.three <- combine_phyloseq(pro.arc.rare.three, pro.ant.rare.three, ps_pro)
+
+
+#Pro Arctic Rare Four
+my_subset <- subset(otu_table(pro.arc), rownames(otu_table(pro.arc)) %in% as.vector(`16S-Arctic-Rare-Scenario-4`))
+pro.arc.rare.four <- merge_phyloseq(my_subset, tax_table(pro.arc), sample_data(pro.arc), phy_tree(pro.arc))
+
+#Pro Antarctic Rare Four
+my_subset <- subset(otu_table(pro.ant), rownames(otu_table(pro.ant)) %in% as.vector(`16S-Antarctic-Rare-Scenario-4`))
+pro.ant.rare.four <- merge_phyloseq(my_subset, tax_table(pro.ant), sample_data(pro.ant), phy_tree(pro.ant))
+
+#Rare prokaryotic ASVs under scenario four
+pro.rare.four <- combine_phyloseq(pro.arc.rare.four, pro.ant.rare.four, ps_pro)
+
+```
+
+
+
+
+
+Remove any samples with zero counts from each of our communities
+```{r}
+#Total
+ps.rar <- prune_samples(sample_sums(ps.rar) > 0, ps.rar)
+#Abundant
+ps.abun <- prune_samples(sample_sums(ps.abun) > 0, ps.abun)
+#Intermediate
+ps.int <- prune_samples(sample_sums(ps.int) > 0, ps.int)
+#Rare
+ps.rare <- prune_samples(sample_sums(ps.rare) > 0, ps.rare)
+```
+
+#Step Six: Export phyloseq objects
+```{r}
+saveRDS(ps.rar, "../../results/16S/phylo-objects/16S-phyloseq-object-rarefied-decontam.rds")
+#Now I'm going to export my phyloseq objects
+#Total rare
+saveRDS(ps.rare, "../../results/16S/phylo-objects/16S-total-rare.rds")
+#Total Abundant
+saveRDS(ps.abun, "../../results/16S/phylo-objects/16S-total-abundant.rds")
+#Total Intermediate 
+saveRDS(ps.int, "../../results/16S/phylo-objects/16S-total-intermediate.rds")
+```
