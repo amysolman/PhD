@@ -9,6 +9,7 @@
 *.qza.part
 .Rproj.user
 .nextflow*
+nextflow
 work
 results
 data
