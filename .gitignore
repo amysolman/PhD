@@ -8,8 +8,8 @@
 *.pptx.zip
 *.qza.part
 .Rproj.user
-.nextflow*
 nextflow
+.nextflow*
 work
 results
 data
