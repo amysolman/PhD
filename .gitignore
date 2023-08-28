@@ -1,4 +1,4 @@
-# Ignore all qza files
+# Ignore these files
 *.qza
 *.qza.part
 *.mp4
@@ -8,3 +8,8 @@
 *.pptx.zip
 *.qza.part
 .Rproj.user
+.nextflow*
+work
+results
+data
+Docker.app
