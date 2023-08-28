@@ -1,13 +1,14 @@
 /*
  * pipeline input parameters - these are defaults, we can manually override them in the command line
  * params.reads = location of the reads we want to process
+ * params.multiqc = location of multiqc output
  */
 params.reads = "$projectDir/data/*/*_{R1_001,R2_001}.fastq.gz"
-// params.transcriptome_file = "$projectDir/data/ggal/transcriptome.fa"
 params.multiqc = "$projectDir/multiqc"
 params.outdir = "results"
 
 // print the reads that will be processed and the output directory
+
 log.info """\
     R N A S E Q - N F   P I P E L I N E
     ===================================
@@ -37,13 +38,13 @@ process FASTQC {
 }
 
 process MULTIQC {
-    publishDir params.outdir, mode:'copy'
+    publishDir params.outdir, mode:'copy' //this is where to put the output files
 
     input:
-    path '*'
+    path '*' // parse in the fastqc output files
 
     output:
-    path 'multiqc_report.html'
+    path 'multiqc_report.html' //output path
 
     script:
     """
@@ -57,5 +58,11 @@ workflow {
         .set { read_pairs_ch } 
 
     fastqc_ch = FASTQC(read_pairs_ch)
-    //MULTIQC(quant_ch.mix(fastqc_ch).collect())
+    MULTIQC(fastqc_ch.collect()) //use collect to process all the files as one task
+}
+
+// message to tell you if the process worked!
+
+workflow.onComplete {
+    log.info ( workflow.success ? "\nDone! Open the following report in your browser --> $params.outdir/multiqc_report.html\n" : "Oops .. something went wrong" )
 }
