@@ -1,4 +1,3 @@
-
 # 1. Clear workspace and load packages
 rm(list=ls())
 graphics.off()
@@ -668,5 +667,3 @@ p3
 pdf("../results/alpha-comparisons-shannon.pdf", width=10, height=10)
 print(p3)
 dev.off()
-
-
