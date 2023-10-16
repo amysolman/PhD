@@ -8,6 +8,8 @@ Scripts for analysis reported in three papers that form the thesis:
 2. Solman A. B. T.; Jungblut A. D.; Larose, C.; Mourot, R.; Fox-Powell, M.; Benning, L. G.; Bradley, J. A. (tbc) Community assembly mechanisms shaping snow, ice and cryoconite communities of a High Arctic glacier.
 3. Solman A. B. T.; Jungblut A. D.; Larose, C.; Mourot, R.; Fox-Powell, M.; Benning, L. G.; C. Sanchez-Cid Torres; Bradley, J. A. (tbc) Active and dormant snow, ice and cryoconite communities of a High Arctic glacier. 
 
+Additional analysis scripts for WAVES data (not a part of doctoral research).
+
 
 
 
