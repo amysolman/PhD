@@ -1,0 +1,346 @@
+#!/bin/bash
+
+#Workflow for quality control, ASV identification and taxonomic classification
+#Waves project used 16S V3-V4 region primers 341F and 806R and 18S V4 region primers 528F and 706R. 
+#2x250bp Illumina sequencing was carried out.
+
+#Make directories for 16S and 18S output
+mkdir 16S
+mkdir 18S
+
+#make fastq directory and copy fastq files to this location
+mkdir 16S/fastq-files
+mkdir 18S/fastq-files
+
+#MODULE 1: Quality reports
+
+#create quality report directories
+mkdir 16S/FastQC
+mkdir 16S/MultiQC
+mkdir 18S/FastQC
+mkdir 18S/MultiQC
+
+#compress fastq files if necessary
+gzip 16S/fastq-files/*.fastq
+gzip 18S/fastq-files/*.fastq
+
+#generate fastqc reports
+fastqc 16S/fastq-files/*fastq.gz -o 16S/FastQC
+fastqc 18S/fastq-files/*fastq.gz -o 18S/FastQC
+
+#generate multiqc reports
+multiqc 16S/FastQC -o 16S/MultiQC
+multiqc 18S/FastQC -o 18S/MultiQC
+
+#view multiqc reports open
+open 16S/MultiQC/multiqc_report.html
+open 18S/MultiQC/multiqc_report.html
+
+#MODULE 2: Remove adapters and short sequences
+
+#change sample names to Casava formatting if necessary
+for f in 16S/fastq-files/*R1.fastq.gz; do mv -- "$f" "${f%R1.fastq.gz}L001_R1_001.fastq.gz"; done
+for f in 16S/fastq-files/*R2.fastq.gz; do mv -- "$f" "${f%R2.fastq.gz}L001_R2_001.fastq.gz"; done
+for f in 18S/fastq-files/*R1.fastq.gz; do mv -- "$f" "${f%R1.fastq.gz}L001_R1_001.fastq.gz"; done
+for f in 18S/fastq-files/*R2.fastq.gz; do mv -- "$f" "${f%R2.fastq.gz}L001_R2_001.fastq.gz"; done
+
+#activate qiime environment
+conda activate qiime2-2023.2
+
+#convert to qiime artefact
+#Note: here we used the laneless formatting (CasavaOneEightLanelessPerSampleDirFmt) instead of the lane formatting 
+#(CasavaOneEightSingleLanePerSampleDirFmt)
+
+#16S
+qiime tools import \
+--type 'SampleData[PairedEndSequencesWithQuality]' \
+--input-path 16S/fastq-files \
+--input-format CasavaOneEightLanelessPerSampleDirFmt \
+--output-path 16S/demux-paired-end.qza
+
+#18S
+qiime tools import \
+--type 'SampleData[PairedEndSequencesWithQuality]' \
+--input-path 18S/fastq-files \
+--input-format CasavaOneEightLanelessPerSampleDirFmt \
+--output-path 18S/demux-paired-end.qza
+
+#visualise the raw sequences
+#16S
+qiime demux summarize \
+--i-data 16S/demux-paired-end.qza \
+--o-visualization 16S/demux-paired-end.qzv
+
+#18S
+qiime demux summarize \
+--i-data 18S/demux-paired-end.qza \
+--o-visualization 18S/demux-paired-end.qzv
+
+#view the sequences
+qiime tools view 16S/demux-paired-end.qzv
+qiime tools view 18S/demux-paired-end.qzv
+
+#Remove adaptor sequences
+#front-f = forward primer
+#adapter-f = reverse complement of the reverse primer
+#front-r = reverse primer
+#adapter-r = reverse complement of the forward primer
+
+#16S
+qiime cutadapt trim-paired \
+--i-demultiplexed-sequences 16S/demux-paired-end.qza \
+--p-cores 16 \
+--p-front-f CCTAYGGGRBGCASCAG \
+--p-adapter-f ATTAGATACCCNNGTAGTCC \
+--p-front-r GGACTACNNGGGTATCTAAT \
+--p-adapter-r CTGSTGCVYCCCRTAGG \
+--p-minimum-length 150 \
+--p-discard-untrimmed \
+--o-trimmed-sequences 16S/demux-paired-end-trimmed.qza \
+--verbose
+
+#18S
+time nohup qiime cutadapt trim-paired \
+--i-demultiplexed-sequences 18S/demux-paired-end.qza \
+--p-cores 16 \
+--p-front-f GCGGTAATTCCAGCTCCAA \
+--p-adapter-f  AGAGGTGAAATTCTYGGATT \
+--p-front-r AATCCRAGAATTTCACCTCT \
+--p-adapter-r TTGGAGCTGGAATTACCGC \
+--p-minimum-length 100 \
+--p-discard-untrimmed \
+--o-trimmed-sequences 18S/demux-paired-end-trimmed.qza \
+--verbose
+
+#Summarise the trimmed reads
+
+#16S
+qiime demux summarize \
+--i-data 16S/demux-paired-end-trimmed.qza \
+--o-visualization 16S/demux-paired-end-trimmed.qzv
+
+#18S
+qiime demux summarize \
+--i-data 18S/demux-paired-end-trimmed.qza \
+--o-visualization 18S/demux-paired-end-trimmed.qzv
+
+#View the trimmed reads
+qiime tools view 16S/demux-paired-end-trimmed.qzv
+qiime tools view 18S/demux-paired-end-trimmed.qzv
+
+#MODULE 3: Quality trim the reads and infer ASVs (representative sequences)
+
+#DADA2
+#use verbose for detailed output
+#use nohop for no hang up when exiting the terminal (not necessary when using screens)
+#use time to print the amount of time the command takes to run
+
+#16S
+time nohup qiime dada2 denoise-paired \
+--i-demultiplexed-seqs 16S/demux-paired-end-trimmed.qza \
+--p-trim-left-f 0 \
+--p-trim-left-r 0 \
+--p-trunc-len-f 230 \
+--p-trunc-len-r 230 \
+--o-table 16S/table.qza \
+--o-representative-sequences 16S/rep-seqs.qza \
+--o-denoising-stats 16S/denoising-stats.qza \
+--verbose
+
+#18S
+time nohup qiime dada2 denoise-paired \
+--i-demultiplexed-seqs 18S/demux-paired-end-trimmed.qza \
+--p-trim-left-f 0 \
+--p-trim-left-r 0 \
+--p-trunc-len-f 170 \
+--p-trunc-len-r 160 \
+--o-table 18S/table.qza \
+--o-representative-sequences 18S/rep-seqs.qza \
+--o-denoising-stats 18S/denoising-stats.qza \
+--verbose
+
+#View denoising stats
+
+#16S
+qiime metadata tabulate \
+--m-input-file 16S/denoising-stats.qza \
+--o-visualization 16S/denoising-stats.qzv
+qiime tools view 16S/denoising-stats.qzv
+
+#18S
+qiime metadata tabulate \
+--m-input-file 18S/denoising-stats.qza \
+--o-visualization 18S/denoising-stats.qzv
+qiime tools view 18S/denoising-stats.qzv
+
+#View representative sequences
+
+#16S
+qiime feature-table tabulate-seqs \
+--i-data 16S/rep-seqs.qza \
+--o-visualization 16S/rep-seqs.qzv
+qiime tools view 16S/rep-seqs.qzv
+
+#18S
+qiime feature-table tabulate-seqs \
+--i-data 18S/rep-seqs.qza \
+--o-visualization 18S/rep-seqs.qzv
+qiime tools view 18S/rep-seqs.qzv
+
+#View feature table
+
+#16S
+qiime feature-table summarize \
+--i-table 16S/table.qza \
+--o-visualization 16S/table.qzv
+qiime tools view 16S/table.qzv
+
+#18S
+qiime feature-table summarize \
+--i-table 18S/table.qza \
+--o-visualization 18S/table.qzv
+qiime tools view 18S/table.qzv
+
+#MODULE 4: Build phylogenetic tree, taxonomically classify and export output files.
+
+#Build phylogenetic tree using MAFFT
+
+#16S
+qiime phylogeny align-to-tree-mafft-fasttree \
+--i-sequences 16S/rep-seqs.qza \
+--o-alignment 16S/aligned-rep-seqs.qza \
+--o-masked-alignment 16S/masked-aligned-rep-seqs.qza \
+--o-tree 16S/unrooted-tree.qza \
+--o-rooted-tree 16S/rooted-tree.qza
+
+#18S
+qiime phylogeny align-to-tree-mafft-fasttree \
+--i-sequences 18S/rep-seqs.qza \
+--o-alignment 18S/aligned-rep-seqs.qza \
+--o-masked-alignment 18S/masked-aligned-rep-seqs.qza \
+--o-tree 18S/unrooted-tree.qza \
+--o-rooted-tree 18S/rooted-tree.qza
+
+#extract reference reads from SILVA using amplification primers
+
+#16S
+qiime feature-classifier extract-reads \
+--i-sequences silva-138-99-seqs.qza \
+--p-f-primer CCTAYGGGRBGCASCAG \
+--p-r-primer GGACTACNNGGGTATCTAAT \
+--o-reads 16S/ref-seqs
+
+#18S
+time qiime feature-classifier extract-reads \
+--i-sequences silva-138-99-seqs.qza \
+--p-f-primer GCGGTAATTCCAGCTCCAA \
+--p-r-primer AATCCRAGAATTTCACCTCT \
+--o-reads 18S/ref-seqs
+
+#use the extracted ref reads/tax files to create trained classifier
+
+#16S
+nohup qiime feature-classifier fit-classifier-naive-bayes \
+--i-reference-reads 16S/ref-seqs.qza \
+--i-reference-taxonomy silva-138-99-tax.qza \
+--o-classifier 16S/classifier.qza
+
+#18S
+nohup qiime feature-classifier fit-classifier-naive-bayes \
+--i-reference-reads 18S/ref-seqs.qza \
+--i-reference-taxonomy silva-138-99-tax.qza \
+--o-classifier 18S/classifier.qza
+
+#classify our representative sequences
+
+#16S
+time qiime feature-classifier classify-sklearn \
+--i-classifier 16S/classifier.qza \
+--i-reads 16S/rep-seqs.qza \
+--o-classification 16S/taxonomy.qza
+
+#18S
+time qiime feature-classifier classify-sklearn \
+--i-classifier 18S/classifier.qza \
+--i-reads 18S/rep-seqs.qza \
+--o-classification 18S/taxonomy.qza
+
+#Visualize
+
+#16S
+qiime metadata tabulate \
+--m-input-file 16S/taxonomy.qza \
+--o-visualization 16S/taxonomy.qzv
+qiime tools view 16S/taxonomy.qzv
+
+#18S
+qiime metadata tabulate \
+--m-input-file 18S/taxonomy.qza \
+--o-visualization 18S/taxonomy.qzv
+qiime tools view 18S/taxonomy.qzv
+
+#export output files
+mkdir 16S/export
+mkdir 18S/export
+
+#taxonomy table 
+
+#16S
+qiime tools export \
+--input-path 16S/taxonomy.qza \
+--output-path 16S/export
+
+#18S
+qiime tools export \
+--input-path 18S/taxonomy.qza \
+--output-path 18S/export
+
+#ASV table to biom file
+
+#16S
+qiime tools export \
+--input-path 16S/table.qza \
+--output-path 16S/export
+
+#18S
+qiime tools export \
+--input-path 18S/table.qza \
+--output-path 18S/export
+
+#biom file to tsv file for analysis 
+
+#16S
+biom convert \
+-i 16S/export/feature-table.biom \
+-o 16S/export/table.tsv --to-tsv
+
+#18S
+biom convert \
+-i 18S/export/feature-table.biom \
+-o 18S/export/table.tsv --to-tsv
+
+#representative sequences
+
+#16S
+qiime tools export \
+--input-path 16S/rep-seqs.qza \
+--output-path 16S/export
+
+#18S
+qiime tools export \
+--input-path 18S/rep-seqs.qza \
+--output-path 18S/export
+
+#phylogenetic tree
+
+#16S
+qiime tools export \
+--input-path 16S/rooted-tree.qza \
+--output-path 16S/export
+
+#16S
+qiime tools export \
+--input-path 18S/rooted-tree.qza \
+--output-path 18S/export
+
+conda deactivate
