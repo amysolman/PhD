@@ -70,8 +70,11 @@ suffix<- seq(1:nrow(NTUtable))
 NTU.names<- paste(prefix,suffix, sep = "")
 row.names(TAXmat)<-NTU.names
 TAXmat <- TAXmat[,c("domain","major_clade","kingdom","phylum","class","order","family","genus")]
-#change column names to upper case
+#change column names to first letter upper case
 colnames(TAXmat) = str_to_title(names(as.data.frame(TAXmat)))
+#remove Major clade and kingdom columns
+TAXmat<- TAXmat[,colnames(TAXmat) != "Major_clade"]
+TAXmat<- TAXmat[,colnames(TAXmat) != "Kingdom"]
 
 #We have a lot of NA in the phylum column, even though we can identify the organism at lower tax levels
 #I'm going at manually add in the phylums for plotting
@@ -115,7 +118,7 @@ sort(table(tax.check2$Class))
 
 #remove taxonomy from df.join and add NTU labels
 df.join = df.join[,-c(1)]
-rownames(df.join) = rownames(TAXmat)
+rownames(df.join) = rownames(tax.df)
 
 #change names of blanks
 names(df.join)[(ncol(df.join)-2):(ncol(df.join))] = c("Blank1", "Blank2", "Blank3")
@@ -123,9 +126,12 @@ names(df.join)[(ncol(df.join)-2):(ncol(df.join))] = c("Blank1", "Blank2", "Blank
 #turn count table NA into zero
 df.join[is.na(df.join)] = 0
 
+#tax.df to matrix
+tax.df = as.matrix(tax.df)
+
 #make into phyloseq objects
-ps.pro = phyloseq(otu_table(as.matrix(df.join), taxa_are_rows = TRUE), tax_table(TAXmat), sample_data(metadata))
-ps.euk = phyloseq(otu_table(as.matrix(df.join), taxa_are_rows = TRUE), tax_table(TAXmat), sample_data(metadata))
+ps.pro = phyloseq(otu_table(as.matrix(df.join), taxa_are_rows = TRUE), tax_table(tax.df), sample_data(metadata))
+ps.euk = phyloseq(otu_table(as.matrix(df.join), taxa_are_rows = TRUE), tax_table(tax.df), sample_data(metadata))
 ps.pro
 ps.euk
 

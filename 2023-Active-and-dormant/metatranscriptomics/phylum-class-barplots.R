@@ -34,6 +34,10 @@ pro.RNA <- readRDS("../results/mt-pro-phylo-object.rds")
 euk.DNA <- readRDS("../results/18S-phylo-object-micro-keep.rds") 
 euk.RNA <- readRDS("../results/mt-euk-phylo-object.rds") 
 
+#load plotting colours
+pro.cols <- read.csv("../../../thesis-plotting-colours-prokaryotes.csv")
+euk.cols <- read.csv("../../../thesis-plotting-colours-eukaryotes.csv")
+
 
 #16S Dataset
 
@@ -57,8 +61,7 @@ tax.tab1 = data.frame(tax_table(pro.DNA))
 tax.tab2 = data.frame(tax_table(pro.RNA))
 
 #combine the taxa tables (excluding the columns they don't share)
-total.tax = rbind(tax.tab1[, !(names(tax.tab1) %in% 'Species')], 
-                  tax.tab2[, !(names(tax.tab2) %in% c('Major_clade', 'Kingdom'))])
+total.tax = rbind(tax.tab1[, !(names(tax.tab1) %in% 'Species')], tax.tab2)
 
 #remove underscores in taxa names to make them the same between DNA and RNA datasets
 total.tax$Class <-gsub("_"," ",as.character(total.tax$Class))
@@ -104,6 +107,8 @@ for (i in 1:nrow(df)){
   df[i,] = x
   
 }
+
+
 tax_table(ps.pro2) = as.matrix(df)
 
 #find the 10 most abundant Phyla
@@ -131,34 +136,10 @@ out = data %>%
   arrange(-Abundance)%>%
   top_n(n = 3)
 
-#get colours for plotting
-col.list = c("orange", "darkorange4",
-             "blue", "darkblue",
-             "darkolivegreen1", "darkolivegreen",
-             "tan", "tan4", 
-             "turquoise", "turquoise4",
-             "red", "darkred",
-             "green", "darkgreen",
-             "violetred1", "violetred4",
-             "yellow", "yellow4", 
-             "pink", "deeppink4", 
-             "purple","darkorchid4", 
-             "coral", "coral4", 
-             "aquamarine", "aquamarine4",
-             "brown1", "brown4",
-             "antiquewhite", "antiquewhite4",
-             "chocolate", "chocolate4",
-             "deepskyblue", "deepskyblue4",
-             "darkgoldenrod1", "darkgoldenrod4",
-             "cyan", "cyan4")
-
-#sanity check
-length(unique(data$Phylum))
 
 #sort the out dataframe and add colours
 out.col = out[with(out, order(Phylum)), ]
 out.col$Class = paste0(out.col$Phylum, ": ", out.col$Class)
-num4cols = 1
 save.cols <- vector()
 df2keep = data.frame(Phylum=as.character(), Class=as.character(), Abundance=as.numeric())
 
@@ -167,14 +148,15 @@ for (i in 1:length(unique(out.col$Phylum))){ #for each unique phyla
   #get our phyla data only
   mini.df = out.col[out.col$Phylum == unique(out.col$Phylum)[i],]
   
+  #which colours are assigned to that phyla?
+  col1 = pro.cols[pro.cols$Phylum == mini.df$Phylum,]$Colour1
+  col2 = pro.cols[pro.cols$Phylum == mini.df$Phylum,]$Colour2
+  
   #get colour function for that phylum
-  cols = colorRampPalette(c(col.list[num4cols], col.list[num4cols+1]))
+  cols.fun = colorRampPalette(c(col1, col2))
   
-  #get colours for each Class
-  save.cols = c(save.cols, cols(nrow(mini.df)+1))
-  
-  #add nums for moving along our colour list
-  num4cols = num4cols + 2
+  #get colours for each class
+  save.cols = c(save.cols, cols.fun(nrow(mini.df)+1))
   
   df1 = rbind(mini.df, data.frame(Phylum=unique(out.col$Phylum)[i], Class=paste0(unique(out.col$Phylum)[i], ": Other")))
   df2keep = rbind(df2keep, df1)
@@ -186,10 +168,6 @@ df2keep$col = save.cols
 #save data as data2plot for additional wrangling
 data2plot = data
 
-#sanity check
-length(unique(data2plot$Phylum))
-length(unique(data2plot$Class))
-
 #remove unwanted genera and replace with other
 for (i in 1:nrow(data2plot)){
   if(!data2plot$Class[i] %in% out$Class){
@@ -199,10 +177,6 @@ for (i in 1:nrow(data2plot)){
   }
 }
 
-#sanity check
-length(unique(data2plot$Phylum))
-length(unique(data2plot$Class))
-sort(unique(data2plot$Class))
 
 #remove unwanted phyla
 for (i in 1:nrow(data2plot)){
@@ -211,10 +185,6 @@ for (i in 1:nrow(data2plot)){
   }
 }
 
-#sanity check
-length(unique(data2plot$Phylum))
-length(unique(data2plot$Class))
-sort(unique(data2plot$Class))
 
 #add those colours to the corresponding row in our main dataframe
 #add "Other" to out.col
@@ -294,8 +264,7 @@ tax.tab1 = data.frame(tax_table(euk.DNA))
 tax.tab2 = data.frame(tax_table(euk.RNA))
 
 #combine the taxa tables
-total.tax = rbind(tax.tab1[, !(names(tax.tab1) %in% 'Species')], 
-                  tax.tab2[, !(names(tax.tab2) %in% c('Major_clade', 'Kingdom'))])
+total.tax = rbind(tax.tab1[, !(names(tax.tab1) %in% 'Species')], tax.tab2)
 
 #remove underscores in taxa names to make them the same between DNA and RNA datasets
 total.tax$Class <-gsub("_"," ",as.character(total.tax$Class))
@@ -366,34 +335,12 @@ out = data %>%
   arrange(-Abundance)%>%
   top_n(n = 3)
 
-#get colours for plotting
-col.list = c("orange", "darkorange4",
-             "blue", "darkblue",
-             "darkolivegreen1", "darkolivegreen",
-             "tan", "tan4", 
-             "turquoise", "turquoise4",
-             "red", "darkred",
-             "green", "darkgreen",
-             "violetred1", "violetred4",
-             "yellow", "yellow4", 
-             "pink", "deeppink4", 
-             "purple","darkorchid4", 
-             "coral", "coral4", 
-             "aquamarine", "aquamarine4",
-             "brown1", "brown4",
-             "antiquewhite", "antiquewhite4",
-             "chocolate", "chocolate4",
-             "deepskyblue", "deepskyblue4",
-             "darkgoldenrod1", "darkgoldenrod4",
-             "cyan", "cyan4")
-
 #sanity check
 length(unique(data$Phylum))
 
 #sort the out dataframe and add colours
 out.col = out[with(out, order(Phylum)), ]
 out.col$Class = paste0(out.col$Phylum, ": ", out.col$Class)
-num4cols = 1
 save.cols <- vector()
 df2keep = data.frame(Phylum=as.character(), Class=as.character(), Abundance=as.numeric())
 
@@ -402,14 +349,16 @@ for (i in 1:length(unique(out.col$Phylum))){ #for each unique phyla
   #get our phyla data only
   mini.df = out.col[out.col$Phylum == unique(out.col$Phylum)[i],]
   
+  #which colours are assigned to that phyla?
+  col1 = euk.cols[euk.cols$Phylum == mini.df$Phylum,]$Colour1
+  col2 = euk.cols[euk.cols$Phylum == mini.df$Phylum,]$Colour2
+  
   #get colour function for that phylum
-  cols = colorRampPalette(c(col.list[num4cols], col.list[num4cols+1]))
+  cols.fun = colorRampPalette(c(col1, col2))
   
-  #get colours for each Class
-  save.cols = c(save.cols, cols(nrow(mini.df)+1))
-  
-  #add nums for moving along our colour list
-  num4cols = num4cols + 2
+  #get colours for each class
+  save.cols = c(save.cols, cols.fun(nrow(mini.df)+1))
+
   
   df1 = rbind(mini.df, data.frame(Phylum=unique(out.col$Phylum)[i], Class=paste0(unique(out.col$Phylum)[i], ": Other")))
   df2keep = rbind(df2keep, df1)
@@ -445,11 +394,6 @@ for (i in 1:nrow(data2plot)){
     data2plot$Class[i] <- "Other"
   }
 }
-
-#sanity check
-length(unique(data2plot$Phylum))
-length(unique(data2plot$Class))
-sort(unique(data2plot$Class))
 
 #add those colours to the corresponding row in our main dataframe
 #add "Other" to out.col
