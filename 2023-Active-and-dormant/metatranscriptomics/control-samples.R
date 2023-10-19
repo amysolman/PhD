@@ -179,7 +179,6 @@ com_plot_function <- function(ps, cols, name){
   #sort the out dataframe and add colours
   out.col = out[with(out, order(Phylum)), ]
   out.col$Class = paste0(out.col$Phylum, ": ", out.col$Class)
-  #num4cols = 1
   
   save.cols <- vector()
   df2keep = data.frame(Phylum=as.character(), Class=as.character(), Abundance=as.numeric())
@@ -198,9 +197,6 @@ com_plot_function <- function(ps, cols, name){
     
     #get colours for each class
     save.cols = c(save.cols, cols.fun(nrow(mini.df)+1))
-    
-    #add nums for moving along our colour list
-    #num4cols = num4cols + 2
     
     df1 = rbind(mini.df, data.frame(Phylum=unique(out.col$Phylum)[i], Class=paste0(unique(out.col$Phylum)[i], ": Other")))
     df2keep = rbind(df2keep, df1)
