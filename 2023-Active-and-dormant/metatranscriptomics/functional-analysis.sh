@@ -17,6 +17,8 @@
 #Step Nine: Group gene families into Gene Ontology (GO) terms.
 #Step Ten: Combine taxonomic and functional information.
 
+#######################################################################################################
+
 #Step One: Quality control with FastQC, MultiQC and Trimmomatic
 
 #navigate to directory - this directory needs to have lots of space because we'll be downloading large databases
@@ -108,6 +110,8 @@ open FastQC-files-trimmed/multiqc_report.html
 
 #looking at our new multiqc file we can see the quality has improved 
 #and adapters have been removed
+
+#######################################################################################################
 
 #Step Two: Filter rRNA and mRNA reads with SortMeRNA
 
@@ -218,6 +222,8 @@ done
 #deactivate conda evironment
 conda deactivate
 
+#######################################################################################################
+
 #Step Four: Use MetaPhlAn to assemble contigs and assign taxonomy (to contigs and single reads) based on rRNA and mRNA reads.
 #Metaphlan takes metagenomes/metatranscriptomes and identifies clades
 #from phyla to species, and their realtive abundance
@@ -236,7 +242,7 @@ conda install -c bioconda metaphlan
 metaphlan --version #MetaPhlAn version 4.0.6 (1 Mar 2023)
 
 #make an output file
-mkdir metaphlan-output
+mkdir mpa-out
 
 #if necessary look at the help output for metaphlan
 #put the help info into a text file
@@ -244,38 +250,39 @@ metaphlan -h > metaphlan-help.txt
 #view the text file
 more metaphlan-help.txt #q to exit
 
+#note: when using metaphlan to analyse environmental samples it can be useful to lower stat_q and min_mapq_val.
+# min_mapq_val = Minimum mapping quality value (MAPQ) [default 5] - this indicates the quality value below which an alignment will be discarded.
+# Here I'm going to use 4.
+# stat_q =  Quantile value for the robust average [default 0.2] - essentially, only markers that are most abundant,
+# for example above the 20th percentile when using 0.2, will be used to calculate the relative abundance 
+# of a taxa. Here I'm going to use 0.01 because I want to include nearly all marker genes.
+
 #Example execution
 # metaphlan \ #call metaphlan
 # Fastq-trimmed/S21-26_forward_paired.fastq.gz,Fastq-trimmed/S21-26_reverse_paired.fastq.gz \ #give the locations of QC-ed forward and reverse reads (rRNA + mRNA)
-# --bowtie2db metaphlan_dbs \#location of the databases
-# --bowtie2out metaphlan-output/S21-26.bowtie2.bz2 \ #save the intermediate bowtie output for re-running metaphlan quickly
+# --bowtie2out mpa-out/S21-26.bowtie2.bz2 \ #save the intermediate bowtie output for re-running metaphlan quickly
 # --nproc 5 \
+# --stat_q 0.01 \
+# --min_mapq_val 4\
 # --unclassified_estimation \ #estimate unclassified fraction of the metagenomes/metatranscriptome
 # --input_type fastq \ #what is the input file type - ours is fastq files!
-# -o metaphlan-output/S21-26.txt #this is the file in which the profiles metagenome/transcriptome will be stored
+# --add_viruses \ include viruses in the analysis
+# -o mpa-out/S21-26.txt #this is the file in which the profiles metagenome/transcriptome will be stored
 
 # If this is your first time running MetaPhlAn, the first step in this process involves MetaPhlAn 
 # downloading, decompressing, and indexing its marker gene database.
 
-# If this download stalls, try deleting the databases and starting again:
-rm -r /home/amys1/conda/envs/metaphlan_env/lib/python3.10/site-packages/metaphlan/metaphlan_databases
-
-#download the databases 
-metaphlan --install --bowtie2db metaphlan_dbs
-#if the above doesn't work then try this...
-wget --continue --limit-rate=20M http://cmprod1.cibio.unitn.it/biobakery4/metaphlan_databases/bowtie2_indexes/mpa_vOct22_CHOCOPhlAnSGB_202212_bt2.tar
-
 #test on one file
 metaphlan \
 Fastq-trimmed/S21-26_forward_paired.fastq.gz,Fastq-trimmed/S21-26_reverse_paired.fastq.gz \
---bowtie2db metaphlan_dbs \
---bowtie2out metaphlan-output/S21-26.bowtie2.bz2 \
+--bowtie2out mpa-out/S21-26.bowtie2.bz2 \
 --nproc 5 \
 --unclassified_estimation \
+--stat_q 0.01 \
+--min_mapq_val 4 \
 --input_type fastq \
--o metaphlan-output/S21-26.txt
-
-#I think the database installed correctly!
+--add_viruses \
+-o mpa-out/S21-26.txt
 
 #metaphlan on all files
 for file in Fastq-trimmed/*forward_paired.fastq.gz; 
@@ -284,63 +291,25 @@ R1="${file:14:6}";
 echo "$R1"
 metaphlan \
 Fastq-trimmed/"${R1}"_forward_paired.fastq.gz,Fastq-trimmed/"${R1}"_reverse_paired.fastq.gz \
---bowtie2db metaphlan_dbs \
---bowtie2out metaphlan-output/"${R1}".bowtie2.bz2 \
+--bowtie2out mpa-out/"${R1}".bowtie2.bz2 \
 --nproc 5 \
 --unclassified_estimation \
+--add_viruses \
+--stat_q 0.01 \
+--min_mapq_val 4 \
 --input_type fastq \
--o metaphlan-output/"${R1}".txt
+-o mpa-out/"${R1}".txt
 done
 
 #Merge output tables into one table
-merge_metaphlan_tables.py metaphlan-output/*.txt > metaphlan-output/merged_abundance_table.txt
+merge_metaphlan_tables.py mpa-out/*.txt > mpa-out/merged_abundance_table.txt
 
 #deactivate metaphlan environment
 conda deactivate 
 
-#Step Five: Visualise the MetaPhlan output using heatmaps and Graphlan (publication).
+#######################################################################################################
 
-#install and run hclust2
-
-#create a new environment for hclust2 using mamba and install hclust
-mamba create --name hclust2_env hclust2
-
-#activate environment
-mamba activate hclust2_env
-
-#install hclust2
-#conda install -c biobakery hclust2
-
-#make a folder for hclust2 output
-mkdir hclust2-out
-
-#generate phylum level abundance table
-grep -E "(s__)|(^ID)" metaphlan-output/merged_abundance_table.txt | grep -v "t__" | sed 's/^.*s__//g' > hclust2-out/merged_abundance_table_species.txt
-
-#Create a heatmap of the communities
-hclust2.py \
--i hclust2-out/merged_abundance_table_species.txt \
--o hclust2-out/HMP.sqrt_scale.png \
---skip_rows 1 \
---ftop 50 \
---f_dist_f correlation \
---s_dist_f braycurtis \
---cell_aspect_ratio 9 \
--s --fperc 99 \
---flabel_size 4 \
---metadata_rows 2,3,4 \
---legend_file hclust2-out/HMP.sqrt_scale.legend.png \
---max_flabel_len 100 \
---metadata_height 0.075 \
---minv 0.01 \
---no_slabels \
---dpi 300 \
---slinkage complete
-
-#deactivate hclust2 environment
-conda deactivate
-
-#install and run graphlan
+#Step Five: Visualise the MetaPhlan output using Graphlan.
 
 #create a new environment
 conda create --name graphlan_env
@@ -349,7 +318,10 @@ conda create --name graphlan_env
 conda activate graphlan_env
 
 #install graphlan
-conda install -c biobakery graphlan
+conda install -c bioconda graphlan
+
+#also install export2graphlan for creating annotation and tree files
+conda install -c bioconda export2graphlan
 
 #make an output directory for graphlan
 mkdir graphlan-out
@@ -357,7 +329,7 @@ mkdir graphlan-out
 #create graphlan input files
 export2graphlan.py \
 --skip_rows 1,2 \
--i metaphlan-output/merged_abundance_table.txt \
+-i mpa-out/merged_abundance_table.txt \
 --tree graphlan-out/merged_abundance.tree.txt \
 --annotation graphlan-out/merged_abundance.annot.txt \
 --most_abundant 100 \
@@ -373,6 +345,8 @@ graphlan_annotate.py \
 graphlan.py \
 --dpi 300 graphlan-out/merged_abundance.xml graphlan-out/merged_abundance.png \
 --external_legends
+
+#######################################################################################################
 
 #Step Six: Extract functional information from interlaced mRNA reads using HUMAnN.
 
