@@ -192,35 +192,43 @@ done
 #deactivate conda evironment
 conda deactivate
 
-#Step Three: Interlace forward and reverse reads with Seqfu
+# #Step Three: Interlace forward and reverse reads with Seqfu
 
-#create a new environment
-conda create --name seqfu_env
+# #create a new environment
+# conda create --name seqfu_env
 
-#activate the environment
-conda activate seqfu_env
+# #activate the environment
+# conda activate seqfu_env
 
-#install seqfu
-conda install -c conda-forge -c bioconda "seqfu>1.10"
+# #install seqfu
+# conda install -c conda-forge -c bioconda "seqfu>1.10"
 
-#make a directory for interleaves/interlaced reads
-mkdir mRNA-interleaved
+# #make a directory for interleaves/interlaced reads
+# mkdir mRNA-interleaved
 
-#Example seqfu function
-# seqfu ilv \ #call intervieave function with ilv
-# -1 Fastq-sorted/S21-26-mRNA_fwd.fq.gz \ #give forward reads
-# -2 Fastq-sorted/S21-26-mRNA_rev.fq.gz > mRNA-interleaved/S21-26-mRNA_int.fq.gz #give reverse reads and name of file for interleaved reads
+# #Example seqfu function
+# # seqfu ilv \ #call intervieave function with ilv
+# # -1 Fastq-sorted/S21-26-mRNA_fwd.fq.gz \ #give forward reads
+# # -2 Fastq-sorted/S21-26-mRNA_rev.fq.gz > mRNA-interleaved/S21-26-mRNA_int.fq.gz #give reverse reads and name of file for interleaved reads
 
-#interleave all files in a loop
-for file in Fastq-sorted/*-mRNA_fwd.fq.gz; 
-do 
-R1="${file:14:5}";
-echo "$R1"
-seqfu ilv -1 Fastq-sorted/"${R1}"-mRNA_fwd.fq.gz -2 Fastq-sorted/"${R1}"-mRNA_rev.fq.gz > mRNA-interleaved/"${R1}"-mRNA_int.fq.gz
-done
+# #interleave all files in a loop
+# for file in Fastq-sorted/*-mRNA_fwd.fq.gz; 
+# do 
+# R1="${file:14:5}";
+# echo "$R1"
+# seqfu ilv -1 Fastq-sorted/"${R1}"-mRNA_fwd.fq.gz -2 Fastq-sorted/"${R1}"-mRNA_rev.fq.gz > mRNA-interleaved/"${R1}"-mRNA_int.fq.gz
+# done
 
-#deactivate conda evironment
-conda deactivate
+# #interleave all files in a loop
+# for file in Fastq-sorted/*-mRNA_fwd.fq.gz; 
+# do 
+# R1="${file:14:5}";
+# echo "$R1"
+# seqfu ilv -1 Fastq-sorted/"${R1}"-mRNA_fwd.fq.gz -2 Fastq-sorted/"${R1}"-mRNA_rev.fq.gz > mRNA-interleaved/"${R1}"-mRNA_int.fastq
+# done
+
+# #deactivate conda evironment
+# conda deactivate
 
 #######################################################################################################
 
@@ -326,29 +334,75 @@ conda install -c bioconda export2graphlan
 #make an output directory for graphlan
 mkdir graphlan-out
 
+#export2graphlan takes the merged_abundance_table from metaphlan and 
+#produces to files: 
+# - merged_abundance_tree, a txt file listing all the identified clades in a order that denotes their connectedness alphabetically,
+#for example, bacteria is top, then bacteria, acidobacteria, then all the classes, orders, families within that,
+#then actinobacteria and so on.
+# - merged_abundance.annot, a txt file that lists each unique class, it's marker colour and size. 
+#it then goes on to list each clade at each phylogenetic level, along with the size and the colour of the marker if it is plotted.
+# Edit this file to change labels and plotting colours
+
+#to see more export2graphlan.py features print the help info to text file
+#there are lots of ways to manipulate this data for plotting
+export2graphlan.py --help > export2graphlan-help.txt
+more export2graphlan-help.txt
+
+#example export2graphlan command
+# export2graphlan.py \
+# --skip_rows 1,2 \  #ignore the title row and sample name row
+# -i mpa-out/merged_abundance_table.txt \ #input file
+# --tree graphlan-out/merged_abundance.tree.txt \ #tree output file name 
+# --annotation graphlan-out/merged_abundance.annot.txt \ #annotation output file name
+# --most_abundant 100 \ #show the 100 most abundant clades
+# --abundance_threshold 0 \ #minimum abundance threshold for a clade to be plotted
+# --least_biomarkers 0 \ #minimum number of biomarkers to extract.
+# --annotations 5,6 \ #list which levels should be annotated in the tree. 5,6 = family + genus
+# --external_annotations 5 \ #which levels should use external annotations - here 5 means the legend is for family level identifications
+# --min_clade_size 1 #minimum number of clades that are biomarkers
+
 #create graphlan input files
 export2graphlan.py \
 --skip_rows 1,2 \
 -i mpa-out/merged_abundance_table.txt \
 --tree graphlan-out/merged_abundance.tree.txt \
 --annotation graphlan-out/merged_abundance.annot.txt \
---most_abundant 100 \
---abundance_threshold 1 \
---least_biomarkers 10 \
+--most_abundant 200 \
+--abundance_threshold 0 \
+--least_biomarkers 5 \
 --annotations 5,6 \
---external_annotations 7 \
+--external_annotations 5,6 \
+--max_font_size 10 \
+--min_font_size 9 \
 --min_clade_size 1
+
+#At this point I manipulate the merged_abundance.annot file to change plotting labels and colours
+#it is now call merged_abundance_edit.annot.txt
 
 #create a cladogram
 graphlan_annotate.py \
---annot graphlan-out/merged_abundance.annot.txt graphlan-out/merged_abundance.tree.txt graphlan-out/merged_abundance.xml
+--annot graphlan-out/merged_abundance_edit.annot.txt graphlan-out/merged_abundance.tree.txt graphlan-out/merged_abundance.xml
+
 graphlan.py \
 --dpi 300 graphlan-out/merged_abundance.xml graphlan-out/merged_abundance.png \
---external_legends
+--size 15 
+
+#deactivate the environment
+conda deactivate
 
 #######################################################################################################
 
 #Step Six: Extract functional information from interlaced mRNA reads using HUMAnN.
+
+#HUMAnN (HMP Unified Metabolic Analysis Network) is a pipeline for profiling
+#the presence/absence and abundance of microbial pathways from metagenomic/metatranscriptomic data.
+#This is called functional profiling.
+#When using metatranscriptome data we can answer the question, 
+#what are microbes in these communities doing?
+
+#Uniref database provides gene family definitions.
+#MetaCyc database provides pathway definitions by gene family.
+#Uses Bowtie2 and Diamond (translated alignment) to map reads to reference databases.
 
 #create a new environment
 conda create --name humann_env
@@ -359,11 +413,150 @@ conda activate humann_env
 #install humann
 conda install -c biobakery humann
 
+#which version?
+humann --version #v3.6
+
 #test installation
-humann --version
+humann_test
 
 #metaphlan is needed for running humann
-metaphlan --version
+metaphlan --version #v4.0.6
 
 #make an output directory for humann
 mkdir humann-out
+
+#make a directory for databases
+mkdir humann_dbs
+
+#upgrade annotations database
+humann_databases --download utility_mapping full humann_dbs --update-config yes
+
+#upgrade pangenome database
+#the chocoplan database is a database built by clusting coding sequences from
+#genomes within the NCBI. These are systematically organized and annotated 
+#microbial genomes and gene family clusters.
+humann_databases --download chocophlan full humann_dbs --update-config yes
+
+#upgrade protein database
+#This is a translated search database.
+#A translated search is where we look at which each ORF (open reading frames, a part of a sequence that may code for a protein)
+# in a nucleotide sequence,
+#and translate it into amino acid sequences which can then be searched against a protein database.
+#here we have downloaded the full UniRef90 database
+#Uniref = UniProt Reference Clusters
+humann_databases --download uniref uniref90_diamond humann_dbs --update-config yes
+
+#before using humann we need to concatenate forward and reverse reads into a single file
+
+#copy our files and decompress them before concatenating
+mkdir tRNA
+cp Fastq-trimmed/* tRNA
+gunzip tRNA/*
+
+mkdir mRNA
+cp Fastq-sorted/*mRNA* mRNA
+gunzip mRNA/*
+
+mkdir rRNA
+cp Fastq-sorted/*rRNA* rRNA
+gunzip rRNA/*
+
+#remove any log files or unpaired reads from the above directories after copying and unzipping
+
+#concatenate mRNA, rRNA and total RNA files
+for file in Fastq-sorted/*mRNA_fwd.fq.gz; 
+do 
+R1="${file:13:6}";
+echo "$R1"
+cat mRNA/"$R1"-mRNA_fwd.fq mRNA/"$R1"-mRNA_rev.fq > mRNA/"$R1"-mRNA.fastq
+cat rRNA/"$R1"-rRNA_fwd.fq rRNA/"$R1"-rRNA_rev.fq > rRNA/"$R1"-rRNA.fastq
+cat tRNA/"$R1"_forward_paired.fastq tRNA/"$R1"_reverse_paired.fastq > tRNA/"$R1"-tRNA.fastq
+done
+
+#run HUMAnN on one total RNA concatenated file
+humann \
+--input tRNA/S21-49-tRNA.fastq \
+--input-format fastq \
+--output humann-out
+
+#humann output files:
+# OUTPUT_DIR/$SAMPLENAME_0.log
+# OUTPUT_DIR/$SAMPLENAME_1_metaphlan_profile.tsv: Taxonomic output file from Metaphlan, how does this compare to the files produced when we ran metaphlan independently?
+# I could try running HUMAnN with my previous Metaphlan files.
+# OUTPUT_DIR/$SAMPLENAME_2_genefamilies.tsv: This file details the abundance of each gene family in the community. 
+# Gene families are groups of evolutionarily-related protein-coding sequences that often perform similar functions.
+# HUMAnN uses ChocoPhlAn (nucleotide alignment) and UniRef90 (translated search) databases to identify genes.
+# Gene family abundance is reported in RPK (reads per kilobase) units to normalize for gene length.
+# RPK units reflect relative gene (or transcript) copy number in the community. 
+# RPK values can be further sum-normalized to adjust for differences in sequencing depth across samples.
+# OUTPUT_DIR/$SAMPLENAME_3_reactions.tsv: Abundance of reactions in the community, after regrouping gene families to reactions.
+# OUTPUT_DIR/$SAMPLENAME_4_pathabundance.tsv: Abundance of metabolic pathways in the community, as a function of the abundance
+# of the pathways component reactions. 
+
+#So essentially we're looking at
+# gene families > reactions > metabolic pathways
+
+#run HUMAnN on all total RNA reads
+for file in tRNA/*-tRNA.fastq; 
+do 
+R1="${file:13:6}";
+echo "$R1"
+humann \
+--input tRNA/"$R1"-tRNA.fastq \
+--input-format fastq \
+--output humann-out
+done
+
+#######################################################################################################
+
+#Step Seven: Normalise the gene families and metabolic pathways by sampling depth (i.e. relative abundance per sample).
+
+#for one file normalise the abundance output files to the size of each sample (relative abundance)
+humann_renorm_table \
+--input S21-49_2_genefamilies.tsv \
+--output S21-49_2_genefamilies_relab.tsv \
+--units relab
+
+humann_renorm_table \
+--input S21-49_4_pathabundance.tsv \
+--output S21-49_4_pathabundance_relab.tsv \
+--units relab
+
+#normalise all gene and pathway abundance output files
+for file in tRNA/*-tRNA.fastq; 
+do 
+R1="${file:13:6}";
+echo "$R1"
+humann_renorm_table \
+--input "$R1"_2_genefamilies.tsv \
+--output "$R1"_2_genefamilies_relab.tsv \
+--units relab
+
+humann_renorm_table \
+--input "$R1"_4_pathabundance.tsv \
+--output "$R1"_4_pathabundance_relab.tsv \
+--units relab
+done
+
+#join the gene family and abundance files from all samples into one
+humann_join_tables \
+--input humman-out \
+--output humann_2_genefamilies.tsv \
+--file_name genefamilies_relab
+
+humann_join_tables \
+--input $OUTPUT_DIR \
+--output humann_4_pathabundance.tsv \
+--file_name pathabundance_relab
+
+#barplot of humann output
+humann_barplot \
+--input humann_2_genefamilies.tsv \
+#--focal-feature $FEATURE \
+--outfile genefamilies_barplot
+
+#######################################################################################################
+
+#Step Eight: Identify which gene families are involved with which pathways using HUMAnN.
+#Step Nine: Group gene families into Gene Ontology (GO) terms.
+#Step Ten: Combine taxonomic and functional information.
