@@ -158,8 +158,12 @@ final.euk1 = prune_samples(sample_sums(final.euk1)>0, final.euk1)
 sink("../results/repeated-rarefaction.txt", type="output")
 writeLines("===============================================================
 REPEATED RAREFACTION
-===============================================================
-Number of prokaryote ASVs before:")
+===============================================================")
+writeLines("Prokaryotes rarefied to:")
+pro_lib
+writeLines("Eukaryotes rarefied to:")
+euk_lib
+writeLines("Number of prokaryote ASVs before:")
 ntaxa(pro)
 writeLines("Number of prokaryote ASVs after repeated rarefaction:")
 ntaxa(final.pro)

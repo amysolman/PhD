@@ -15,8 +15,14 @@ Rscript define-subcommunities.R
 #explore community profiles
 Rscript community-profiles.R
 
-#unconstrained ordination PCoA
+#unconstrained ordination PCoA, with Un-/Weighted Unifrac and Bray-Curtis Dissimilarities 
 Rscript unconstrained-ordination-pcoa.R
 
-#unconstrained ordination NMDS
-#Rscript unconstrained-ordination-nmds.R
+#unconstrained ordination NMDS and Bray-Curtis Dissimilarities
+Rscript unconstrained-ordination-nmds.R
+
+#PERMANOVA for differences between community structure
+Rscript PERMANOVA.R
+
+#beta diversity partitioning analysis
+Rscript beta-diversity-partitioning.R

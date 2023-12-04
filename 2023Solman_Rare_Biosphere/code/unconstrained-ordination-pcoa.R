@@ -1037,7 +1037,7 @@ data2plot$Pole <- factor(data2plot$Pole, levels=c("Arctic", "Antarctic"))
 data2plot$Subcommunity <- factor(data2plot$Subcommunity, levels=c("Rare", "Intermediate", "Abundant"))
 
 #plot the data
-p7 = ggplot(data=data2plot) +
+p9 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=Subcommunity, shape=Pole),
              alpha=.5, size=4)+
   labs(x=labels[1], y=labels[2])+
@@ -1055,7 +1055,7 @@ p7 = ggplot(data=data2plot) +
   ggtitle("Prokaryote")
 
 pdf("../results/prokaryote-bray-pcoa-both-poles.pdf", width=8, height=6)
-print(p7)
+print(p9)
 dev.off()
 
 
@@ -1098,7 +1098,7 @@ data2plot$Pole <- factor(data2plot$Pole, levels=c("Arctic", "Antarctic"))
 data2plot$Subcommunity <- factor(data2plot$Subcommunity, levels=c("Rare", "Intermediate", "Abundant"))
 
 #plot the data
-p8 = ggplot(data=data2plot) +
+p10 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=Subcommunity, shape=Pole),
              alpha=.5, size=4)+
   labs(x=labels[1], y=labels[2])+
@@ -1116,7 +1116,7 @@ p8 = ggplot(data=data2plot) +
   ggtitle("Eukaryote")
 
 pdf("../results/eukaryote-bray-pcoa-both-poles.pdf", width=8, height=6)
-print(p8)
+print(p10)
 dev.off()
 
 #put the plots together
@@ -1130,3 +1130,439 @@ dev.off()
 
 ###################################################################################################
 ###################################################################################################
+
+#BETA DIVERSITY BOXPLOTS
+
+#UNWEIGHTED UNIFRAC 
+#for saving our dataframes
+keep.df = data.frame()
+
+
+#####PROKARYOTES ARCTIC##########
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Abundant" & Pole == "Arctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Abundant"
+
+keep.df = rbind(keep.df, df)
+
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Intermediate" & Pole == "Arctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Intermediate"
+
+keep.df = rbind(keep.df, df)
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Rare" & Pole == "Arctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Rare"
+
+keep.df = rbind(keep.df, df)
+
+#####PROKARYOTES ANTARCTIC##########
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Abundant" & Pole == "Antarctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Abundant"
+
+keep.df = rbind(keep.df, df)
+
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Intermediate" & Pole == "Antarctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Intermediate"
+
+keep.df = rbind(keep.df, df)
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Rare" & Pole == "Antarctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Rare"
+
+keep.df = rbind(keep.df, df)
+
+
+#####EUKARYOTES ARCTIC##########
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Abundant" & Pole == "Arctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Abundant"
+
+keep.df = rbind(keep.df, df)
+
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Intermediate" & Pole == "Arctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Intermediate"
+
+keep.df = rbind(keep.df, df)
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Rare" & Pole == "Arctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Rare"
+
+keep.df = rbind(keep.df, df)
+
+
+#####EUKARYOTES ANTARCTIC##########
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Abundant" & Pole == "Antarctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Abundant"
+
+keep.df = rbind(keep.df, df)
+
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Intermediate" & Pole == "Antarctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Intermediate"
+
+keep.df = rbind(keep.df, df)
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Rare" & Pole == "Antarctic"))
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Rare"
+
+keep.df = rbind(keep.df, df)
+
+keep.df$group = factor(keep.df$group, levels = c("Prokaryote", "Eukaryote"))
+keep.df$pole = factor(keep.df$pole, levels = c("Arctic", "Antarctic"))
+
+p<-ggplot(keep.df, aes(x=Subcommunity, y=Beta, fill = Subcommunity)) +
+  geom_boxplot()+
+  #facet_grid(pole ~ group, margins=TRUE)
+  facet_wrap(~ group + pole, scales = "free_x")+
+  ylab("Unweighted Unifrac Distances")+
+  scale_fill_manual(values=c("#ef7a76","#74a9d8", "#82ca81"))+
+  theme_bw()+
+  theme(axis.title.x = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        strip.text.x = element_text(size = 20))
+p
+
+
+pdf("../results/uweighted-beta-diversity-boxplot.pdf", height=8, width=10)
+print(p)
+dev.off()
+
+
+#Combine plots
+
+#combine unweighted unifrac PCoA plots for both poles
+plot.a = ggarrange(p5, p6, ncol=2, nrow=1, common.legend = TRUE, legend="bottom",
+                   font.label=list(size=20))
+print(plot.a)
+
+keep.df$Subcommunity = factor(keep.df$Subcommunity, levels = c("Rare", "Intermediate", "Abundant"))
+
+plot.b = ggplot(keep.df, aes(x=Subcommunity, y=Beta, fill = Subcommunity), alpha=0.8) +
+  geom_boxplot()+
+  #facet_grid(pole ~ group, margins=TRUE)
+  facet_wrap(~ group + pole, nrow = 1, scales = "free_x")+
+  ylab("Unweighted Unifrac Distances")+
+  scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
+  theme_bw()+
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "none",
+        strip.text.x = element_text(size = 20))
+print(plot.b)
+
+plot.c = plot_grid(plot.a, plot.b, nrow=2, labels="AUTO", label_size = 20)
+print(plot.c)
+
+pdf("../results/unweighted-PCoA-and-beta-diversity-boxplot.pdf", height=8, width=10)
+print(plot.c)
+dev.off()
+
+###################################################################################################
+###################################################################################################
+
+#WEIGHTED UNIFRAC
+
+#for saving our dataframes
+keep.df = data.frame()
+
+
+#####PROKARYOTES ARCTIC##########
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Abundant" & Pole == "Arctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Abundant"
+
+keep.df = rbind(keep.df, df)
+
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Intermediate" & Pole == "Arctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Intermediate"
+
+keep.df = rbind(keep.df, df)
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Rare" & Pole == "Arctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Rare"
+
+keep.df = rbind(keep.df, df)
+
+#####PROKARYOTES ANTARCTIC##########
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Abundant" & Pole == "Antarctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Abundant"
+
+keep.df = rbind(keep.df, df)
+
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Intermediate" & Pole == "Antarctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Intermediate"
+
+keep.df = rbind(keep.df, df)
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(pro, Subcommunity == "Rare" & Pole == "Antarctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Prokaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Rare"
+
+keep.df = rbind(keep.df, df)
+
+
+#####EUKARYOTES ARCTIC##########
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Abundant" & Pole == "Arctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Abundant"
+
+keep.df = rbind(keep.df, df)
+
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Intermediate" & Pole == "Arctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Intermediate"
+
+keep.df = rbind(keep.df, df)
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Rare" & Pole == "Arctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Arctic"
+df$Subcommunity = "Rare"
+
+keep.df = rbind(keep.df, df)
+
+
+#####EUKARYOTES ANTARCTIC##########
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Abundant" & Pole == "Antarctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Abundant"
+
+keep.df = rbind(keep.df, df)
+
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Intermediate" & Pole == "Antarctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Intermediate"
+
+keep.df = rbind(keep.df, df)
+
+#get unweighted unifrac distance matrix and melt
+dis = UniFrac(subset_samples(euk, Subcommunity == "Rare" & Pole == "Antarctic"), weighted=TRUE)
+dis.melt = melt(as.matrix(dis))
+names(dis.melt) = c("Sample1", "Sample2", "Beta")
+#remove samples being compared to themseves
+df = dis.melt[dis.melt['Sample1'] != dis.melt['Sample2'],]
+df$group = "Eukaryote"
+df$pole = "Antarctic"
+df$Subcommunity = "Rare"
+
+keep.df = rbind(keep.df, df)
+
+keep.df$group = factor(keep.df$group, levels = c("Prokaryote", "Eukaryote"))
+keep.df$pole = factor(keep.df$pole, levels = c("Arctic", "Antarctic"))
+
+p<-ggplot(keep.df, aes(x=Subcommunity, y=Beta, fill = Subcommunity)) +
+  geom_boxplot()+
+  #facet_grid(pole ~ group, margins=TRUE)
+  facet_wrap(~ group + pole, scales = "free_x")+
+  ylab("Weighted Unifrac Distances")+
+  scale_fill_manual(values=c("#ef7a76","#74a9d8", "#82ca81"))+
+  theme_bw()+
+  theme(axis.title.x = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        strip.text.x = element_text(size = 20))
+p
+
+
+pdf("../results/weighted-beta-diversity-boxplot.pdf", height=8, width=10)
+print(p)
+dev.off()
+
+#Combine plots
+
+plot.a = ggarrange(p7, p8, ncol=2, nrow=1, common.legend = TRUE, legend="bottom",
+                   font.label=list(size=20))
+print(plot.a)
+
+keep.df$Subcommunity = factor(keep.df$Subcommunity, levels = c("Rare", "Intermediate", "Abundant"))
+plot.b = ggplot(keep.df, aes(x=Subcommunity, y=Beta, fill = Subcommunity), alpha=0.8) +
+  geom_boxplot()+
+  #facet_grid(pole ~ group, margins=TRUE)
+  facet_wrap(~ group + pole, nrow = 1, scales = "free_x")+
+  ylab("Weighted Unifrac Distances")+
+  scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
+  theme_bw()+
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "none",
+        strip.text.x = element_text(size = 20))
+print(plot.b)
+
+
+plot.c = plot_grid(plot.a, plot.b, nrow=2, labels="AUTO", label_size = 20)
+print(plot.c)
+
+pdf("../results/weighted-PCoA-and-beta-diversity-boxplot.pdf", height=8, width=10)
+print(plot.c)
+dev.off()
