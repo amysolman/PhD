@@ -27,7 +27,7 @@ library(cowplot)
 pro <- readRDS("../results/16S-phylo-object-rarefied.rds") 
 euk <- readRDS("../results/18S-phylo-object-rarefied.rds") 
 
-# 3. Define abundance cut offs to be tested and percentages to remove/retain
+# 3. Define abundance cut offs to be tested and percentages to remove/retain based on values from the literature
 
 #Abundant thresholds to plot
 abun_cut_1 = 0.001 #0.1%
@@ -389,7 +389,6 @@ MultiCoLA_plot_rare <- function(multi_res, dataset){
 }
 
 pro_plot1_rare = MultiCoLA_plot_rare(pro_res_rare, "16S")
-
 euk_plot1_rare = MultiCoLA_plot_rare(euk_res_rare, "18S")
 
 #8. Combine plots together

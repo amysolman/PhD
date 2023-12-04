@@ -35,7 +35,7 @@ library(vegan)
 library(tidyverse)
 #install.packages("glue")
 library(glue)
-library(scales) #for percentages
+#library(scales) #for percentages
 # install.packages("indicspecies")
 library(indicspecies)
 library(ggrepel)

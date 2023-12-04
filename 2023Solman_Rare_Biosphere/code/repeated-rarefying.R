@@ -55,6 +55,10 @@ pdf("../results/18S-rarefaction-curve.pdf")
 print(P2)
 dev.off()
 
+#look at the library sizes
+sort(sample_sums(pro))
+sort(sample_sums(euk))
+
 # 4. Multiple iteration of rarefying libraries
 pro_lib = 5730
 euk_lib = 2673 
@@ -141,17 +145,47 @@ dev.off()
 #remove taxa or samples with zero counts
 final.pro = filter_taxa(pro_ps, function(x) sum(x) > 0, TRUE)
 final.euk = filter_taxa(euk_ps, function(x) sum(x) > 0, TRUE)
-final.pro = prune_samples(sample_sums(final.pro)>=1, final.pro)
-final.euk = prune_samples(sample_sums(final.euk)>=1, final.euk)
+final.pro = prune_samples(sample_sums(final.pro)>0, final.pro)
+final.euk = prune_samples(sample_sums(final.euk)>0, final.euk)
 
 #And from the one-shot rarefied data
 final.pro1 = filter_taxa(pro_mirl_object_1[[1]], function(x) sum(x) > 0, TRUE)
 final.euk1 = filter_taxa(euk_mirl_object_1[[1]], function(x) sum(x) > 0, TRUE)
-final.pro1 = prune_samples(sample_sums(final.pro1)>=1, final.pro1)
-final.euk1 = prune_samples(sample_sums(final.euk1)>=1, final.euk1)
+final.pro1 = prune_samples(sample_sums(final.pro1)>0, final.pro1)
+final.euk1 = prune_samples(sample_sums(final.euk1)>0, final.euk1)
+
+#output results to text document
+sink("../results/repeated-rarefaction.txt", type="output")
+writeLines("===============================================================
+REPEATED RAREFACTION
+===============================================================
+Number of prokaryote ASVs before:")
+ntaxa(pro)
+writeLines("Number of prokaryote ASVs after repeated rarefaction:")
+ntaxa(final.pro)
+writeLines("Number of prokaryote ASVs after one-shot rarefaction:")
+ntaxa(final.pro1)
+writeLines("Number of prokaryote samples before:")
+nsamples(pro)
+writeLines("Number of prokaryote samples after repeated rarefaction:")
+nsamples(final.pro)
+writeLines("Number of prokaryote samples after one-shot rarefaction:")
+nsamples(final.pro1)
+writeLines("Number of eukaryote ASVs before:")
+ntaxa(euk)
+writeLines("Number of eukaryote ASVs after repeated rarefaction:")
+ntaxa(final.euk)
+writeLines("Number of eukaryote ASVs after one-shot rarefaction:")
+ntaxa(final.euk1)
+writeLines("Number of eukaryote samples before:")
+nsamples(euk)
+writeLines("Number of eukaryote samples after repeated rarefaction:")
+nsamples(final.euk)
+writeLines("Number of eukaryote samples after one-shot rarefaction:")
+nsamples(final.euk1)
+sink()
 
 
 # 9. Export data
-
 saveRDS(final.pro, "../results/16S-phylo-object-rarefied.rds")
 saveRDS(final.euk, "../results/18S-phylo-object-rarefied.rds")
