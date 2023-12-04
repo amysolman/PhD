@@ -35,8 +35,8 @@ euk.DNA <- readRDS("../results/18S-phylo-object-micro-keep.rds")
 euk.RNA <- readRDS("../results/mt-euk-phylo-object.rds") 
 
 #load plotting colours
-pro.cols <- read.csv("../../../thesis-plotting-colours-prokaryotes.csv")
-euk.cols <- read.csv("../../../thesis-plotting-colours-eukaryotes.csv")
+pro.cols <- read.csv("../results/thesis-plotting-colours-prokaryotes.csv")
+euk.cols <- read.csv("../results/thesis-plotting-colours-eukaryotes.csv")
 
 
 #16S Dataset

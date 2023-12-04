@@ -27,17 +27,15 @@ import glob
 import numpy as np
 import matplotlib.pyplot as plt
 
-#1) Open qPCR results
+#1) Open qPCR results and extract mean quantity (i.e. mean genes copies per uL) by removing unwanted rows/columns
 
+#get our dataframes
 files = glob.glob("../data/*results.csv")
 files
 list = []
 for f in files:
     df = pd.read_csv(f, skiprows=7)
     list.append(df)
-
-
-#2) Extract mean quantity (i.e. mean genes copies per uL) by removing unwanted rows/columns
 
 #function for editing dataframes
 def editdfs(df):
@@ -48,7 +46,13 @@ def editdfs(df):
 #run function and put output into new list
 list2 = [editdfs(df) for df in list]
 
-#3) Open metadata and calculate total ng DNA added to the reaction (DNA concentration * 4uL)
+#combine our qPCR results dataframes 
+qpcr_df = pd.concat(list2)
+
+#keep only unique rows
+qpcr_df2 = qpcr_df.drop_duplicates()
+
+#2) Get metadata, replace "Below detection" values and combine with qPCR results
 
 #sample data file with volumes and weights
 samp_data = pd.read_csv("../data/metadata.csv")
@@ -61,20 +65,6 @@ samp_data["DNA Concentration"] = pd.to_numeric(samp_data["DNA Concentration"])
 samp_data["DNA Concentration 1"] = pd.to_numeric(samp_data["DNA Concentration 1"])
 samp_data["DNA Concentration 2"] = pd.to_numeric(samp_data["DNA Concentration 2"])
 
-#if Sample Name value is in the list of diluted samples,
-#ng_added = DNA Concentration / 10 * 4
-#if Sample Name value is not in the list of diluted samples,
-#ng_added = DNA Concentration * 4
-samp_data['Ng Added'] = np.select([samp_data['Diluted']], [samp_data["DNA Concentration"] / 10 * 4], default=samp_data["DNA Concentration"] * 4)
-
-#4) Divide mean gene copies by total ng DNA in reaction to get gene copies per ng DNA
-
-#combine our qPCR results dataframes 
-qpcr_df = pd.concat(list2)
-
-#keep only unique rows
-qpcr_df2 = qpcr_df.drop_duplicates()
-
 #make the sample name columns the same format
 samp_data['Sample Name'] = samp_data['Sample Name'].str.strip()
 qpcr_df2['Sample Name'] = qpcr_df2['Sample Name'].str.strip()
@@ -82,13 +72,15 @@ qpcr_df2['Sample Name'] = qpcr_df2['Sample Name'].str.strip()
 #merge the sample data and qPCR results into one dataframe
 merged_df = samp_data.merge(qpcr_df2, how = 'inner', on = ['Sample Name'])
 
-#calculate gene copies per ng DNA
-#merged_df['Gene Copies Per Ng'] = merged_df['Quantity Mean'] / merged_df['Ng Added']
+#3) Multiply gene copies of 10-fold diluted samples by 10
 
-#calculate gene copiers per ng DNA
-merged_df['Gene Copies Per Ng'] = merged_df['Quantity Mean'] / merged_df['DNA']
+merged_df['Quantity Mean Edit'] = np.select([merged_df['Diluted']], [merged_df["Quantity Mean"] * 10], default=merged_df["Quantity Mean"])
 
-#5) Calculate the total ng DNA in the DNA extract elute
+#3) Calculate gene copiers per ng DNA
+
+merged_df['Gene Copies Per Ng'] = merged_df['Quantity Mean Edit'] / merged_df['DNA Concentration']
+
+#4) Calculate the total ng DNA in the DNA extract elute
 
 #for samples that underwent a double extraction, work out the total ng DNA per extraction and add them together,
 #otherwise multiply the DNA concentration by 100uL (the volume of the elute)
@@ -97,8 +89,18 @@ merged_df['Total Ng Extracted'] = np.select([merged_df['Double Extraction']], [(
 #6) Multiply gene copies per ng by total ng in the DNA extract elute to get total gene copies extracted from each filter/sediment
 merged_df['Gene Copies Extracted'] = merged_df['Gene Copies Per Ng'] * merged_df['Total Ng Extracted']
 
-#7) Divide by the weight or volume filtered to get gene copies per mL or g
-merged_df['Gene Copies Per mL/g'] = merged_df['Gene Copies Extracted'] / merged_df['Volume/Weight']
+#7) Divide by the weight or volume filtered to get gene copies per mL or mg
+merged_df['Gene Copies Per mL/mg'] = merged_df['Gene Copies Extracted'] / merged_df['Volume/Weight']
 
 #save the edited dataframe
 merged_df.to_csv("../data/meta_qpcr_res.csv", sep='\t')
+
+#calculate the mean values per sample (as each environmental sample was processed as an experimental double)
+#merge into a GroupBy object
+new_df = merged_df[['Sample', 'Treatment', 'Habitat', 'Gene Copies Per mL/mg']]
+grouped = new_df.groupby(['Sample', 'Treatment', 'Habitat'])
+mean_genes = grouped.mean()
+mean_genes
+
+#export
+mean_genes.to_csv("../data/qPCR-mean.csv", sep='\t')

@@ -475,7 +475,7 @@ done
 
 #run HUMAnN on one total RNA concatenated file
 humann \
---input tRNA/S21-49-tRNA.fastq \
+--input tRNA/S21-31-tRNA.fastq \
 --input-format fastq \
 --output humann-out
 
