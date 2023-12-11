@@ -157,7 +157,7 @@ final.beta.barplot = rbind(pro.abun.beta.part.arc[[2]], pro.int.beta.part.arc[[2
 #    geom_histogram(aes(Petal.Width))+ 
 #    facet_grid(Species~.)
 
-#using KRuskal-Wallist Test are there significant differences in the proportion of dissimilarity account for Turnover and Richness between the subcommunities?
+#using Kruskal-Wallist Test are there significant differences in the proportion of dissimilarity account for Turnover and Richness between the subcommunities?
 #Test Turnover
 turn.df.pro.arc = final.beta[final.beta$Part == "Turnover" & final.beta$Data == "Prokaryote" & final.beta$Pole == "Arctic",]
 pairwise.wilcox.test(turn.df.pro.arc$Beta, turn.df.pro.arc$Subcommunity,

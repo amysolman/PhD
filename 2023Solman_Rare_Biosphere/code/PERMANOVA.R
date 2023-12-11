@@ -75,7 +75,23 @@ vegan::adonis2(dist_matrix ~ phyloseq::sample_data(ps1.rel)$Pole)
 
 #Dispersion test and plot
 dispr <- vegan::betadisper(dist_matrix, phyloseq::sample_data(ps1.rel)$Pole)
-permutest(dispr) #indicates significantly different dispersion between the groups
+out1 = permutest(dispr) #indicates significantly different dispersion between the groups
+
+#interpreting ANOVA output
+#Example output
+# Response: Distances
+#            Df  Sum Sq  Mean Sq   F      N.Perm  Pr(>F)    
+# Groups     1 0.27639 0.276387    15.291  999    0.001 ***
+# Residuals 77 1.39181 0.018075 
+#Groups Df = the degrees of freedom of the variable 'Pole' = the number of groups (2) minus 1 = 1
+#Residuals Df = degrees of freedom of the residual = the number of data points (samples/observations = 79) minus the number of groups (2) = 77
+#Sum of Sequences (RSS) = the sum of squares associated with the Poles or the Residuals 
+#Mean residual sum of squares = RSS / Df
+#F-statistic = mean sum of squares for the Poles / mean sum of squares for the residuals
+#The larger the F statistic the more likely the difference between the groups is real and not by chance
+#Essentially the Groups stats represent the variation between groups (Poles) while the Residuals stats represents the variation within groups
+#So the larger the mean RSS for groups compared tot he mean RSS for the whole dataset, the more likely we are seeing a true difference
+
 
 #Should we not use this test because the dispersions are different?
 # testing null hypothesis that means are the same against alternative hypothesis that there is a difference.
@@ -85,17 +101,21 @@ permutest(dispr) #indicates significantly different dispersion between the group
 #Residual SS = square root of the difference between the datapoint and the mean for that Pole (how different are our data points from the Pole mean, how much variation is there in the data)
 #Pole SS = total SS - residual ss = variation explained by the pole factor
 
-#in this example Pole explained little of the difference in dispersion (0.33) compared to the residual variation (2.25) so I won't worry about differences in dispersion too much
-
 #plot 
+pdf("../results/pcoa-beta-dispersion-abundant-prokaryotes-poles.pdf")
 plot(dispr, main = "Ordination Centroids and Dispersion Labeled: Aitchison Distance", sub = "")
+dev.off()
+
+pdf("../results/boxplot-beta-dispersion-abundant-prokaryotes-poles.pdf")
 boxplot(dispr, main = "", xlab = "")
+dev.off()
 
 #look for significant differences in the dissimilarities of our habitats/locations
+#we don't actually need to use pairwise adonis because we only have two groups (the output will be the same as the adonis2 output above) but the output is formated in a nice way so we'll use it here.
 pro.abun.pair.out = pairwise.adonis(dist_matrix, phyloseq::sample_data(ps1.rel)$Pole)
+pro.abun.pair.out
 
 write.csv(pro.abun.pair.out, "../results/PERMANOVA-abundant-prokaryotes.csv")
-
 
 
 ###################################################################################################
@@ -125,7 +145,7 @@ vegan::adonis2(dist_matrix ~ phyloseq::sample_data(ps2.rel)$Pole)
 
 #Dispersion test and plot
 dispr <- vegan::betadisper(dist_matrix, phyloseq::sample_data(ps2.rel)$Pole)
-permutest(dispr) #indicates no significantly different dispersion between the groups
+out2 = permutest(dispr) #indicates no significantly different dispersion between the groups
 
 # testing null hyothesis that means are the same against alternative hypothesis that there is a difference.
 #we know what our p value means but what about sum of squares (SS) and mean sum of squares (MSS)?
@@ -136,8 +156,13 @@ permutest(dispr) #indicates no significantly different dispersion between the gr
 
 
 #plot 
+pdf("../results/pcoa-beta-dispersion-intermediate-prokaryotes-poles.pdf")
 plot(dispr, main = "Ordination Centroids and Dispersion Labeled: Aitchison Distance", sub = "")
+dev.off()
+
+pdf("../results/boxplot-beta-dispersion-intermediate-prokaryotes-poles.pdf")
 boxplot(dispr, main = "", xlab = "")
+dev.off()
 
 #look for significant differences in the dissimilarities of our habitats/locations
 pro.int.pair.out = pairwise.adonis(dist_matrix, phyloseq::sample_data(ps2.rel)$Pole)
@@ -171,7 +196,7 @@ vegan::adonis2(dist_matrix ~ phyloseq::sample_data(ps3.rel)$Pole)
 
 #Dispersion test and plot
 dispr <- vegan::betadisper(dist_matrix, phyloseq::sample_data(ps3.rel)$Pole)
-permutest(dispr) #indicates no significantly different dispersion between the groups
+out3 = permutest(dispr) #indicates no significantly different dispersion between the groups
 
 # testing null hyothesis that means are the same against alternative hypothesis that there is a difference.
 #we know what our p value means but what about sum of squares (SS) and mean sum of squares (MSS)?
@@ -181,8 +206,13 @@ permutest(dispr) #indicates no significantly different dispersion between the gr
 #Pole SS = total SS - residual ss = variation explained by the pole factor
 
 #plot 
+pdf("../results/pcoa-beta-dispersion-rare-prokaryotes-poles.pdf")
 plot(dispr, main = "Ordination Centroids and Dispersion Labeled: Aitchison Distance", sub = "")
+dev.off()
+
+pdf("../results/boxplot-beta-dispersion-rare-prokaryotes-poles.pdf")
 boxplot(dispr, main = "", xlab = "")
+dev.off()
 
 #look for significant differences in the dissimilarities of our habitats/locations
 pro.rare.pair.out = pairwise.adonis(dist_matrix, phyloseq::sample_data(ps3.rel)$Pole)
@@ -216,7 +246,7 @@ vegan::adonis2(dist_matrix ~ phyloseq::sample_data(ps4.rel)$Pole)
 
 #Dispersion test and plot
 dispr <- vegan::betadisper(dist_matrix, phyloseq::sample_data(ps4.rel)$Pole)
-permutest(dispr) #indicates no significantly different dispersion between the groups
+out4 = permutest(dispr) #indicates no significantly different dispersion between the groups
 # testing null hyothesis that means are the same against alternative hypothesis that there is a difference.
 #we know what our p value means but what about sum of squares (SS) and mean sum of squares (MSS)?
 #MSS = SS / degrees of freedom (number of data points 234 minus the number of factors 2 for Arctic and Antarctic).
@@ -225,8 +255,13 @@ permutest(dispr) #indicates no significantly different dispersion between the gr
 #Pole SS = total SS - residual ss = variation explained by the pole factor
 
 #plot 
+pdf("../results/pcoa-beta-dispersion-abundant-eukaryotes-poles.pdf")
 plot(dispr, main = "Ordination Centroids and Dispersion Labeled: Aitchison Distance", sub = "")
+dev.off()
+
+pdf("../results/boxplot-beta-dispersion-abundant-eukaryotes-poles.pdf")
 boxplot(dispr, main = "", xlab = "")
+dev.off()
 
 #look for significant differences in the dissimilarities of our habitats/locations
 euk.abun.pair.out = pairwise.adonis(dist_matrix, phyloseq::sample_data(ps4.rel)$Pole)
@@ -261,7 +296,7 @@ vegan::adonis2(dist_matrix ~ phyloseq::sample_data(ps5.rel)$Pole)
 
 #Dispersion test and plot
 dispr <- vegan::betadisper(dist_matrix, phyloseq::sample_data(ps5.rel)$Pole)
-permutest(dispr) #indicates no significantly different dispersion between the groups
+out5 = permutest(dispr) #indicates no significantly different dispersion between the groups
 
 # testing null hyothesis that means are the same against alternative hypothesis that there is a difference.
 #we know what our p value means but what about sum of squares (SS) and mean sum of squares (MSS)?
@@ -272,8 +307,13 @@ permutest(dispr) #indicates no significantly different dispersion between the gr
 
 
 #plot 
+pdf("../results/pcoa-beta-dispersion-intermediate-eukaryotes-poles.pdf")
 plot(dispr, main = "Ordination Centroids and Dispersion Labeled: Aitchison Distance", sub = "")
+dev.off()
+
+pdf("../results/boxplot-beta-dispersion-intermediate-eukaryotes-poles.pdf")
 boxplot(dispr, main = "", xlab = "")
+dev.off()
 
 #look for significant differences in the dissimilarities of our habitats/locations
 euk.int.pair.out = pairwise.adonis(dist_matrix, phyloseq::sample_data(ps5.rel)$Pole)
@@ -307,7 +347,7 @@ vegan::adonis2(dist_matrix ~ phyloseq::sample_data(ps6.rel)$Pole)
 
 #Dispersion test and plot
 dispr <- vegan::betadisper(dist_matrix, phyloseq::sample_data(ps6.rel)$Pole)
-permutest(dispr) #indicates no significantly different dispersion between the groups
+out6 = permutest(dispr) #indicates no significantly different dispersion between the groups
 
 # testing null hyothesis that means are the same against alternative hypothesis that there is a difference.
 #we know what our p value means but what about sum of squares (SS) and mean sum of squares (MSS)?
@@ -317,8 +357,13 @@ permutest(dispr) #indicates no significantly different dispersion between the gr
 #Pole SS = total SS - residual ss = variation explained by the pole factor
 
 #plot 
+pdf("../results/pcoa-beta-dispersion-rare-eukaryotes-poles.pdf")
 plot(dispr, main = "Ordination Centroids and Dispersion Labeled: Aitchison Distance", sub = "")
+dev.off()
+
+pdf("../results/boxplot-beta-dispersion-rare-eukaryotes-poles.pdf")
 boxplot(dispr, main = "", xlab = "")
+dev.off()
 
 #look for significant differences in the dissimilarities of our habitats/locations
 euk.rare.pair.out = pairwise.adonis(dist_matrix, phyloseq::sample_data(ps6.rel)$Pole)
@@ -345,7 +390,7 @@ vegan::adonis2(dist_matrix ~ phyloseq::sample_data(ps_pro.rel)$Subcommunity)
 
 #Dispersion test and plot
 dispr <- vegan::betadisper(dist_matrix, phyloseq::sample_data(ps_pro.rel)$Subcommunity)
-permutest(dispr) #indicates significantly different dispersion between the groups
+out7 = permutest(dispr) #indicates significantly different dispersion between the groups
 # testing null hyothesis that means are the same against alternative hypothesis that there is a difference.
 #we know what our p value means but what about sum of squares (SS) and mean sum of squares (MSS)?
 #MSS = SS / degrees of freedom (number of data points 234 minus the number of factors 2 for Arctic and Antarctic).
@@ -356,8 +401,13 @@ permutest(dispr) #indicates significantly different dispersion between the group
 #in this example Subcommunity explained little of the difference in dispersion (1.37) compared to the residual variation (2.88) so I won't worry about differences in dispertion too much
 
 #plot 
+pdf("../results/pcoa-beta-dispersion-prokaryotes-subcommunities.pdf")
 plot(dispr, main = "Ordination Centroids and Dispersion Labeled: Aitchison Distance", sub = "")
+dev.off()
+
+pdf("../results/boxplot-beta-dispersion-prokaryotes-subcommunities.pdf")
 boxplot(dispr, main = "", xlab = "")
+dev.off()
 
 #look for significant differences in the dissimilarities of our subcommunities
 pro.pair.out = pairwise.adonis(dist_matrix, phyloseq::sample_data(ps_pro.rel)$Subcommunity)
@@ -389,20 +439,16 @@ vegan::adonis2(dist_matrix ~ phyloseq::sample_data(ps_euk.rel)$Subcommunity)
 
 #Dispersion test and plot
 dispr <- vegan::betadisper(dist_matrix, phyloseq::sample_data(ps_euk.rel)$Subcommunity)
-permutest(dispr) #indicates significantly different dispersion between the groups
-
-# testing null hyothesis that means are the same against alternative hypothesis that there is a difference.
-#we know what our p value means but what about sum of squares (SS) and mean sum of squares (MSS)?
-#MSS = SS / degrees of freedom (number of data points 234 minus the number of factors 2 for Arctic and Antarctic).
-#Total SS = square root of the difference between the datapoint and the overall mean value (how different are our data points from the mean, how much variation is there in the data)
-#Residual SS = square root of the difference between the datapoint and the mean for that Pole (how different are our data points from the Pole mean, how much variation is there in the data)
-#Pole SS = total SS - residual ss = variation explained by the pole factor
-
-#in this example Subcommunity explained little of the difference in dispersion (0.81) compared to the residual variation (2.45) so I won't worry about differences in dispertion too much
+out8 = permutest(dispr) #indicates significantly different dispersion between the groups
 
 #plot 
+pdf("../results/pcoa-beta-dispersion-eukaryotes-subcommunities.pdf")
 plot(dispr, main = "Ordination Centroids and Dispersion Labeled: Aitchison Distance", sub = "")
+dev.off()
+
+pdf("../results/boxplot-beta-dispersion-eukaryotes-subcommunities.pdf")
 boxplot(dispr, main = "", xlab = "")
+dev.off()
 
 #look for significant differences in the dissimilarities of our subcommunities
 euk.pair.out = pairwise.adonis(dist_matrix, phyloseq::sample_data(ps_euk.rel)$Subcommunity)
@@ -433,3 +479,33 @@ res2$R2 = round(res2$R2, 3)
 
 #export table
 write.csv(res2, "../results/PERMANOVA.csv")
+
+###################################################################################################
+###################################################################################################
+
+#Report DISPERSION TEST RESULTS
+sink("../results/PERMANOVA-dispersion-tests.txt", type="output")
+writeLines("===============================================================
+PERMANOVA DISPERSION TEST RESULTS
+===============================================================")
+writeLines("PERMANOVA test results can be impacted by differences in dispersion between groups. To address this I performed ANOVA-like permutation tests for variation in dispersion between groups.")
+writeLines("Variation in dispersion between poles for the abundant prokayrote community:") 
+out1
+writeLines("Variation in dispersion between poles for the intermediate prokayrote community:") 
+out2
+writeLines("Variation in dispersion between poles for the rare prokayrote community:") 
+out3
+writeLines("Variation in dispersion between poles for the abundant eukayrote community:") 
+out4
+writeLines("Variation in dispersion between poles for the intermediate eukayrote community:") 
+out5
+writeLines("Variation in dispersion between poles for the rare eukayrote community:") 
+out6
+writeLines("Variation in dispersion between subcommunities for the prokaryote community:") 
+out7
+writeLines("Variation in dispersion between subcommunities for the eukayrote community:") 
+out8
+sink()
+
+###################################################################################################
+###################################################################################################

@@ -40,31 +40,21 @@ pro.ant = filter_taxa(pro.ant, function(x) sum(x) >= 1, TRUE)
 euk.ant <- subset_samples(euk, Pole=="Antarctic")
 euk.ant = filter_taxa(euk.ant, function(x) sum(x) >= 1, TRUE)
 
-pro.ant.abun <- readRDS("../results/16S-phylo-object-rarefied-ant-abun.rds")
-pro.ant.int <- readRDS("../results/16S-phylo-object-rarefied-ant-int.rds")
-pro.ant.rare <- readRDS("../results/16S-phylo-object-rarefied-ant-rare.rds")
+#Antarctic prokaryotes
+p.an.a <- readRDS("../results/16S-phylo-object-ant-abun.rds") 
+p.an.i <- readRDS("../results/16S-phylo-object-ant-int.rds") 
+p.an.r <- readRDS("../results/16S-phylo-object-ant-rare.rds") 
 
-euk.ant.abun <- readRDS("../results/18S-phylo-object-rarefied-ant-abun.rds")
-euk.ant.int <- readRDS("../results/18S-phylo-object-rarefied-ant-int.rds")
-euk.ant.rare <- readRDS("../results/18S-phylo-object-rarefied-ant-rare.rds")
-
-#PROBLEM WITH EUKARYOTE DATA
-#SEEMS LIKE VERY FEW ASVS ARE OBSERVED IN THE SAME SAMPLES
-
-#lets look at the antarctic count table for eukaryotes
-counts = data.frame(otu_table(euk.ant))
-#turn into presence/absence dataframe
-count.pa = counts
-count.pa[count.pa > 1] = 1
-#now get a histogram of the row sums
-hist(rowSums(count.pa))
-#we can see that almost all ASVs are found in only one sample, why? This is different to how my data was before.
+#Antarctic eukaryotes
+e.an.a <- readRDS("../results/18S-phylo-object-ant-abun.rds") 
+e.an.i <- readRDS("../results/18S-phylo-object-ant-int.rds") 
+e.an.r <- readRDS("../results/18S-phylo-object-ant-rare.rds") 
 
 #correlation plot with ggcorplot + adjust p values + report rho, CIs and p-vale
 
-# phylo1 = euk.ant.abun
-# phylo2 = euk.ant.int
-# phylo3 = euk.ant.rare
+# phylo1 = e.an.a
+# phylo2 = e.an.i
+# phylo3 = e.an.r
 
 get_my_cor_plots <- function(phylo1, phylo2, phylo3){
   
@@ -77,13 +67,26 @@ get_my_cor_plots <- function(phylo1, phylo2, phylo3){
   
   for (i in 1:length(phy_list)){
     
+    set.seed(777)
+    
+    #remove samples with less than 100 reads
+    pr = prune_samples(sample_sums(phy_list[[i]])>=100, phy_list[[i]])
+    
+    #sample_sums(phy_list[[i]])
+    
+    #rarefy each community to the same sampling depth to estimate richness
+    r = rarefy_even_depth(pr, rngseed=TRUE)
+    
     #get alpha diversity
-    df = estimate_richness(phy_list[[i]], measures=c("Observed", "Shannon"))
-    rownames(df) = rownames(data.frame(sample_data(phy_list[[i]])))
+    df = estimate_richness(r, measures=c("Observed", "Shannon"))
+    rownames(df) = rownames(data.frame(sample_data(pr)))
     
     #get meta data
     meta.out = data.frame(sample_data(phy_list[[i]]))
     meta.out = meta.out[,c(9:ncol(meta.out))]
+    
+    #only keep metdata for samples that match our samples
+    meta.out = meta.out[rownames(meta.out) %in% rownames(df),]
     #meta.out = alpha_meta_df2(phy_list[[i]])
     
     #metadata to test
@@ -123,12 +126,57 @@ get_my_cor_plots <- function(phylo1, phylo2, phylo3){
   rownames(pval.df) = rownames(pval1)
   pval.df = as.matrix(pval.df)
   
+  #change row names of the dataframe
+  # rownames(df) = c("Distance to Sea (km)", "Altitude (m)", "Water Depth (cm)",
+  #                  "Water Volume (cm3)", "Total Depth (cm)", "Sediment Depth (cm)",
+  #                  "Sediment Volume (cm3)", "Area (cm2)", "Ice Lid (cm)",
+  #                  "Mass (g)", "Temp (C)", "EC (μScm−1)", "pH", "Cl age (years)",
+  #                  "DOC (mg L-1)", "DO (mg L-1)", "HCO3 (mg L-1)", "NH4 (mg L-1)",
+  #                  "NO2 (μ eq L-1)", "NO3 (mg L-1)", "TDN (mg L-1)", "TIN (mg L-1)",
+  #                  "DON (mg L-1)", "TDP (mg L-1)", "DOP (μ eq L-1)", "SO4 (mg L-1)",
+  #                  "SiO2 (μ eq L-1)", "Cl (mg L-1)", "Na (mg L-1)", "K (mg L-1)",
+  #                  "Mg (mg L-1)", "Ca (mg L-1)", "F (μ eq L-1)")
+  
   
   p = ggcorrplot::ggcorrplot(df, method = "circle", lab=TRUE, sig.level = 0.05, p.mat = pval.df, ggtheme = ggplot2::theme_bw, show.legend = TRUE,
-                             insig="blank", lab_size = 4)
+                             insig="blank", lab_size = 4)+
+  scale_x_discrete(labels=c("Distance to Sea (km)", 
+                            "Altitude (m)", 
+                            "Water Depth (cm)",
+                            expression(paste("Water Volume (cm"^-3, ")")),
+                            "Total Depth (cm)", 
+                            "Sediment Depth (cm)",
+                            expression(paste("Sediment Volume (cm"^-3, ")")),
+                            expression(paste("Area (cm"^-2, ")")),
+                            "Ice Lid (cm)",
+                            "Mass (g)", 
+                            "Temp (°C)", 
+                            expression(paste("EC (", mu, "Scm"^-1,")")), 
+                            "pH", 
+                            "Cl age (years)",
+                            expression(paste("DOC (mg L"^-1, ")")),
+                            expression(paste("DO (mg L"^-1, ")")),
+                            expression(paste("HCO"[3], " (mg L"^-1, ")")),
+                            expression(paste("NH"[4], " (mg L"^-1, ")")),
+                            expression(paste("NO"[2], "(", mu, " eq L"^-1, ")")),
+                            expression(paste("NO"[3], " (mg L"^-1, ")")),
+                            expression(paste("TDN (mg L"^-1, ")")),
+                            expression(paste("TIN (mg L"^-1, ")")),
+                            expression(paste("DON (mg L"^-1, ")")),
+                            expression(paste("TDP (mg L"^-1, ")")),
+                            expression(paste("DOP (", mu, " eq L"^-1, ")")),
+                            expression(paste("SO"[4], " (mg L"^-1, ")")),
+                            expression(paste("SiO"[2], " (", mu, " eq L"^-1, ")")),
+                            expression(paste("Cl (mg L"^-1, ")")),
+                            expression(paste("Na (mg L"^-1, ")")),
+                            expression(paste("K (mg L"^-1, ")")),
+                            expression(paste("Mg (mg L"^-1, ")")),
+                            expression(paste("Ca (mg L"^-1, ")")),
+                            expression(paste("F (", mu, " eq L"^-1, ")"))))
+  
   #+theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
   
-  #print(p)
+  print(p)
   
   res.list= list(p, out.corr)
   return(res.list)
@@ -136,10 +184,10 @@ get_my_cor_plots <- function(phylo1, phylo2, phylo3){
 }
 
 
-pro.cor.plot <- get_my_cor_plots(pro.ant.abun, pro.ant.int, pro.ant.rare)
+pro.cor.plot <- get_my_cor_plots(p.an.a, p.an.i, p.an.r)
 pro.cor.plot[[1]]
 
-euk.cor.plot <- get_my_cor_plots(euk.ant.abun, euk.ant.int, euk.ant.rare)
+euk.cor.plot <- get_my_cor_plots(e.an.a, e.an.i, e.an.r)
 euk.cor.plot[[1]]
 
 
@@ -154,10 +202,14 @@ multip1 <- plot_grid(
 )
 multip1
 
-pdf("../results/alpha-correlation-results.pdf")
+pdf("../results/alpha-correlation-results.pdf", width=14, height=9)
 print(multip1)
 dev.off()
 
+###################################################################################################
+###################################################################################################
+
+#REPORT THE RESULTS
 
 print_my_results <- function(data, name){
   
@@ -173,7 +225,7 @@ print_my_results <- function(data, name){
     
     if (data.p$Observed[[i]] < 0.05){
       
-      ans = paste0("There is a signficant correlation between ", rownames(data.p)[[i]], " and number of observed ASVs [ρ=", round(data.rho$Observed[[i]], 2),
+      ans = paste0("There is a significant correlation between ", rownames(data.p)[[i]], " and number of observed ASVs [ρ=", round(data.rho$Observed[[i]], 2),
                    ", (", round(data.ci$lower.adj[[i]], 2), " to ", round(data.ci$upper.adj[[i]], 2),  " 95% CI), ", mod_my_p_val(data.p$Observed[[i]]), "]. ")
       
       full_obs_ans = paste0(full_obs_ans, ans)
@@ -182,7 +234,7 @@ print_my_results <- function(data, name){
     
     if (data.p$Shannon[[i]] < 0.05){
       
-      ans = paste0("There is a signficant correlation between ", rownames(data.p)[[i]], " and Shannon diversity [ρ=", round(data.rho$Shannon[[i]], 2),
+      ans = paste0("There is a significant correlation between ", rownames(data.p)[[i]], " and Shannon diversity [ρ=", round(data.rho$Shannon[[i]], 2),
                    ", (", round(data.ci$lower.adj[[i+nrow(data.rho)]], 2), " to ", round(data.ci$upper.adj[[i+nrow(data.rho)]], 2),  " 95% CI), ", mod_my_p_val(data.p$Shannon[[i]]), "]. ")
       
       full_shan_ans = paste0(full_shan_ans, ans)
@@ -196,35 +248,18 @@ print_my_results <- function(data, name){
 }
 
 
-### Abundant Prokaryote Results
+#Report Results
+sink("../results/alpha-diversity-correlations.txt", type="output")
+writeLines("===============================================================
+ALPHA DIVERSITY SPEARMAN CORRELATION RESULTS
+===============================================================")
+print_my_results(pro.cor.plot[[2]][[1]], "abundant prokaryote subcommunity")
+print_my_results(pro.cor.plot[[2]][[2]], "intermediate prokaryote subcommunity")
+print_my_results(pro.cor.plot[[2]][[3]], "rare prokaryote subcommunity")
+print_my_results(euk.cor.plot[[2]][[1]], "abundant eukaryote subcommunity")
+print_my_results(euk.cor.plot[[2]][[2]], "intermediate eukaryote subcommunity")
+print_my_results(euk.cor.plot[[2]][[3]], "rare eukaryote subcommunity")
+sink()
 
-print.pro.abun = print_my_results(pro.cor.plot[[2]][[1]], "abundant prokaryote subcommunity")
-`r print.pro.abun`
-
-### Intermediate Prokaryote Results
-
-print.pro.int = print_my_results(pro.cor.plot[[2]][[2]], "intermediate prokaryote subcommunity")
-`r print.pro.int`
-
-### Rare Prokaryote Results
-print.pro.rare = print_my_results(pro.cor.plot[[2]][[3]], "rare prokaryote subcommunity")
-
-`r print.pro.rare`
-
-### Abundant Eukaryote Results
-print.euk.abun = print_my_results(euk.cor.plot[[2]][[1]], "abundant eukaryote subcommunity")
-
-`r print.euk.abun`
-
-### Intermediate Eukaryote Results
-print.euk.int = print_my_results(euk.cor.plot[[2]][[2]], "intermediate eukaryote subcommunity")
-
-`r print.euk.int`
-
-### Rare Eukaryote Results
-print.euk.rare = print_my_results(euk.cor.plot[[2]][[3]], "rare eukaryote subcommunity")
-
-`r print.euk.rare`
-
-
-
+###################################################################################################
+###################################################################################################
