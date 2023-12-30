@@ -264,18 +264,18 @@ e.an.r_p
 
 #what are the proportions of each community that are rare, abundant and intermediate?
 
-#Prokaryote Arctic 
+#Prokaryote Antarctic 
 
-  ####get points for putting labels
-  pie.df1 = data.frame(Num = c(ntaxa(p.ar.r), ntaxa(p.ar.i), ntaxa(p.ar.a)),
-                       Group = c("Rare", "Intermediate", "Abundant"))
-  pie.df1$value = round(pie.df1$Num/sum(pie.df1$Num)*100, 1)
-  
-  pie.df1b <- pie.df1 %>% 
+####get points for putting labels
+pie.df1 = data.frame(Num = c(ntaxa(p.an.r), ntaxa(p.an.i), ntaxa(p.an.a)),
+                     Group = c("Rare", "Intermediate", "Abundant"))
+pie.df1$value = round(pie.df1$Num/sum(pie.df1$Num)*100, 1)
+
+pie.df1b <- pie.df1 %>% 
   mutate(csum = rev(cumsum(rev(value))), 
          pos = value/2 + lead(csum, 1))
-  pie.df1b <- pie.df1b %>%
-         mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
+pie.df1b <- pie.df1b %>%
+  mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
 
 pie1 = ggplot(pie.df1, aes(x = "" , y = value, fill = fct_inorder(Group))) +
   geom_col(width = 1, color = 1) +
@@ -288,15 +288,14 @@ pie1 = ggplot(pie.df1, aes(x = "" , y = value, fill = fct_inorder(Group))) +
                    size = 15, nudge_x = 1, show.legend = FALSE) +
   guides(fill = "none") +
   theme(legend.position = "none", axis.title = element_blank(),
-          axis.text = element_blank())+
+        axis.text = element_blank())+
   theme_void()
-  pie1
-  
-  
-  #Prokaryote Antarctic 
-  
-    ####get points for putting labels
-  pie.df2 = data.frame(Num = c(ntaxa(p.an.r), ntaxa(p.an.i), ntaxa(p.an.a)),
+pie1
+
+#Prokaryote Arctic 
+
+  ####get points for putting labels
+  pie.df2 = data.frame(Num = c(ntaxa(p.ar.r), ntaxa(p.ar.i), ntaxa(p.ar.a)),
                        Group = c("Rare", "Intermediate", "Abundant"))
   pie.df2$value = round(pie.df2$Num/sum(pie.df2$Num)*100, 1)
   
@@ -305,8 +304,8 @@ pie1 = ggplot(pie.df1, aes(x = "" , y = value, fill = fct_inorder(Group))) +
          pos = value/2 + lead(csum, 1))
   pie.df2b <- pie.df2b %>%
          mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
-  
-  pie2 = ggplot(pie.df2, aes(x = "" , y = value, fill = fct_inorder(Group))) +
+
+pie2 = ggplot(pie.df2, aes(x = "" , y = value, fill = fct_inorder(Group))) +
   geom_col(width = 1, color = 1) +
   coord_polar(theta = "y") +
   #scale_fill_brewer(palette = "Pastel1") +
@@ -321,40 +320,38 @@ pie1 = ggplot(pie.df1, aes(x = "" , y = value, fill = fct_inorder(Group))) +
   theme_void()
   pie2
   
+  #Eukaryote Antarctic 
   
-    #Eukaryote Arctic 
-  
-    ####get points for putting labels
-  pie.df3 = data.frame(Num = c(ntaxa(e.ar.r), ntaxa(e.ar.i), ntaxa(e.ar.a)),
+  ####get points for putting labels
+  pie.df3 = data.frame(Num = c(ntaxa(e.an.r), ntaxa(e.an.i), ntaxa(e.an.a)),
                        Group = c("Rare", "Intermediate", "Abundant"))
   pie.df3$value = round(pie.df3$Num/sum(pie.df3$Num)*100, 1)
   
   pie.df3b <- pie.df3 %>% 
-  mutate(csum = rev(cumsum(rev(value))), 
-         pos = value/2 + lead(csum, 1))
+    mutate(csum = rev(cumsum(rev(value))), 
+           pos = value/2 + lead(csum, 1))
   pie.df3b <- pie.df3b %>%
-         mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
+    mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
   
   pie3 = ggplot(pie.df3, aes(x = "" , y = value, fill = fct_inorder(Group))) +
-  geom_col(width = 1, color = 1) +
-  coord_polar(theta = "y") +
-  #scale_fill_brewer(palette = "Pastel1") +
-  scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
-  #scale_fill_brewer(palette="Set1")+
-  geom_label_repel(data = pie.df3b,
-                   aes(y = pos, label = paste0(value, "%")),
-                   size = 15, nudge_x = 1, show.legend = FALSE) +
-  guides(fill = "none") +
-  theme(legend.position = "none", axis.title = element_blank(),
+    geom_col(width = 1, color = 1) +
+    coord_polar(theta = "y") +
+    #scale_fill_brewer(palette = "Pastel1") +
+    scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
+    #scale_fill_brewer(palette="Set1")+
+    geom_label_repel(data = pie.df3b,
+                     aes(y = pos, label = paste0(value, "%")),
+                     size = 15, nudge_x = 1, show.legend = FALSE) +
+    guides(fill = "none") +
+    theme(legend.position = "none", axis.title = element_blank(),
           axis.text = element_blank())+
-  theme_void()
+    theme_void()
   pie3
   
-  
-      #Eukaryote Antarctic 
+    #Eukaryote Arctic 
   
     ####get points for putting labels
-  pie.df4 = data.frame(Num = c(ntaxa(e.an.r), ntaxa(e.an.i), ntaxa(e.an.a)),
+  pie.df4 = data.frame(Num = c(ntaxa(e.ar.r), ntaxa(e.ar.i), ntaxa(e.ar.a)),
                        Group = c("Rare", "Intermediate", "Abundant"))
   pie.df4$value = round(pie.df4$Num/sum(pie.df4$Num)*100, 1)
   
@@ -382,40 +379,39 @@ pie1 = ggplot(pie.df1, aes(x = "" , y = value, fill = fct_inorder(Group))) +
 # What do the different communities look like in terms of number of reads?
 
 #what are the proportions of each community that are rare, abundant and intermediate?
-
-#Prokaryote Arctic 
-
+  
+  #Prokaryote Antarctic 
+  
   ####get points for putting labels
-  pie.df5 = data.frame(Num = c(sum(sample_sums(p.ar.r)), sum(sample_sums(p.ar.i)), sum(sample_sums((p.ar.a)))),
+  pie.df5 = data.frame(Num = c(sum(sample_sums(p.an.r)), sum(sample_sums(p.an.i)), sum(sample_sums((p.an.a)))),
                        Group = c("Rare", "Intermediate", "Abundant"))
   pie.df5$value = round(pie.df5$Num/sum(pie.df5$Num)*100, 1)
   
   pie.df5b <- pie.df5 %>% 
-  mutate(csum = rev(cumsum(rev(value))), 
-         pos = value/2 + lead(csum, 1))
+    mutate(csum = rev(cumsum(rev(value))), 
+           pos = value/2 + lead(csum, 1))
   pie.df5b <- pie.df5b %>%
-         mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
-
-pie5 = ggplot(pie.df5, aes(x = "" , y = value, fill = fct_inorder(Group))) +
-  geom_col(width = 1, color = 1) +
-  coord_polar(theta = "y") +
-  #scale_fill_brewer(palette = "Pastel1") +
-  scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
-  #scale_fill_brewer(palette="Set1")+
-  geom_label_repel(data = pie.df5b,
-                   aes(y = pos, label = paste0(value, "%")),
-                   size = 15, nudge_x = 1, show.legend = FALSE) +
-  guides(fill = "none") +
-  theme(legend.position = "none", axis.title = element_blank(),
+    mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
+  
+  pie5 = ggplot(pie.df5, aes(x = "" , y = value, fill = fct_inorder(Group))) +
+    geom_col(width = 1, color = 1) +
+    coord_polar(theta = "y") +
+    #scale_fill_brewer(palette = "Pastel1") +
+    scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
+    #scale_fill_brewer(palette="Set1")+
+    geom_label_repel(data = pie.df5b,
+                     aes(y = pos, label = paste0(value, "%")),
+                     size = 15, nudge_x = 1, show.legend = FALSE) +
+    guides(fill = "none") +
+    theme(legend.position = "none", axis.title = element_blank(),
           axis.text = element_blank())+
-  theme_void()
+    theme_void()
   pie5
-  
-  
-  #Prokaryote Antarctic 
-  
-    ####get points for putting labels
-  pie.df6 = data.frame(Num = c(sum(sample_sums(p.an.r)), sum(sample_sums(p.an.i)), sum(sample_sums((p.an.a)))),
+
+#Prokaryote Arctic 
+
+  ####get points for putting labels
+  pie.df6 = data.frame(Num = c(sum(sample_sums(p.ar.r)), sum(sample_sums(p.ar.i)), sum(sample_sums((p.ar.a)))),
                        Group = c("Rare", "Intermediate", "Abundant"))
   pie.df6$value = round(pie.df6$Num/sum(pie.df6$Num)*100, 1)
   
@@ -424,8 +420,8 @@ pie5 = ggplot(pie.df5, aes(x = "" , y = value, fill = fct_inorder(Group))) +
          pos = value/2 + lead(csum, 1))
   pie.df6b <- pie.df6b %>%
          mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
-  
-  pie6 = ggplot(pie.df6, aes(x = "" , y = value, fill = fct_inorder(Group))) +
+
+pie6 = ggplot(pie.df6, aes(x = "" , y = value, fill = fct_inorder(Group))) +
   geom_col(width = 1, color = 1) +
   coord_polar(theta = "y") +
   #scale_fill_brewer(palette = "Pastel1") +
@@ -440,40 +436,38 @@ pie5 = ggplot(pie.df5, aes(x = "" , y = value, fill = fct_inorder(Group))) +
   theme_void()
   pie6
   
+  #Eukaryote Antarctic 
   
-    #Eukaryote Arctic 
-  
-    ####get points for putting labels
-  pie.df7 = data.frame(Num = c(sum(sample_sums(e.ar.r)), sum(sample_sums(e.ar.i)), sum(sample_sums((e.ar.a)))),
+  ####get points for putting labels
+  pie.df7 = data.frame(Num = c(sum(sample_sums(e.an.r)), sum(sample_sums(e.an.i)), sum(sample_sums((e.an.a)))),
                        Group = c("Rare", "Intermediate", "Abundant"))
   pie.df7$value = round(pie.df7$Num/sum(pie.df7$Num)*100, 1)
   
   pie.df7b <- pie.df7 %>% 
-  mutate(csum = rev(cumsum(rev(value))), 
-         pos = value/2 + lead(csum, 1))
+    mutate(csum = rev(cumsum(rev(value))), 
+           pos = value/2 + lead(csum, 1))
   pie.df7b <- pie.df7b %>%
-         mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
+    mutate(pos = dplyr::if_else(is.na(pos), value/2, pos))
   
   pie7 = ggplot(pie.df7, aes(x = "" , y = value, fill = fct_inorder(Group))) +
-  geom_col(width = 1, color = 1) +
-  coord_polar(theta = "y") +
-  #scale_fill_brewer(palette = "Pastel1") +
-  scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
-  #scale_fill_brewer(palette="Set1")+
-  geom_label_repel(data = pie.df7b,
-                   aes(y = pos, label = paste0(value, "%")),
-                   size = 15, nudge_x = 1, show.legend = FALSE) +
-  guides(fill = "none") +
-  theme(legend.position = "none", axis.title = element_blank(),
+    geom_col(width = 1, color = 1) +
+    coord_polar(theta = "y") +
+    #scale_fill_brewer(palette = "Pastel1") +
+    scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
+    #scale_fill_brewer(palette="Set1")+
+    geom_label_repel(data = pie.df7b,
+                     aes(y = pos, label = paste0(value, "%")),
+                     size = 15, nudge_x = 1, show.legend = FALSE) +
+    guides(fill = "none") +
+    theme(legend.position = "none", axis.title = element_blank(),
           axis.text = element_blank())+
-  theme_void()
+    theme_void()
   pie7
   
-  
-      #Eukaryote Antarctic 
+    #Eukaryote Arctic 
   
     ####get points for putting labels
-  pie.df8 = data.frame(Num = c(sum(sample_sums(e.an.r)), sum(sample_sums(e.an.i)), sum(sample_sums((e.an.a)))),
+  pie.df8 = data.frame(Num = c(sum(sample_sums(e.ar.r)), sum(sample_sums(e.ar.i)), sum(sample_sums((e.ar.a)))),
                        Group = c("Rare", "Intermediate", "Abundant"))
   pie.df8$value = round(pie.df8$Num/sum(pie.df8$Num)*100, 1)
   
@@ -497,6 +491,7 @@ pie5 = ggplot(pie.df5, aes(x = "" , y = value, fill = fct_inorder(Group))) +
           axis.text = element_blank())+
   theme_void()
   pie8
+  
 
 # 6. Define function to merge subcommunities into one phyloseq object
 
@@ -783,7 +778,7 @@ for (i in 1:nrow(data2plot)){ #for each row of our main dataframe
 unique(data2plot[data2plot$Phylum == "Proteobacteria",]$Genus)
 df2keep[df2keep$Phylum == "Proteobacteria",]$Genus
 
-length(unique(data2plot$Phylum)) # - our number of phya stay the same
+length(unique(data2plot$Phylum)) # - our number of phyla stay the same
 length(unique(data2plot$Genus)) # - our number of genus' has decreased because many low abundance genera have become "other"
 sort(unique(data2plot$Genus))
 
@@ -809,11 +804,11 @@ data2plot2 = merge(data2plot, out.col2[, c("Genus", "col")], by="Genus")
 #plot data
 df = data2plot2
 #set data as factors to keep our plotting in the right order
-df$Subcommunity <- factor(df$Subcommunity, levels = c("Abundant", "Intermediate", "Rare"))
-df$Pole <- factor(df$Pole, levels = c("Arctic", "Antarctic"))
+df$Subcommunity <- factor(df$Subcommunity, levels = c("Rare", "Intermediate", "Abundant"))
+df$Pole <- factor(df$Pole, levels = c("Antarctic", "Arctic"))
 df$SubPole <- paste0(df$Pole, " (", df$Subcommunity, ")")
-df$SubPole <- factor(df$SubPole, levels = c("Arctic (Rare)", "Arctic (Intermediate)", "Arctic (Abundant)", 
-                                            "Antarctic (Rare)", "Antarctic (Intermediate)", "Antarctic (Abundant)"))
+df$SubPole <- factor(df$SubPole, levels = c("Antarctic (Rare)", "Antarctic (Intermediate)", "Antarctic (Abundant)",
+                                            "Arctic (Rare)", "Arctic (Intermediate)", "Arctic (Abundant)"))
 
 #sort dataframe according to phylum
 df.plot = df[with(df, order(Phylum)), ]
@@ -1062,11 +1057,11 @@ data2plot2 = merge(data2plot, out.col2[, c("Genus", "col")], by="Genus")
 #plot data
 df = data2plot2
 #set data as factors to keep our plotting in the right order
-df$Subcommunity <- factor(df$Subcommunity, levels = c("Abundant", "Intermediate", "Rare"))
-df$Pole <- factor(df$Pole, levels = c("Arctic", "Antarctic"))
+df$Subcommunity <- factor(df$Subcommunity, levels = c("Rare", "Intermediate", "Abundant"))
+df$Pole <- factor(df$Pole, levels = c("Antarctic", "Arctic"))
 df$SubPole <- paste0(df$Pole, " (", df$Subcommunity, ")")
-df$SubPole <- factor(df$SubPole, levels = c("Arctic (Rare)", "Arctic (Intermediate)", "Arctic (Abundant)", 
-                                            "Antarctic (Rare)", "Antarctic (Intermediate)", "Antarctic (Abundant)"))
+df$SubPole <- factor(df$SubPole, levels = c("Antarctic (Rare)", "Antarctic (Intermediate)", "Antarctic (Abundant)",
+                                            "Arctic (Rare)", "Arctic (Intermediate)", "Arctic (Abundant)"))
 
 #sort dataframe according to phylum
 df.plot = df[with(df, order(Phylum)), ]
@@ -1184,15 +1179,17 @@ legend <- get_legend(
 )
 
 
-pie1 = pie1 + ggtitle("Arctic Prokaryote") + theme(plot.title = element_text(size=45), plot.margin = unit(c(0, 0, 0, 0), "cm"))
-pie2 = pie2 + ggtitle("Antarctic Prokaryote") + theme(plot.title = element_text(size=45), plot.margin = unit(c(0, 0, 0, 0), "cm"))
-pie3 = pie3 + ggtitle("Arctic Eukaryote") + theme(plot.title = element_text(size=45), plot.margin = unit(c(0, 0, 0, 0), "cm"))
-pie4 = pie4 + ggtitle("Antarctic Eukaryote") + theme(plot.title = element_text(size=45), plot.margin = unit(c(0, 0, 0, 0), "cm"))
+
+pie1 = pie1 + ggtitle("Antarctic Prokaryote") + theme(plot.title = element_text(size=45), plot.margin = unit(c(0, 0, 0, 0), "cm"))
+pie2 = pie2 + ggtitle("Arctic Prokaryote") + theme(plot.title = element_text(size=45), plot.margin = unit(c(0, 0, 0, 0), "cm"))
+pie3 = pie3 + ggtitle("Antarctic Eukaryote") + theme(plot.title = element_text(size=45), plot.margin = unit(c(0, 0, 0, 0), "cm"))
+pie4 = pie4 + ggtitle("Arctic Eukaryote") + theme(plot.title = element_text(size=45), plot.margin = unit(c(0, 0, 0, 0), "cm"))
 
 pie5 = pie5 + theme(plot.title = element_text(size=0), plot.margin = unit(c(0, 0, 0, 0), "cm"))
 pie6 = pie6 + theme(plot.title = element_text(size=0), plot.margin = unit(c(0, 0, 0, 0), "cm"))
 pie7 = pie7 + theme(plot.title = element_text(size=0), plot.margin = unit(c(0, 0, 0, 0), "cm"))
 pie8 = pie8 + theme(plot.title = element_text(size=0), plot.margin = unit(c(0, 0, 0, 0), "cm"))
+
 # all.pie1
 # all.pie2 = plot_grid(all.pie1,
 # legend,

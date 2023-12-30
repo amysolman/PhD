@@ -148,15 +148,15 @@ abundance_occupancy_plot <- function(my_phylo, abun, int, rare){
     #annotate("text", x=4, y=-5, label=paste0("rho=", round(rho_val, 2)))+
     xlim(-6, -0.5)+
     ylim(0, 55)+
-    annotate("text", y=49, x=-5, label=paste0("N=", nrow(test_df3)), size=3, color="#ef7a76")+
-    annotate("text", y=49, x=-4.3, label=paste0("rho=", round(rho_val3, 2)), size=3, color="#ef7a76")+
-    annotate("text", y=49, x=-3.6, label= p_val3, size=3, color="#ef7a76")+
+    annotate("text", y=49, x=-5, label=paste0("N=", nrow(test_df1)), size=3, color="#ef7a76")+
+    annotate("text", y=49, x=-4.3, label=paste0("rho=", round(rho_val1, 2)), size=3, color="#ef7a76")+
+    annotate("text", y=49, x=-3.6, label= p_val1, size=3, color="#ef7a76")+
     annotate("text", y=52, x=-5, label=paste0("N=", nrow(test_df2)), size=3, color="#74a9d8")+
     annotate("text", y=52, x=-4.3, label=paste0("rho=", round(rho_val2, 2)), size=3, color="#74a9d8")+
     annotate("text", y=52, x=-3.6, label= p_val2, size=3, color="#74a9d8")+
-    annotate("text", y=55, x=-5, label=paste0("N=", nrow(test_df1)), size=3, color="#82ca81")+
-    annotate("text", y=55, x=-4.3, label=paste0("rho=", round(rho_val1, 2)), size=3, color="#82ca81")+
-    annotate("text", y=55, x=-3.6, label= p_val1, size=3, color="#82ca81")+
+    annotate("text", y=55, x=-5, label=paste0("N=", nrow(test_df3)), size=3, color="#82ca81")+
+    annotate("text", y=55, x=-4.3, label=paste0("rho=", round(rho_val3, 2)), size=3, color="#82ca81")+
+    annotate("text", y=55, x=-3.6, label= p_val3, size=3, color="#82ca81")+
     ylab("Sites Occupied")+
     xlab("log10(Mean relative abundance)")+
     guides(color = guide_legend(override.aes = list(size = 5)))+

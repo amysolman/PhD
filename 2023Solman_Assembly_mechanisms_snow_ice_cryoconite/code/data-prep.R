@@ -22,19 +22,19 @@ library(microbiome)
 metadata <- read.csv(file="../data/metadata.csv", sep=",") #Metadata
 
 #18S rRNA Gene Amplicon Data
-euk_count_tab <- read_tsv(file="../qiime-export/18S/table.tsv", skip=1) #Count Table
+euk_count_tab <- read_tsv(file="../data/18S/table.tsv", skip=1) #Count Table
 euk_count_tab <- column_to_rownames(euk_count_tab, var = colnames(euk_count_tab)[1]) #first col in our count tab is ASV IDs
-euk_tax <- read_tsv(file="../qiime-export/18S/taxonomy.tsv") #Taxonomy table
-euk_fasta <- read.fasta(file="../qiime-export/18S/dna-sequences.fasta") #Sequences
-euk_tree <- read_tree("../qiime-export/18S/tree.nwk") #Phylogenetic tree
+euk_tax <- read_tsv(file="../data/18S/taxonomy.tsv") #Taxonomy table
+euk_fasta <- read.fasta(file="../data/18S/dna-sequences.fasta") #Sequences
+euk_tree <- read_tree("../data/18S/tree.nwk") #Phylogenetic tree
 names(euk_count_tab) = metadata$SampleID #match sample names in count table and metadata
 
 #16S rRNA Gene Amplicon Data
-pro_count_tab <- read_tsv(file="../qiime-export/16S/table.tsv", skip=1) #Count Table
+pro_count_tab <- read_tsv(file="../data/16S/table.tsv", skip=1) #Count Table
 pro_count_tab <- column_to_rownames(pro_count_tab, var = colnames(pro_count_tab)[1]) #first col in our count tab is ASV IDs
-pro_tax <- read_tsv(file="../qiime-export/16S/taxonomy.tsv") #Taxonomy table
-pro_fasta <- read.fasta(file="../qiime-export/16S/dna-sequences.fasta") #Sequences
-pro_tree <- read_tree("../qiime-export/16S/tree.nwk") #Phylogenetic tree
+pro_tax <- read_tsv(file="../data/16S/taxonomy.tsv") #Taxonomy table
+pro_fasta <- read.fasta(file="../data/16S/dna-sequences.fasta") #Sequences
+pro_tree <- read_tree("../data/16S/tree.nwk") #Phylogenetic tree
 names(pro_count_tab) = metadata$SampleID #match sample names in count table and metadata
 
 
@@ -86,7 +86,7 @@ pro_taxa_tab <- pro_tax %>%
   mutate(pro_tax=str_replace_all(string=Taxon, pattern=".__", replacement="")) %>%
   mutate(pro_tax=str_replace_all(string=pro_tax, pattern=";$", replacement="")) %>%
   mutate(pro_tax=str_replace_all(string=pro_tax, pattern=" ", replacement="")) %>%
-  separate(pro_tax, into=c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
+  separate(pro_tax, into=c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
   dplyr::select(-Taxon, -Confidence) %>%
   column_to_rownames(var='Feature ID')
 
@@ -95,7 +95,7 @@ euk_taxa_tab <- euk_tax %>%
   mutate(euk_tax=str_replace_all(string=Taxon, pattern=".__", replacement="")) %>%
   mutate(euk_tax=str_replace_all(string=euk_tax, pattern=";$", replacement="")) %>%
   mutate(euk_tax=str_replace_all(string=euk_tax, pattern=" ", replacement="")) %>%
-  separate(euk_tax, into=c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
+  separate(euk_tax, into=c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep=";") %>%
   dplyr::select(-Taxon, -Confidence) %>%
   column_to_rownames(var='Feature ID')
 
@@ -157,19 +157,19 @@ euk_ps <- phyloseq(euk_ASV, euk_TAX, euk_META, euk_TREE) #make into phyloseq obj
 #9. Remove ambiguous annotations and singletons
 
 #16S
-pro_ps.ambig <- subset_taxa(pro_ps, !is.na(Kingdom) & !Kingdom %in% c("Unassigned", "Eukaryota") & !Order %in% c("Chloroplast") & !Family %in% c("Mitochondria"))
+pro_ps.ambig <- subset_taxa(pro_ps, !is.na(Domain) & !Domain %in% c("Unassigned", "Eukaryota") & !Order %in% c("Chloroplast") & !Family %in% c("Mitochondria"))
 pro_ps.ambig <- prune_taxa(taxa_sums(pro_ps.ambig) >= 10, pro_ps.ambig)
 
 #eukaryote (18S) dataset with micrometazoan's removed.
-euk_ps.ambig <- subset_taxa(euk_ps, !is.na(Kingdom) & !Kingdom %in% c("Unassigned", "Bacteria", "Archaea") & !Phylum %in% c("Vertebrata", "Tardigrada", "Rotifera", "Nematozoa") & !Class %in% c("Embryophyta"))
+euk_ps.ambig <- subset_taxa(euk_ps, !is.na(Domain) & !Domain %in% c("Unassigned", "Bacteria", "Archaea") & !Phylum %in% c("Vertebrata", "Tardigrada", "Rotifera", "Nematozoa") & !Class %in% c("Embryophyta"))
 euk_ps.ambig <- prune_taxa(taxa_sums(euk_ps.ambig) >= 10, euk_ps.ambig) 
 
 #total eukaryote (18S) dataset
-euk_ps.tot <- subset_taxa(euk_ps, !is.na(Kingdom) & !Kingdom %in% c("Unassigned", "Bacteria", "Archaea") & !Phylum %in% c("Vertebrata") & !Class %in% c("Embryophyta"))
+euk_ps.tot <- subset_taxa(euk_ps, !is.na(Domain) & !Domain %in% c("Unassigned", "Bacteria", "Archaea") & !Phylum %in% c("Vertebrata") & !Class %in% c("Embryophyta"))
 euk_ps.tot <- prune_taxa(taxa_sums(euk_ps.tot) >= 10, euk_ps.tot) 
 
 #make a micrometazoa phyloseq object
-ps.mm <- subset_taxa(euk_ps, !is.na(Kingdom) & !Kingdom %in% c("Unassigned", "Bacteria", "Archaea") & Phylum %in% c("Tardigrada", "Rotifera", "Nematozoa") & !Class %in% c("Embryophyta"))
+ps.mm <- subset_taxa(euk_ps, !is.na(Domain) & !Domain %in% c("Unassigned", "Bacteria", "Archaea") & Phylum %in% c("Tardigrada", "Rotifera", "Nematozoa") & !Class %in% c("Embryophyta"))
 ps.mm <- prune_taxa(taxa_sums(ps.mm) >= 10, ps.mm) 
 
 

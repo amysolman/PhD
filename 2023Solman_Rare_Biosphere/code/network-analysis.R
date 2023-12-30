@@ -16,7 +16,7 @@
 
 # Method 
 
-#16S and 18S rRNA datasets were merged prior to network analysis. A co-occurrence network was constructed based on Spearman’s rank correlation between ASVs using rcorr function of Hmisc package (Harrell and Dupont, 2022). The analysis was carried out using ASVs present in at least 20% of samples to reduce false high correlations (Berry and Widder, 2014). Strong positive correlations (ρ > 0.7, fdr-adjusted p value < 0.01) between ASVs were exported using igraph package (Csardi and Nepusz, 2006). Node (ASV) level properties including degree, betweenness centrality, eigenvector centrality and closeness centrality were calculated. Subgraphs were generated for abundant and rare subcommunities to calculate total and subcommunity network level properties including average degree, clustering coefficient, average path length (APL), density, diameter, modularity, number of nodes and number of edges. The number of connections between subcommunities was calculated. The stat_compare_means function from the ggpubr package (Kassambara and Kassambara, 2020) was used to compare mean node properties between abundant and rare subcommunities. 1000 Erdös–Réyni random networks were constructed with the same number of nodes and edges as the real network. The mean degree, clustering coefficient, APL, density, diameter and modularity were calculated for each random network. Structural properties of the real and random network were compared to determine the degree of randomness in the real network. Most real-world networks are scale-free. A scale-free network is a network whose degrees follow a power-law distribution, that is, a small fraction of nodes has many connections and a large number of nodes have a small number of connections. In a random network there is an equitable distribution of connections between nodes, that is, most nodes have an average number of degrees (i.e. Poisson distribution). To test if the real network exhibited scale-free characteristics the power law distribution was fit to the real network, a random network and a scale-free network. Network visualisation and modular analysis were carried out using the interactive platform Gephi (Bastian et al., 2009) and the ggtern package in R. The Louvain algorithm used to characterise modules. Keystone taxa were identified as those with standardized high degree abundance, high closeness centrality and low betweenness centrality (Berry and Widder, 2014; Banerjee et al., 2018).  
+#16S and 18S rRNA datasets were merged prior to network analysis. A co-occurrence network was constructed based on Spearman’s rank correlation between ASVs using rcorr function of Hmisc package (Harrell and Dupont, 2022). The analysis was carried out using ASVs present in at least 20% of samples to reduce false high correlations (Berry and Widder, 2014). Strong positive correlations (ρ > 0.7, fdr-adjusted p value < 0.01) between ASVs were exported using igraph package (Csardi and Nepusz, 2006). Node (ASV) level properties including Degree, Betweenness centrality, Eigenvector centrality and Closeness centrality were calculated. Subgraphs were generated for abundant and rare subcommunities to calculate total and subcommunity network level properties including average Degree, clustering coefficient, average path length (APL), density, diameter, modularity, number of nodes and number of edges. The number of connections between subcommunities was calculated. The stat_compare_means function from the ggpubr package (Kassambara and Kassambara, 2020) was used to compare mean node properties between abundant and rare subcommunities. 1000 Erdös–Réyni random networks were constructed with the same number of nodes and edges as the real network. The mean Degree, clustering coefficient, APL, density, diameter and modularity were calculated for each random network. Structural properties of the real and random network were compared to determine the Degree of randomness in the real network. Most real-world networks are scale-free. A scale-free network is a network whose Degrees follow a power-law distribution, that is, a small fraction of nodes has many connections and a large number of nodes have a small number of connections. In a random network there is an equitable distribution of connections between nodes, that is, most nodes have an average number of Degrees (i.e. Poisson distribution). To test if the real network exhibited scale-free characteristics the power law distribution was fit to the real network, a random network and a scale-free network. Network visualisation and modular analysis were carried out using the interactive platform Gephi (Bastian et al., 2009) and the ggtern package in R. The Louvain algorithm used to characterise modules. Keystone taxa were identified as those with standardized high Degree abundance, high Closeness centrality and low Betweenness centrality (Berry and Widder, 2014; Banerjee et al., 2018).  
 
 
 # Results
@@ -93,8 +93,6 @@ ant.df = rbind(pro.ant.df, euk.ant.df)
 arc.df = rbind(pro.arc.df, euk.arc.df)
 
 
-# phylo1 = pro.ant
-# phylo2 = euk.ant
 #4. Merge 16S and 18S datasets
 ant.ps = merge_my_phylo_same_pole(pro.ant, euk.ant)
 arc.ps = merge_my_phylo_same_pole(pro.arc, euk.arc)
@@ -122,13 +120,9 @@ filter_me <- function(my_df, perc){
   return(asv_pres_trim)
 }  
 
-
-# my_df = data.frame(t(otu_table(arc.ps)), check.names=FALSE)
-# num = 6
-
 filter_me2 <- function(my_df, num){
   
-  #remove ASVs present in less than X% samples
+  #remove ASVs present in less than num samples
   df <- 1*(my_df>0) #presence/abundance df
   pres_vec <- vector() 
   asv_vec <- vector()
@@ -242,18 +236,18 @@ node_level_properties <- function(graph, abun_df){
   rownames(df)<-names(degree(cor_g))
   
   #name the colums the node-level topological features
-  colnames(df)<-c("degree","betweenness","closeness","eigenvector","category")
+  colnames(df)<-c("Degree","Betweenness","Closeness","Eigenvector","Subcommunity")
   
   #categorise the ASVs as rare, abundant or intermediate
-  df[intersect(names(degree(cor_g)),rare$ID),5]<-"rare"
-  df[intersect(names(degree(cor_g)),abundant$ID),5]<-"abundant"
-  df[intersect(names(degree(cor_g)),intermediate$ID),5]<-"intermediate" 
+  df[intersect(names(degree(cor_g)),rare$ID),5]<-"Rare"
+  df[intersect(names(degree(cor_g)),abundant$ID),5]<-"Abundant"
+  df[intersect(names(degree(cor_g)),intermediate$ID),5]<-"Intermediate" 
   
-  #get betweenness
+  #get Betweenness
   btw<-betweenness(cor_g)
-  #get closeness centrality
+  #get Closeness centrality
   cls<-closeness(cor_g)
-  #get eigenvector centrality
+  #get Eigenvector centrality
   egv<-evcent(cor_g)
   
   #put the topological features into the dataframe
@@ -270,11 +264,11 @@ node.prop.ant = node_level_properties(g.ant, ant.df)
 node.prop.arc = node_level_properties(g.arc, arc.df)
 
 node.prop.ant %>% 
-  dplyr::group_by(category) %>% 
+  dplyr::group_by(Subcommunity) %>% 
   dplyr::summarise(across(everything(), list(mean)))
 
 node.prop.arc %>% 
-  dplyr::group_by(category) %>% 
+  dplyr::group_by(Subcommunity) %>% 
   dplyr::summarise(across(everything(), list(mean)))
 
 
@@ -289,13 +283,13 @@ network_level_properties <- function(graph, node_df){
   df <- node_df
   
   #subset the node level dataframe by rare ASVs
-  a<-subset(df,category=="rare")
+  a<-subset(df,Subcommunity=="Rare")
   g_ra<-induced_subgraph(cor_g,rownames(a))
   #abundant
-  a<-subset(df,category=="abundant")
+  a<-subset(df,Subcommunity=="Abundant")
   g_abd<-induced_subgraph(cor_g,rownames(a))
   #intermediate
-  a<-subset(df,category=="intermediate")
+  a<-subset(df,Subcommunity=="Intermediate")
   g_int<-induced_subgraph(cor_g,rownames(a))
   
   #number of nodes (a.k.a. vertices/ASVs)
@@ -310,7 +304,7 @@ network_level_properties <- function(graph, node_df){
   gsize(g_abd) 
   gsize(g_int)
   
-  #mean node degree (number of edges), clustering coefficient (probability that the adjacent vertices of a vertex   are connected), average path length, modularity, density, network diameter 
+  #mean node Degree (number of edges), clustering coefficient (probability that the adjacent vertices of a vertex   are connected), average path length, modularity, density, network diameter 
   #create a dataframe to store out network features
   net_df<-as.data.frame(matrix(NA,ncol=8,nrow=4))
   
@@ -339,6 +333,9 @@ net.df.ant = network_level_properties(g.ant, node.prop.ant)
 net.df.arc = network_level_properties(g.arc, node.prop.arc)
 
 #9. Random network analysis
+
+# graph = g.ant
+# net_df = net.df.ant
 
 random_network <- function(graph, net_df){
   
@@ -436,12 +433,24 @@ final.net.df = rbind(df1, df2)
 #add edge/node ratio
 final.net.df$EdgeNodeRatio = round(final.net.df$Edges/final.net.df$Nodes, 3)
 
+#export
+write.csv(final.net.df, "../results/network-features.csv")
+
+#save the test results for significant differences between random and real network properties
+export_res = rbind(rand.ant[[2]], rand.arc[[2]])
+export_res = cbind(Group=c(rep("Antarctic", nrow(rand.ant[[2]])), rep("Arctic", nrow(rand.arc[[2]]))), export_res)
+
+write.csv(export_res, "../results/random-real-network-difference-pvals.csv")
+
 #10. Scale-free characteristics analysis
 
 # Function for finding if our network exhibits scale-free characteristics
 # Code taken from http://chengjun.github.io/web_data_analysis/demo2_simulate_networks/
 
-scale_free_characteristics <- function(graph){
+# graph = g.ant
+# nam = "Antarctic"
+
+scale_free_characteristics <- function(graph, nam){
   
   cor_g <- graph
   
@@ -449,22 +458,22 @@ scale_free_characteristics <- function(graph){
   fit_power_law = function(graph, network) {
     
     set.seed(666)
-    # calculate degree
+    # calculate Degree
     d = degree(graph, mode = "all")
     dd = degree.distribution(graph, mode = "all", cumulative = FALSE)
-    degree = 1:max(d)
+    Degree = 1:max(d)
     probability = dd[-1]
     # delete blank values
     nonzero.position = which(probability != 0)
     probability = probability[nonzero.position]
-    degree = degree[nonzero.position]
-    reg = lm(log(probability) ~ log(degree))
+    Degree = Degree[nonzero.position]
+    reg = lm(log(probability) ~ log(Degree))
     cozf = coef(reg)
     power.law.fit = function(x) exp(cozf[[1]] + cozf[[2]] * log(x))
     alpha = -cozf[[2]]
     R.square = summary(reg)$r.squared
     
-    res.list = list(probability, degree, cozf, d, alpha, R.square)
+    res.list = list(probability, Degree, cozf, d, alpha, R.square)
     
     return(res.list)
   }
@@ -488,29 +497,33 @@ scale_free_characteristics <- function(graph){
   power.law.fit3 = function(x) exp(random.res[[3]][[1]] + random.res[[3]][[2]] * log(x))
   
   #plot
-  par(mfrow=c(1,3), mai = c(0.2, 0.2, 0.2, 0.2))
+  pdf(paste("../results/", nam, "-scale-free-network-plot.pdf"), width=10, height=6)
+  par(mfrow=c(1,3), mai = c(0.2, 0.2, 0.2, 0.2), mar=c(6, 4, 6, 2) + 0.1)
   plot(real.res[[1]] ~ real.res[[2]], log = "xy", xlab = "Degree (log)", ylab = "Probability (log)",
-       col = 1, main = "A")
+       col = 1, main = "Real", ylim=c(0.002,0.5))
   curve(power.law.fit1, col = "red", add = T, n = length(real.res[[4]]))
   text(x=min(real.res[[2]]), y=min(real.res[[1]])*1.3, adj = 0, labels=paste0("alpha = ", round(real.res[[5]], 2)))
   text(x=min(real.res[[2]]), y=min(real.res[[1]]), adj = 0, labels=paste0("R2 = ", round(real.res[[6]], 2)))
   plot(scale.res[[1]] ~ scale.res[[2]], log = "xy", xlab = "Degree (log)", ylab = "Probability (log)",
-       col = 1, main = "B")
+       col = 1, main = "Scale-Free", ylim=c(0.002,0.5))
   curve(power.law.fit2, col = "red", add = T, n = length(scale.res[[4]]))
   text(x=min(scale.res[[2]]), y=min(scale.res[[1]])*1.3, adj = 0,labels=paste0("alpha = ", round(scale.res[[5]], 2)))
   text(x=min(scale.res[[2]]), y=min(real.res[[1]]), adj = 0,labels=paste0("R2 = ", round(scale.res[[6]], 2)))
   plot(random.res[[1]] ~ random.res[[2]], log = "xy", xlab = "Degree (log)", ylab = "Probability (log)",
-       col = 1, main = "C")
+       col = 1, main = "Random", ylim=c(0.002,0.5))
   curve(power.law.fit3, col = "red", add = T, n = length(random.res[[4]]))
   text(x=min(random.res[[2]]), y=min(random.res[[1]])*1.3, adj = 0,labels=paste0("alpha = ", round(random.res[[5]], 2)))
   text(x=min(random.res[[2]]), y=min(random.res[[1]]), adj = 0,labels=paste0("R2 = ", round(random.res[[6]], 2)))
+  mtext(nam, side = 3, line = -1.5, outer = TRUE)
+  dev.off()
   
   return(res.list=list(real.res[[6]], scale.res[[6]], random.res[[6]]))
 }
 
 
-ant.scale.ran.res = scale_free_characteristics(g.ant)
-arc.scale.ran.res = scale_free_characteristics(g.arc)
+ant.scale.ran.res = scale_free_characteristics(g.ant, "Antarctic")
+arc.scale.ran.res = scale_free_characteristics(g.arc, "Arctic")
+
 
 #functions for filling in my results
 r_val_fit <- function(r_val){
@@ -543,7 +556,7 @@ r_val_rand2 <- function(r_val1, r_val2){
 }
 
 
-#The degree distribution of the Antarctic network `r r_val_fit(ant.scale.ran.res[[1]])` to the power-law model (R2=`r round(ant.scale.ran.res[[1]], 3)`), indicating that the network `r r_val_rand(ant.scale.ran.res[[1]])` non-random and with scale-free characteristics. It performed `r r_val_rand2(ant.scale.ran.res[[1]], ant.scale.ran.res[[3]])` than the random network (R2=`r round(ant.scale.ran.res[[3]], 3)`), suggesting it `r r_val_rand(ant.scale.ran.res[[1]])` non-random and scale free (Fig. 1). The degree distribution of the Arctic network `r r_val_fit(arc.scale.ran.res[[1]])` to the power-law model (R2=`r round(arc.scale.ran.res[[1]], 3)`), indicating that the network `r r_val_rand(arc.scale.ran.res[[1]])` non-random and with scale-free characteristics. It performed `r r_val_rand2(arc.scale.ran.res[[1]], arc.scale.ran.res[[3]])` than the random network (R2=`r round(arc.scale.ran.res[[3]], 3)`), suggesting it `r r_val_rand(arc.scale.ran.res[[1]])` non-random and scale free (Fig. 2). Compared with the 1000 Erdös-Réyni random networks, both the empirical networks exhibited greater modularity, clustering coefficient and  average path length (Table 1). This indicates the Arctic and Antarctic networks had “small world” properties and modular structure.
+#The Degree distribution of the Antarctic network `r r_val_fit(ant.scale.ran.res[[1]])` to the power-law model (R2=`r round(ant.scale.ran.res[[1]], 3)`), indicating that the network `r r_val_rand(ant.scale.ran.res[[1]])` non-random and with scale-free characteristics. It performed `r r_val_rand2(ant.scale.ran.res[[1]], ant.scale.ran.res[[3]])` than the random network (R2=`r round(ant.scale.ran.res[[3]], 3)`), suggesting it `r r_val_rand(ant.scale.ran.res[[1]])` non-random and scale free (Fig. 1). The Degree distribution of the Arctic network `r r_val_fit(arc.scale.ran.res[[1]])` to the power-law model (R2=`r round(arc.scale.ran.res[[1]], 3)`), indicating that the network `r r_val_rand(arc.scale.ran.res[[1]])` non-random and with scale-free characteristics. It performed `r r_val_rand2(arc.scale.ran.res[[1]], arc.scale.ran.res[[3]])` than the random network (R2=`r round(arc.scale.ran.res[[3]], 3)`), suggesting it `r r_val_rand(arc.scale.ran.res[[1]])` non-random and scale free (Fig. 2). Compared with the 1000 Erdös-Réyni random networks, both the empirical networks exhibited greater modularity, clustering coefficient and  average path length (Table 1). This indicates the Arctic and Antarctic networks had “small world” properties and modular structure.
 
 #In the Antarctic network, `r round(final.net.df$Nodes[3]/final.net.df$Nodes[1]*100, 2)`% of nodes were classified as abundant, `r round(final.net.df$Nodes[4]/final.net.df$Nodes[1]*100, 2)`% of nodes were classified as intermediate and `r round(final.net.df$Nodes[5]/final.net.df$Nodes[1]*100, 2)`% as rare. In the Arctic network, `r round(final.net.df$Nodes[8]/final.net.df$Nodes[6]*100, 2)`% of nodes were classified as abundant, `r round(final.net.df$Nodes[9]/final.net.df$Nodes[6]*100, 2)`% of nodes were classified as intermediate and `r round(final.net.df$Nodes[10]/final.net.df$Nodes[6]*100, 2)`% as rare.
 
@@ -556,7 +569,7 @@ network_tax <- function(phylo, node_df){
   #get taxa info of ASVs
   taxonomy <- data.frame(tax_table(phylo))
   network_taxa <- subset(taxonomy, rownames(taxonomy) %in% rownames(df))
-  network_taxa$Subcommunity = node_df$category
+  network_taxa$Subcommunity = node_df$Subcommunity
   
   out <- network_taxa %>%
     dplyr::group_by(Subcommunity, Class) %>% 
@@ -666,22 +679,22 @@ connections_between_communities<- function(graph, abun_df){
   #get abundance of ASV One
   for (i in 1:nrow(dat1)){
     if(dat1$var1[i] %in% rare$ID){
-      dat1$var3[i] <- "rare"
+      dat1$var3[i] <- "Rare"
     } else if(dat1$var1[i] %in% abundant$ID){
-      dat1$var3[i] <- "abundant"
+      dat1$var3[i] <- "Abundant"
     } else {
-      dat1$var3[i] <- "intermediate"
+      dat1$var3[i] <- "Intermediate"
     }
   }
   
   #get abundance of ASV Two
   for (i in 1:nrow(dat1)){
     if(dat1$var2[i] %in% rare$ID){
-      dat1$var4[i] <- "rare"
+      dat1$var4[i] <- "Rare"
     } else if(dat1$var2[i] %in% abundant$ID){
-      dat1$var4[i] <- "abundant"
+      dat1$var4[i] <- "Abundant"
     } else {
-      dat1$var4[i] <- "intermediate"
+      dat1$var4[i] <- "Intermediate"
     }
   }
   
@@ -698,92 +711,144 @@ connections_between_communities<- function(graph, abun_df){
 com.links.ant = connections_between_communities(g.ant, ant.df)
 com.links.arc = connections_between_communities(g.arc, arc.df)
 
+#export com links
+export_res = rbind(com.links.ant, com.links.arc)
+export_res = cbind(Group=c(rep("Antarctic", nrow(com.links.ant)), rep("Arctic", nrow(com.links.arc))), export_res)
+
+write.csv(export_res, "../results/subcommunity-associations.csv")
+
+
 #13. Find differences between subcommunities
 
-#node_df = node.prop.ant
+# node_df = node.prop.ant
+# pole = "Antarctic"
 
-signif_dif_nodes <- function(node_df){
+# node_df = node.prop.arc
+# pole = "Arctic"
+
+signif_dif_nodes <- function(node_df, pole){
   
   df <- node_df
+  df$Pole = pole
   
   # I reorder the groups order : I change the order of the factor 
-  df$category <- factor(df$category , levels=c("abundant", "intermediate", "rare"))
+  df$Subcommunity <- factor(df$Subcommunity , levels=c("Rare", "Intermediate", "Abundant"))
   
   #Degree
-  my_comparisons <- list( c("abundant", "intermediate"), c("intermediate", "rare"), c("abundant", "rare") )
+  my_comparisons <- list( c("Abundant", "Intermediate"), c("Intermediate", "Rare"), c("Abundant", "Rare") )
   
-  p1 <- ggboxplot(df, x = "category", y = "degree",
-                  fill = "category")+ 
+  p1 <- ggboxplot(df, x = "Subcommunity", y = "Degree", fill = "Subcommunity")+ 
     stat_compare_means(comparisons = my_comparisons)+
-    scale_fill_brewer(palette="Set1")
+    scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())+
+    facet_grid(~Pole)
+    #ylim(0,70)
+    #scale_color_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
   p1 = p1 + # Add pairwise comparisons p-value
     stat_compare_means(label.y = layer_scales(p1)$y$range$range[2]*1.1)  # Add global p-value
+  p1
   
   #Between
-  p2 <- ggboxplot(df, x = "category", y = "betweenness",
-                  fill = "category")+
+  df$log10betweenness = log10(df$Betweenness+0.001)
+  p2 <- ggboxplot(df, x = "Subcommunity", y = "log10betweenness",
+                  fill = "Subcommunity")+
     #ylim(0, 3000)+
     stat_compare_means(comparisons = my_comparisons)+
-    scale_fill_brewer(palette="Set1")
+    scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())+
+    ylab("log10(Betweenness+0.001)")+
+    facet_grid(~Pole)
+    #ylim(-3,7)
   p2 = p2 + # Add pairwise comparisons p-value
-    stat_compare_means(label.y = layer_scales(p2)$y$range$range[2]*1.1)  # Add global p-value
+    stat_compare_means(label.y = layer_scales(p2)$y$range$range[2]*1.2)  # Add global p-value
+  p2
   
   #Closeness
-  # df.close = df[order(df$closeness, decreasing = TRUE), ]
-  # df.close = df.close[27:nrow(df.close),]
-  p3 <- ggboxplot(df, x = "category", y = "closeness",
-                  fill = "category")+ 
+  df$log10closeness = log10(df$Closeness)
+  p3 <- ggboxplot(df, x = "Subcommunity", y = "log10closeness",
+                  fill = "Subcommunity")+ 
     #ylim(0, 0.6)+
     stat_compare_means(comparisons = my_comparisons)+
-    scale_fill_brewer(palette="Set1")
+    scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())+
+    ylab("log10(Closeness)")+
+    facet_grid(~Pole)
+    #ylim(-4,2)
+  
   p3 = p3 + # Add pairwise comparisons p-value
-    stat_compare_means(label.y = layer_scales(p3)$y$range$range[2]*1.1)  # Add global p-value
+    stat_compare_means(label.y = layer_scales(p3)$y$range$range[2]*1.5)  # Add global p-value
+  p3
   
   #Eigenvector
-  p4 <- ggboxplot(df, x = "category", y = "eigenvector",
-                  fill= "category")+ 
+  df$log10eigenvector = log10(df$Eigenvector+0.001)
+  p4 <- ggboxplot(df, x = "Subcommunity", y = "log10eigenvector",
+                  fill= "Subcommunity")+ 
     #ylim(0, 0.01)+
     stat_compare_means(comparisons = my_comparisons)+
-    scale_fill_brewer(palette="Set1")
+    scale_fill_manual(values=c("#82ca81", "#74a9d8", "#ef7a76"))+
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())+
+    ylab("log10(Eigenvector+0.001)")+
+    facet_grid(~Pole)
+    #ylim(-3,1)
+  
   p4 = p4 + # Add pairwise comparisons p-value
-    stat_compare_means(label.y = layer_scales(p4)$y$range$range[2]*1.1)  # Add global p-value
+    stat_compare_means(label.y = layer_scales(p4)$y$range$range[2]*1.5)  # Add global p-value
+  p4
+  
+  #combine plots
+  multi.p = plot_grid(p1,p2,p3,p4, ncol=1)
   
   
-  
-  return(res.list=list(p1, p2, p3, p4))
+  return(res.list=list(p1, p2, p3, p4, multi.p))
   
 }
 
-ant.plots = signif_dif_nodes(node.prop.ant)
-arc.plots = signif_dif_nodes(node.prop.arc)
+ant.plots = signif_dif_nodes(node.prop.ant, "Antarctic")
+arc.plots = signif_dif_nodes(node.prop.arc, "Arctic")
 
 prow <- plot_grid(
   ant.plots[[1]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()),
+  arc.plots[[1]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank(), axis.title.y = element_blank()),
   ant.plots[[2]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()),
+  arc.plots[[2]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank(), axis.title.y = element_blank()),
   ant.plots[[3]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()),
+  arc.plots[[3]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank(), axis.title.y = element_blank()),
   ant.plots[[4]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()),
-  arc.plots[[1]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()),
-  arc.plots[[2]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()),
-  arc.plots[[3]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()),
-  arc.plots[[4]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank()),
-  #align = 'vh',
-  labels = c("A", "B", "C", "D", "E", "F", "G", "H"),
-  hjust = -1,
-  nrow = 2
+  arc.plots[[4]] + theme(legend.position="none", axis.text.x=element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank(), axis.title.y = element_blank()),
+  align = 'vh',
+  #labels = c("A", "B", "C", "D", "E", "F", "G", "H"),
+  hjust = -3,
+  nrow = 4
 )
+prow
+
+
 
 legend_b <- get_legend(ant.plots[[1]] + 
-                         guides(color = guide_legend(nrow = 1, override.aes = list(size = 3),title=NULL)) +
+                         guides(fill = guide_legend(nrow = 1, override.aes = list(size = 10),title=NULL)) +
                          theme(legend.position = "bottom",
-                               axis.text.y=element_text(size=7),
-                               axis.title.y=element_text(size=7,face="bold"),
-                               legend.text = element_text(size=7), 
+                               axis.text.y=element_text(size=20),
+                               axis.title.y=element_text(size=20,face="bold"),
+                               legend.text = element_text(size=20), 
                                legend.title = element_blank())
 )
 
 final.p = plot_grid(prow, legend_b, ncol = 1, rel_heights = c(1, .1))
 
 final.p
+
+#save plot
+pdf("../results/node-properties-plot.pdf", width=7, height=14)
+print(final.p)
+dev.off()
 
 #14. Identify keystone taxa
 # phylo = ant.ps
@@ -796,22 +861,22 @@ get_keys <- function(phylo, node_df, num, pole){
   #Get taxonomy of most highly connected/influential nodes
   tax.df = network_tax(phylo, node_df)
   
-  #remove abundance category 
+  #remove abundance Subcommunity 
   node_edit = node_df[1:ncol(node_df)-1]
   
   #standardize the values by transforming into Z scores
   z_scores = as.data.frame(sapply(node_edit, function(df) (df-mean(df))/sd(df)))
   row.names(z_scores) = row.names(node_edit)
   
-  #Get keystone taxa score - highest degree, closeness and lowest betweenness 
-  keystone_scores = as.data.frame(z_scores$degree+z_scores$closeness-z_scores$betweenness)
+  #Get keystone taxa score - highest Degree, Closeness and lowest Betweenness 
+  keystone_scores = as.data.frame(z_scores$Degree+z_scores$Closeness-z_scores$Betweenness)
   row.names(keystone_scores) = row.names(node_edit)
-  keystone_scores$category = node_df$category
+  keystone_scores$Subcommunity = node_df$Subcommunity
   
   #Add taxonomy 
   new.tax.df = cbind(keystone_scores, tax.df[[1]])
   
-  high.z <- new.tax.df[order(-new.tax.df$`z_scores$degree + z_scores$closeness - z_scores$betweenness`),] #sort by number of degrees
+  high.z <- new.tax.df[order(-new.tax.df$`z_scores$Degree + z_scores$Closeness - z_scores$Betweenness`),] #sort by number of Degrees
   high.z.keep = head(high.z, num)
   high.z.keep2 = high.z.keep[,1:ncol(high.z.keep)-1]
   names(high.z.keep2) = c("Score", "Subcommunity", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
@@ -831,12 +896,12 @@ get_keys2 <- function(phylo, node_df, num1, num2, pole){
   #Get taxonomy of most highly connected/influential nodes
   tax.df = network_tax(phylo, node_df)
   
-  #remove abundance category 
+  #remove abundance Subcommunity 
   node_edit = node_df[1:ncol(node_df)-1]
   new.tax.df = cbind(node_edit, tax.df[[1]])
   
-  #Key taxa with more than num degrees and less than 5000 betweenness centrality
-  node_edit_final = new.tax.df[new.tax.df$degree > num1 & new.tax.df$betweenness < num2,]
+  #Key taxa with more than num Degrees and less than 5000 Betweenness centrality
+  node_edit_final = new.tax.df[new.tax.df$Degree > num1 & new.tax.df$Betweenness < num2,]
   
   write.csv(node_edit_final, paste0("../results/", pole , "-keystone-taxa.csv"))
   
@@ -846,9 +911,20 @@ get_keys2 <- function(phylo, node_df, num1, num2, pole){
 
 ant.keys = get_keys2(ant.ps, node.prop.ant, 30, 5000, "Antarctic")
 arc.keys = get_keys2(arc.ps, node.prop.arc, 30, 5000, "Arctic")
+                                                                 
+#export keystone taxa
+export_res = rbind(ant.keys, arc.keys)
+export_res = cbind(Group=c(rep("Antarctic", nrow(ant.keys)), rep("Arctic", nrow(arc.keys))), export_res)
 
-table(arc.keys$Class)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+write.csv(export_res, "../results/keystone-taxa.csv")
+
+sort(table(export_res$Subcommunity)) 
+table(export_res$Domain)   
+sort(table(export_res$Phylum)) 
+sort(table(export_res$Class)) 
+sort(table(export_res$Order)) 
+sort(table(export_res$Family)) 
+sort(table(export_res$Genus)) 
+
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            

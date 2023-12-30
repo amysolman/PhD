@@ -337,7 +337,7 @@ df$Subcommunity = "Rare"
 keep.df = rbind(keep.df, df)
 
 keep.df$group = factor(keep.df$group, levels = c("Prokaryote", "Eukaryote"))
-keep.df$pole = factor(keep.df$pole, levels = c("Arctic", "Antarctic"))
+keep.df$pole = factor(keep.df$pole, levels = c("Antarctic", "Arctic"))
 
 
 #Combine plots
