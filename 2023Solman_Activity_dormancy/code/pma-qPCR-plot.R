@@ -1,3 +1,11 @@
+#This script provides:
+#1. Removes anomalous results.
+#2. Calculate proportion of reads for each sample from iDNA.
+#3. Plots gene abundances for iDNA and tDNA for each sample. 
+#4. Calculates mean and sd gene abundances per mL or mg for treated (iDNA) and untreated (tDNA) samples for each habitat.
+#5. Performs statistical test for differences in abundance of iDNA and tDNA genes for all habitats, spring habitats and summer habitats.
+
+
 #Clear workspace
 rm(list=ls())
 graphics.off()
@@ -16,9 +24,13 @@ df2 = read.csv("../data/qPCR-mean.csv", sep="\t")
 df$Habitat = factor(df$Habitat, levels=c("Snow", "Spring Ice", "Summer Ice", "Cryoconite", "Control"))
 df2$Habitat = factor(df2$Habitat, levels=c("Snow", "Spring Ice", "Summer Ice", "Cryoconite", "Control"))
 
+##################################################################################################################
+#1. Removes anomalous results.
 #remove the anomolous result
-#df = df[df$Sample != "S21.30",]
+df = df[df$Sample != "S21.30",]
 
+##################################################################################################################
+#2. Calculate proportion of reads for each sample from iDNA.
 ###################What proportion of reads from each sample was from tDNA and iDNA??????
 #group by sample and treatment
 #subtract iDNA reads from tDNA reads
@@ -29,7 +41,7 @@ df.p = df %>%
 #into wide format
 #reshape(df.p, idvar = "Sample", timevar = "Treatment", direction = "wide")
 
-dif = vector()
+dif = vector() #vector for storing the difference in number of reads from sum
 pro = vector()
 
 for (i in 1:length(unique(df.p$Sample))){
@@ -41,6 +53,13 @@ for (i in 1:length(unique(df.p$Sample))){
 }
 
 x = cbind(unique(df.p$Sample), dif, pro)
+
+#save these results
+write.csv(x, "../results/pma-proportion-idna-tdna.csv")
+
+##################################################################################################################
+
+#3. Plots gene abundances for iDNA and tDNA for each sample. 
 
 #plot
 p = ggplot(df) +
@@ -60,7 +79,7 @@ p = ggplot(df) +
         strip.text = element_text(size=15))
 
 #save the plot
-pdf("../results/qPCR-plot.pdf", height=5, width=15)
+pdf("../results/pma-qPCR-plot.pdf", height=5, width=15)
 print(p)
 dev.off()
 
@@ -82,7 +101,7 @@ p2 = ggplot(df2) +
         strip.text = element_text(size=15))
 
 #save the plot
-pdf("../results/qPCR-plot2.pdf", height=5, width=15)
+pdf("../results/pma-qPCR-plot2.pdf", height=5, width=15)
 print(p2)
 dev.off()
 
@@ -98,58 +117,58 @@ idna <- subset(df2,  Treatment == "iDNA", Gene.Copies.Per.mL.mg,
 pd <- paired(tdna, idna)
 plot(pd, type = "profile") + theme_bw()
 
+##################################################################################################################
+
+#4. Calculates mean and sd gene abundances per mL or mg for treated (iDNA) and untreated (tDNA) samples for each habitat.
 
 #basic stats
-group_by(df2, Treatment, Habitat) %>%
+sum_stats = group_by(df2, Treatment, Habitat) %>%
   summarise(
     count = n(),
     mean = mean(Gene.Copies.Per.mL.mg, na.rm = TRUE),
     median = median(Gene.Copies.Per.mL.mg, na.rm = TRUE),
-    IQR = IQR(Gene.Copies.Per.mL.mg, na.rm = TRUE)
+    IQR = IQR(Gene.Copies.Per.mL.mg, na.rm = TRUE),
+    sd = sd(Gene.Copies.Per.mL.mg, na.rm = TRUE)
   )
 
+#save results
+write.csv(sum_stats, "../results/pma-qpcr-summary-stats.csv")
+
+##################################################################################################################
+
+#5. Performs statistical test for differences in abundance of iDNA and tDNA genes for all habitats, spring habitats and summer habitats.
 #statistical difference between gene copies in treated and untreated samples
 
 #remove anomolous result
-df2 = df2[df2$Sample != "S21.30",]
+#df2 = df2[df2$Sample != "S21.30",]
 
 #is the data normally distributed?
 
 # compute the difference
-d <- with(df2, 
+d <- with(df, 
           Gene.Copies.Per.mL.mg[Treatment == "tDNA"] - Gene.Copies.Per.mL.mg[Treatment == "iDNA"])
 # Shapiro-Wilk normality test for the differences
 shapiro.test(d) # => p-value < 0.05 so the data is not normally distributed
+
+#get the data
+x = df[df$Treatment == "iDNA",]$Gene.Copies.Per.mL.mg
+y = df[df$Treatment == "tDNA",]$Gene.Copies.Per.mL.mg
 
 #parametric paired sample t test
 #t.test(Gene.Copies.Per.mL.mg ~ Treatment, paired = TRUE, data = df)
 
 #nonparametric paired sample Wilcoxon test
-wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df2, paired = TRUE) #no significant difference between 
-
-
-#nonparametic paired sample Wilcoxon test (is the median gene number in samples treated with PMA (iDNA) 
-#less than untreated samples (tDNA)?)
-# x = df2[df2$Treatment == "iDNA",]
-# y = df2[df2$Treatment == "tDNA",]
-# wilcox.test(x$Gene.Copies.Per.mL.mg, y$Gene.Copies.Per.mL.mg, paired = TRUE,
-#                    alternative="less")
-
-#nonparametic paired sample Wilcoxon test (is the median gene number in samples treated with PMA (iDNA) 
-#greater than untreated samples (tDNA)?)
-# wilcox.test(x$Gene.Copies.Per.mL.mg, y$Gene.Copies.Per.mL.mg, paired = TRUE,
-#             alternative="greater")
-
-#these results suggest that overall the PMA treated samples had a significantly higher number of gene copies per mL/g sample than PMA un-treated samples
+wilcox.test(x, y, paired = TRUE) #no significant difference between 
 
 #what does this look like per group?
-sn <- wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df2[df2$Habitat == "Snow",], paired = TRUE)
-sn  
-sp <- wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df2[df2$Habitat == "Spring Ice",], paired = TRUE)
-sp  
-sm <- wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df2[df2$Habitat == "Summer Ice",], paired = TRUE)
+#this doesn't work for snow and spring ice because we don't have enough datapoints
+# sn <- wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df[df$Habitat == "Snow",], paired = TRUE)
+# sn  
+# sp <- wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df[df$Habitat == "Spring Ice",], paired = TRUE)
+# sp  
+sm <- wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df[df$Habitat == "Summer Ice",], paired = TRUE)
 sm  
-cr <- wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df2[df2$Habitat == "Cryoconite",], paired = TRUE)
+cr <- wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df[df$Habitat == "Cryoconite",], paired = TRUE)
 cr  
 
 #what happens if we test spring and summer samples separately?
@@ -157,20 +176,5 @@ cr
 wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df[df$Season == "Spring",], paired = TRUE)
 wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df[df$Season == "Summer",], paired = TRUE)
 
-#Spring
-x = df[df$Season == "Spring" & df$Treatment == "iDNA",]
-y = df[df$Season == "Spring" & df$Treatment == "tDNA",]
-wilcox.test(x$Gene.Copies.Per.mL.mg, y$Gene.Copies.Per.mL.mg, paired = TRUE)
-
-#Summer
-x = df[df$Season == "Summer" & df$Treatment == "iDNA",]
-y = df[df$Season == "Summer" & df$Treatment == "tDNA",]
-wilcox.test(x$Gene.Copies.Per.mL.mg, y$Gene.Copies.Per.mL.mg, paired = TRUE, alternative = "less")
-
-#test for differences between individual pairs
-data = df[df$Sample == "S21.29",]
-x = data[data$Treatment == "iDNA",]
-y = data[data$Treatment == "tDNA",]
-wilcox.test(x$Gene.Copies.Per.mL.mg, y$Gene.Copies.Per.mL.mg, paired = TRUE)
-
-
+#there is a significant difference for summer samples overall so which is it?
+wilcox.test(Gene.Copies.Per.mL.mg ~ Treatment, data = df[df$Season == "Summer",], paired = TRUE, alternative="less")= 0

@@ -4,11 +4,10 @@
 # 2. Import data
 # 3. Sort metadata
 # 4. Sort taxonomy table
-# 5. Raw data basic stats: total reads per dataset, number of unique ASVs
-# 6. Convert data into phyloseq objects
-# 7. Remove ambiguous annotations and singletons
-# 8. Re-root tree 
-# 9. Save phyloseq objects
+# 5. Convert data into phyloseq objects
+# 6. Remove ambiguous annotations and singletons
+# 7. Re-root tree 
+# 8. Save phyloseq objects
 
 
 #1. Clear workspace and load packages
@@ -98,19 +97,7 @@ euk_taxa_tab <- euk_tax %>%
   dplyr::select(-Taxon, -Confidence) %>%
   column_to_rownames(var='Feature ID')
 
-#5. Raw data basic stats: total reads per dataset, number of unique ASVs
-
-#how many 16S reads
-sum(pro_samp.counts$Reads)
-#how many 18S reads
-nrow(pro_count_table)
-
-#how many 18S reads
-sum(euk_samp.counts$Reads)
-#how many ASVs
-nrow(euk_count_table)
-
-#6. Convert data into phyloseq objects
+#5. Convert data into phyloseq objects
 
 pro_ASV = otu_table(as.matrix(pro_count_table), taxa_are_rows = TRUE)
 pro_TAX = tax_table(as.matrix(pro_taxa_tab))
@@ -130,7 +117,7 @@ euk_TREE = euk_tree
 euk_ps <- phyloseq(euk_ASV, euk_TAX, euk_META, euk_TREE)
 euk_ps
 
-#7. Remove ambiguous annotations and singletons
+#6. Remove ambiguous annotations and singletons
 
 pro_ps.ambig <- subset_taxa(pro_ps, !is.na(Domain) & !Domain %in% c("Unassigned", "Eukayote") & !is.na(Phylum) & !Order %in% c("Chloroplast") & !Family %in% c("Mitochondria"))
 pro_ps.ambig
@@ -142,25 +129,14 @@ pro_ps.ambig
 
 
 #eukaryote dataset with micrometazoan's removed.
-euk_ps.ambig <- subset_taxa(euk_ps, !is.na(Domain) & !Domain %in% c("Unassigned", "Bacteria", "Archaea") & !is.na(Phylum) & !Phylum %in% c("Vertebrata", "Arthropoda") & !Class %in% c("Embryophyta") & !Family %in% c("Mitochondria"))
+euk_ps.ambig <- subset_taxa(euk_ps, !is.na(Domain) & !Domain %in% c("Unassigned", "Bacteria", "Archaea") & !is.na(Phylum) & !Phylum %in% c("Vertebrata", "Arthropoda", "Tardigrada", "Rotifera", "Nematozoa") & !Class %in% c("Embryophyta") & !Family %in% c("Mitochondria"))
 euk_ps.ambig <- prune_taxa(taxa_sums(euk_ps.ambig) >= 1, euk_ps.ambig) 
 
 #compare before and after
 euk_ps
 euk_ps.ambig
 
-#What was removed from our original phyloseq objects?
-
-#Domains of the 16S dataset
-table(pro_taxa_tab$Domain) #mostly bacteria
-
-#orders of the 16S dataset
-sort(table(pro_taxa_tab$Order), decreasing = TRUE) #quite a few chloroplasts
-
-#Domains of the original 18S dataset
-table(euk_taxa_tab$Domain) #mostly eukaryotes
-
-#8. Re-root tree. Use this function > (https://john-quensen.com/r/unifrac-and-tree-roots/) < picks longest branch
+#7. Re-root tree. Use this function > (https://john-quensen.com/r/unifrac-and-tree-roots/) < picks longest branch
 
 # First define the function from link above to find furthest outgroup
 pick_new_outgroup <- function(tree.unrooted){
@@ -196,6 +172,6 @@ euk_new_tree_dich <- ape::multi2di(euk_new_tree_root)
 phy_tree(euk_ps.ambig) <- euk_new_tree_dich
 
 
-#9. Save phyloseq objects
+#8. Save phyloseq objects
 saveRDS(pro_ps.ambig, "../results/pma-16S-phylo-object.rds")
 saveRDS(euk_ps.ambig, "../results/pma-18S-phylo-object.rds")

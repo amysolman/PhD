@@ -6,23 +6,14 @@ library(dendextend)
 library(pairwiseAdonis)
 
 # 2. Import data
-pro <- readRDS("../results/16S-phylo-object-norm-rare.rds") 
-#remove control samples
-pro = subset_samples(pro, Habitat != "Control")
-#remove taxa with zero countrs
-pro = filter_taxa(pro, function(x) sum(x) > 0, TRUE)
-#remove samples with zero counts
-pro = prune_samples(sample_sums(pro)>=1, pro)
-
-euk <- readRDS("../results/18S-phylo-object-norm-rare.rds") 
-#remove control samples
-euk = subset_samples(euk, Habitat != "Control")
-#remove taxa with zero countrs
-euk = filter_taxa(euk, function(x) sum(x) > 0, TRUE)
-#remove samples with zero counts
-euk = prune_samples(sample_sums(euk)>=1, euk)
+pro <- readRDS("../results/pma-16S-phylo-object-norm-rare.rds") 
+euk <- readRDS("../results/pma-18S-phylo-object-norm-rare.rds") 
 
 #PERMANOVA function
+phylo = pro
+habitat = gsub(" ", "", data.frame(sample_data(subset_samples(pro, Habitat == "Snow")))$R_Names)
+gene = "16S"
+hab_nam = "Snow"
 
 PERMANOVA_func <- function(phylo, habitat, gene, hab_nam){
   
@@ -36,6 +27,7 @@ PERMANOVA_func <- function(phylo, habitat, gene, hab_nam){
   
   #ADONIS test (a.k.a. PERMANOVA) for differences between ALL GROUPS 
   group.out = vegan::adonis2(bray_dist_matrix ~ phyloseq::sample_data(sub)$Treatment)
+  group.out
   #p > 0.05 no significant differences between groups
   #p < 0.05 significant differences between groups
   
@@ -65,21 +57,37 @@ PERMANOVA_func <- function(phylo, habitat, gene, hab_nam){
 #Run function
 
 #Pro snow
-pro.perm.snow <- PERMANOVA_func(pro, data.frame(sample_data(subset_samples(pro, Habitat == "Snow")))$R_Names, "16S", "Snow")
+pro.perm.snow <- PERMANOVA_func(pro, 
+                                gsub(" ", "", data.frame(sample_data(subset_samples(pro, Habitat == "Snow")))$R_Names),
+                                "16S", "Snow")
 #Pro spring ice
-pro.perm.sp <- PERMANOVA_func(pro, data.frame(sample_data(subset_samples(pro, Habitat == "Spring Ice")))$R_Names, "16S", "Spring Ice")
+pro.perm.sp <- PERMANOVA_func(pro, 
+                              gsub(" ", "", data.frame(sample_data(subset_samples(pro, Habitat == "Spring Ice")))$R_Names),
+                              "16S", "Spring Ice")
 #Pro summer ice
-pro.perm.sum <- PERMANOVA_func(pro, data.frame(sample_data(subset_samples(pro, Habitat == "Summer Ice")))$R_Names, "16S", "Summer Ice")
+pro.perm.sum <- PERMANOVA_func(pro, 
+                               gsub(" ", "", data.frame(sample_data(subset_samples(pro, Habitat == "Summer Ice")))$R_Names),
+                               "16S", "Summer Ice")
 #Pro cryoconite
-pro.perm.cry <- PERMANOVA_func(pro, data.frame(sample_data(subset_samples(pro, Habitat == "Cryoconite")))$R_Names, "16S", "Cryoconite")
+pro.perm.cry <- PERMANOVA_func(pro, 
+                               gsub(" ", "", data.frame(sample_data(subset_samples(pro, Habitat == "Cryoconite")))$R_Names),
+                               "16S", "Cryoconite")
 #euk snow
-euk.perm.snow <- PERMANOVA_func(euk, data.frame(sample_data(subset_samples(euk, Habitat == "Snow")))$R_Names, "18S", "Snow")
+euk.perm.snow <- PERMANOVA_func(euk, 
+                                gsub(" ", "", data.frame(sample_data(subset_samples(euk, Habitat == "Snow")))$R_Names),
+                                "18S", "Snow")
 #euk spring ice
-euk.perm.sp <- PERMANOVA_func(euk, data.frame(sample_data(subset_samples(euk, Habitat == "Spring Ice")))$R_Names, "18S", "Spring Ice")
+euk.perm.sp <- PERMANOVA_func(euk, 
+                              gsub(" ", "", data.frame(sample_data(subset_samples(euk, Habitat == "Spring Ice")))$R_Names),
+                              "18S", "Spring Ice")
 #euk summer ice
-euk.perm.sum <- PERMANOVA_func(euk, data.frame(sample_data(subset_samples(euk, Habitat == "Summer Ice")))$R_Names, "18S", "Summer Ice")
+euk.perm.sum <- PERMANOVA_func(euk, 
+                               gsub(" ", "", data.frame(sample_data(subset_samples(euk, Habitat == "Summer Ice")))$R_Names),
+                               "18S", "Summer Ice")
 #euk cryoconite
-euk.perm.cry <- PERMANOVA_func(euk, data.frame(sample_data(subset_samples(euk, Habitat == "Cryoconite")))$R_Names, "18S", "Cryoconite")
+euk.perm.cry <- PERMANOVA_func(euk, 
+                               gsub(" ", "", data.frame(sample_data(subset_samples(euk, Habitat == "Cryoconite")))$R_Names),
+                               "18S", "Cryoconite")
 
 #make group results into single dataframe
 final.df = rbind(pro.perm.snow[[1]],
@@ -97,4 +105,4 @@ final.df$F = round(final.df$F, 3)
 final.df$R2 = round(final.df$R2, 3)
 final.df = cbind(rownames(final.df), final.df)
 
-write.csv(final.df, paste("../results/PERMANOVA.csv"))
+write.csv(final.df, paste("../results/pma-PERMANOVA.csv"))

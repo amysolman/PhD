@@ -2,7 +2,7 @@
 
 #PMA Workflow
 
-#process the 16S and 18S amplicons via command line 
+#process the 16S and 18S amplicons via qiime2 in command line 
 #qiime2-pma
 
 #prep the amplicon data for analysis and create phyloseq objects
@@ -17,11 +17,32 @@ Rscript pma-normalisation.R
 #get community profiles
 Rscript pma-community-profiles.R
 
+#get figures about community structure
+Rscript pma-community-figures.R
+
+#alpha diversity analysis
+Rscript pma-alpha-diversity.R
+
+#beta diversity analysis with unconstrained ordination
+Rscript pma-unconstrained-ordination.R
+
+#test for significant differences in structure between viable and total communities
+Rscript pma-PERMANOVA.R
+
+#ASV-level viability ratios
+Rscript pma-idna-tdna-ratios.R
+
+#phylum-level viability ratios
+Rscript pma-phylum-idna-tdna-ratios.R
+
 #prep the qPCR data for analysis
-#python PMA-qPCR.py
+python pma-qPCR-data-prep.py
 
 #plot and test for significant differences
-#Rscript qPCR-plot.R
+Rscript pma-qPCR-plot.R
+
+#pma qPCR inhibition test
+Rscript pma-qPCR-inhibition-test.R
 
 #METATRANSCRIPTOMICS workflow
 

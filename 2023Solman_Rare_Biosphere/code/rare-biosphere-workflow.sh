@@ -12,6 +12,9 @@ Rscript MultiCoLA.R
 #create subcommunities
 Rscript define-subcommunities.R
 
+#community histograms
+Rscript community-histograms.R
+
 #explore community profiles
 Rscript community-profiles.R
 

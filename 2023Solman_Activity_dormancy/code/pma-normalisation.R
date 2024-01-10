@@ -16,6 +16,8 @@ library(dplyr)
 pro <- readRDS("../results/pma-16S-phylo-object-no-controls.rds")
 euk <- readRDS("../results/pma-18S-phylo-object-no-controls.rds")
 
+x = data.frame(tax_table(euk))
+
 #Normalise data
 
 sort(sample_sums(pro), decreasing = FALSE)
@@ -47,6 +49,10 @@ sink("../results/pma-asv-read-numbers.txt", type="output")
 writeLines("===============================================================
 NUMBER OF ASVS AND READS IN OUR PHYLOSEQ OBJECTS
 ===============================================================")
+writeLines("Prokaryote dataset rarefied to:")
+min(sample_sums(pro))
+writeLines("Eukaryote dataset rarefied to:")
+min(sample_sums(euk))
 writeLines("Number of ASVs in prokaryote dataset before rarefying:")
 ntaxa(pro)
 writeLines("Number of ASVs in prokaryote dataset after rarefying:")

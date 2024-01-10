@@ -12,21 +12,8 @@ library(betapart)
 library(dplyr)
 
 # 2. Import data
-pro <- readRDS("../results/16S-phylo-object-norm-rare.rds") 
-#remove control samples
-pro = subset_samples(pro, Habitat != "Control")
-#remove taxa with zero countrs
-pro = filter_taxa(pro, function(x) sum(x) > 0, TRUE)
-#remove samples with zero counts
-pro = prune_samples(sample_sums(pro)>=1, pro)
-
-euk <- readRDS("../results/18S-phylo-object-norm-rare.rds") 
-#remove control samples
-euk = subset_samples(euk, Habitat != "Control")
-#remove taxa with zero countrs
-euk = filter_taxa(euk, function(x) sum(x) > 0, TRUE)
-#remove samples with zero counts
-euk = prune_samples(sample_sums(euk)>=1, euk)
+pro <- readRDS("../results/pma-16S-phylo-object-norm-rare.rds") 
+euk <- readRDS("../results/pma-18S-phylo-object-norm-rare.rds") 
 
 
 #PROKARYOTE PCOA USING UNWEIGHTED UNIFRAC
@@ -35,10 +22,8 @@ euk = prune_samples(sample_sums(euk)>=1, euk)
 
 #subset samples
 sub = subset_samples(pro, Habitat == "Snow")
-
 #remove taxa with zero counts
 sub = filter_taxa(sub, function(x) sum(x) > 0, TRUE)
-
 #remove samples with zero counts
 sub = prune_samples(sample_sums(sub)>=1, sub)
 
@@ -71,14 +56,15 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p1 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Snow")
+  theme(legend.position="bottom", legend.title = element_blank())
+  #+ggtitle("Snow")
 
 print(p1)
 
@@ -122,14 +108,15 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p2 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Spring Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
+  #+ggtitle("Spring Ice")
 
 print(p2)
 
@@ -172,14 +159,15 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p3 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Summer Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
+  #+ggtitle("Summer Ice")
 
 print(p3)
 
@@ -222,21 +210,22 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p4 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Cryoconite")
+  theme(legend.position="bottom", legend.title = element_blank())
+  #+ggtitle("Cryoconite")
 
 print(p4)
 
 #put all the plots together
 pro.final.p = (p1 + p2) / (p3 + p4)
 
-pdf("../results/prokaryote-uunifrac-pcoa.pdf", height=8, width=10)
+pdf("../results/pma-prokaryote-uunifrac-pcoa.pdf", height=8, width=10)
 print(pro.final.p)
 dev.off()
 
@@ -285,14 +274,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p1 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Snow")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p1)
 
@@ -336,14 +325,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p2 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Spring Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p2)
 
@@ -386,14 +375,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p3 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Summer Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p3)
 
@@ -436,21 +425,21 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p4 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Cryoconite")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p4)
 
 #put all the plots together
 euk.final.p = (p1 + p2) / (p3 + p4)
 
-pdf("../results/eukaryote-uunifrac-pcoa.pdf", height=8, width=10)
+pdf("../results/pma-eukaryote-uunifrac-pcoa.pdf", height=8, width=10)
 print(euk.final.p)
 dev.off()
 
@@ -496,14 +485,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p1 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Snow")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p1)
 
@@ -547,14 +536,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p2 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Spring Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p2)
 
@@ -595,14 +584,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p3 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Summer Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p3)
 
@@ -643,21 +632,21 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p4 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Cryoconite")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p4)
 
 #put all the plots together
 pro.final.p = (p1 + p2) / (p3 + p4)
 
-pdf("../results/prokaryote-wunifrac-pcoa.pdf", height=8, width=10)
+pdf("../results/pma-prokaryote-wunifrac-pcoa.pdf", height=8, width=10)
 print(pro.final.p)
 dev.off()
 
@@ -703,14 +692,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p1 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Snow")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p1)
 
@@ -754,14 +743,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p2 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Spring Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p2)
 
@@ -804,14 +793,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p3 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Summer Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p3)
 
@@ -854,21 +843,21 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p4 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Cryoconite")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p4)
 
 #put all the plots together
 euk.final.p = (p1 + p2) / (p3 + p4)
 
-pdf("../results/eukaryote-wunifrac-pcoa.pdf", height=8, width=10)
+pdf("../results/pma-eukaryote-wunifrac-pcoa.pdf", height=8, width=10)
 print(euk.final.p)
 dev.off()
 
@@ -878,10 +867,8 @@ dev.off()
 
 #subset samples
 sub = subset_samples(pro, Habitat == "Snow")
-
 #remove taxa with zero counts
 sub = filter_taxa(sub, function(x) sum(x) > 0, TRUE)
-
 #remove samples with zero counts
 sub = prune_samples(sample_sums(sub)>=1, sub)
 
@@ -914,14 +901,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p1 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Snow")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p1)
 
@@ -965,14 +952,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p2 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Spring Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p2)
 
@@ -1015,14 +1002,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p3 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Summer Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p3)
 
@@ -1065,21 +1052,28 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p4 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Cryoconite")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p4)
 
-#put all the plots together
-pro.final.p = (p1 + p2) / (p3 + p4)
+#look at our plots
+p1
+p2
+p3
+p4
 
-pdf("../results/prokaryote-bray-pcoa.pdf", height=8, width=10)
+#put all the plots together
+pro.final.p = (p1 + ggtitle("Prokaryote") + p2 ) / (p3 + p4)
+pro.final.p
+
+pdf("../results/pma-prokaryote-bray-pcoa.pdf", height=8, width=10)
 print(pro.final.p)
 dev.off()
 
@@ -1126,28 +1120,23 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p1 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Snow")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p1)
 
 
 #SPRING ICE
-
 #subset samples
 sub = subset_samples(euk, Habitat == "Spring Ice")
-
-#x = data.frame(sample_data(sub))
-
 #remove taxa with zero counts
 sub = filter_taxa(sub, function(x) sum(x) > 0, TRUE)
-
 #remove samples with zero counts
 sub = prune_samples(sample_sums(sub)>=1, sub)
 
@@ -1177,14 +1166,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p2 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Spring Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p2)
 
@@ -1194,10 +1183,8 @@ print(p2)
 
 #subset samples
 sub = subset_samples(euk, Habitat == "Summer Ice")
-
 #remove taxa with zero counts
 sub = filter_taxa(sub, function(x) sum(x) > 0, TRUE)
-
 #remove samples with zero counts
 sub = prune_samples(sample_sums(sub)>=1, sub)
 
@@ -1227,14 +1214,14 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p3 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Summer Ice")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p3)
 
@@ -1277,37 +1264,40 @@ names(data2plot) = c("Sample", "pcoa1", "pcoa2",  "Habitat", "Treatment", "Sampl
 p4 = ggplot(data=data2plot) +
   geom_point(data=data2plot, aes(x=pcoa1, y=pcoa2, fill=SampleID, shape=Treatment),
              alpha=.5, size=3)+
+  facet_grid(cols = vars(Habitat))+
   labs(x=labels[1], y=labels[2])+
   theme_bw()+
   scale_shape_manual(values = c(21,23))+
   #scale_fill_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
   guides(fill=guide_legend(override.aes=list(shape=21), order = 1),
          shape = guide_legend(order = 2))+
-  theme(legend.position="bottom", legend.title = element_blank())+
-  ggtitle("Cryoconite")
+  theme(legend.position="bottom", legend.title = element_blank())
 
 print(p4)
 
-#put all the plots together
-euk.final.p = (p1 + p2) / (p3 + p4)
+p1
+p2
+p3
+p4
 
-pdf("../results/eukaryote-bray-pcoa.pdf", height=8, width=10)
+#put all the plots together
+euk.final.p = (p1 + ggtitle("Eukaryote") + p2 ) / (p3 + p4)
+euk.final.p
+
+pdf("../results/pma-eukaryote-bray-pcoa.pdf", height=8, width=10)
 print(euk.final.p)
 dev.off()
 
 #Combine Prokaryote and eukaryote bray-curtis PCoA plots
-
-final.p = (pro.final.p) / (euk.final.p) + plot_annotation(tag_levels = 'A') & 
-  theme(plot.tag = element_text(size = 25))
-final.p
+# pro.final.p
+# euk.final.p
+# final.p = pro.final.p / euk.final.p
 
 final.p = plot_grid(pro.final.p,
                     euk.final.p,
-                    nrow=2,
-                    labels="AUTO",
-                    label_size=25)
+                    nrow=2)
 final.p
 
-pdf("../results/pro-and-euk-bray-pcoa.pdf", height=15, width=10)
+pdf("../results/pma-pro-and-euk-bray-pcoa.pdf", height=15, width=10)
 print(final.p)
 dev.off()

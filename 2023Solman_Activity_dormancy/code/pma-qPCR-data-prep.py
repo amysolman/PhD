@@ -55,7 +55,7 @@ qpcr_df2 = qpcr_df.drop_duplicates()
 #2) Get metadata, replace "Below detection" values and combine with qPCR results
 
 #sample data file with volumes and weights
-samp_data = pd.read_csv("../data/metadata.csv")
+samp_data = pd.read_csv("../data/qpcr-metadata.csv")
 
 #replace "Below detection" values with half the lower limit of the HS Qubit Kit range (0.005/2 = 0.0025 ng/uL)
 samp_data = samp_data.replace('Below detection', 0.005/2)

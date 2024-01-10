@@ -30,9 +30,23 @@ euk.bar = plot_bar(euk) + theme(axis.text = element_text(size=65),
                                 plot.title = element_text(size=200),
                                 axis.title = element_text(size=70)) + ggtitle("Eukaryote")
 
+####################################################################################################################
 #mean reads per control sample and environment sample
-cont = mean(colSums(data.frame(otu_table(subset_samples(pro, Habitat == "Control")))))
-env = mean(colSums(data.frame(otu_table(subset_samples(pro, Habitat != "Control")))))
+#output results to text document
+sink("../results/pma-control-env-reads.txt", type="output")
+writeLines("===============================================================
+NUMBER OF READS IN CONTROL SAMPLES VS ENVIRONMENTAL SAMPLES
+===============================================================")
+writeLines("Mean number of reads in prokaryote control samples:")
+mean(colSums(data.frame(otu_table(subset_samples(pro, Habitat == "Control")))))
+writeLines("Mean number of reads in prokaryote environmental samples:")
+mean(colSums(data.frame(otu_table(subset_samples(pro, Habitat != "Control")))))
+writeLines("Mean number of reads in eukaryote control samples:")
+mean(colSums(data.frame(otu_table(subset_samples(euk, Habitat == "Control")))))
+writeLines("Mean number of reads in eukaryote environmental samples:")
+mean(colSums(data.frame(otu_table(subset_samples(euk, Habitat != "Control")))))
+sink()
+###############################################################################################################
 
 #taxonomy of ASVs in control samples?
 
