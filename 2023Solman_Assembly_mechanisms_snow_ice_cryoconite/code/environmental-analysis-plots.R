@@ -28,9 +28,12 @@ library(ggpattern)
 library(ggplot2)
 #install.packages("ggbreak")
 library(ggbreak)
+library(ggfortify) #for function autoplot
+library(patchwork)
 
 #load data
 chem.phy.ed = read.csv("../data/metadata.csv")
+#remove controls
 chem.phy.ed = chem.phy.ed[chem.phy.ed$Habitat != "Control",]
 
 #PCA Plot of chemical characteristics
@@ -68,7 +71,7 @@ loc.pca.plot <- autoplot(loc.pca,
 
 loc.pca.plot
 
-pdf("../results-proportional/pca-chem-variables.pdf", height=4)
+pdf("../results/pca-chem-variables.pdf", height=4)
 print(loc.pca.plot)
 dev.off()
 
@@ -125,7 +128,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -142,7 +145,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -162,7 +165,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -182,7 +185,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -201,7 +204,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -218,7 +221,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -236,7 +239,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -254,7 +257,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -271,7 +274,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -288,7 +291,7 @@ for (m in 1:length(major.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -329,13 +332,29 @@ pca.plot = loc.pca.plot + theme(legend.position=c(.75,.85), legend.box="vertical
                                 legend.title = element_text(size=25), axis.text = element_text(size=15), axis.title = element_text(size=20),
 )
 
-final.p = ggpubr::ggarrange(pca.plot, multi.p, ncol=2, labels=c("A", "B"), font.label = list(size=20))
+# final.p = ggpubr::ggarrange(pca.plot, multi.p, ncol=2, labels=c("A", "B"), font.label = list(size=20))
+# final.p
+
+# final.p = ggpubr::ggarrange(pca.plot, multi.p, ncol=2, labels=c("Principal Components Analysis", "Values of Key Analytes"), font.label = list(size=20))
+# final.p
+
+#use patchwork to arrange the plots
+#make titles and legend
+title1 <- ggdraw() + draw_label("Principal Components Analysis", size=16, hjust=1.84, fontface = "bold")
+title2 <- ggdraw() + draw_label("Key Analytes", size=16, hjust=4.45,fontface = "bold")
+legend <- get_legend(loc.pca.plot + theme(legend.box="horizontal", legend.title = element_blank(), legend.text=element_text(size=16)) + guides(colour = guide_legend(nrow = 1), shape = guide_legend(nrow = 1), fill = guide_legend(nrow = 1, override.aes=list(shape=22))))
+
+final.p = title1 / (loc.pca.plot + theme(legend.position = "none") )/ plot_spacer() / title2 / (plots2save[[1]] | plots2save[[2]] | plots2save[[3]] | plots2save[[4]]) / (plots2save[[5]] | plots2save[[6]] | plots2save[[7]] | plots2save[[8]]) / plot_spacer() /legend + plot_layout(heights = c(0.1, 1, 0.1, 0.1, 0.8, 0.8, 0.1, 0.1))
 final.p
 
-pdf("../results/chemical-analysis.pdf", width=15, height=18)
+
+pdf("../results/chemical-analysis.pdf", width=13, height=13)
 print(final.p)
 dev.off()
 
+
+##############################################################################################################
+#MINOR IONS PLOT
 minor.ions = c("Al", "Mn", "Li", "Ti", "V", "Co")
 
 plots2save2 = list()
@@ -356,6 +375,9 @@ for (m in 1:length(minor.ions)){ #for each item to analyse
                                            "Cryoconite Lower Foxfonna",
                                            "Cryoconite Upper Foxfonna"))
   
+  #remove rows with NA in the X column
+  data = data[!is.na(data$X),]
+  
   
   
   if (minor.ions[m] == "Al"){
@@ -365,7 +387,7 @@ for (m in 1:length(minor.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -383,7 +405,7 @@ for (m in 1:length(minor.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -401,7 +423,7 @@ for (m in 1:length(minor.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -420,7 +442,7 @@ for (m in 1:length(minor.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9),
                   position=position_jitter(width = 0.2,
                                            height = 0.2))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
@@ -439,15 +461,12 @@ for (m in 1:length(minor.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
-                  position=position_jitter(width = 0.2,
-                                           height = 0.2))+
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
       scale_colour_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
       scale_shape_manual(values=c(21,24,21,24,21,24,21,24))+
       theme(legend.position = "none", axis.title = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank())+
-      ggtitle(expression("V" ~ mu*"g L"^-1))+
-      ylim(0, 0.15)
+      ggtitle(expression("V" ~ mu*"g L"^-1)) +ylim(0, 0.15)
     
     print(plots2save[[m]])
     
@@ -458,9 +477,7 @@ for (m in 1:length(minor.ions)){ #for each item to analyse
       #geom_boxplot_pattern(aes(pattern= Location, pattern_fill = Location),pattern_spacing = 0.03)+
       geom_boxplot()+
       theme_bw()+
-      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=4, alpha=.9),
-                  position=position_jitter(width = 0.2,
-                                           height = 0.2))+
+      geom_jitter(aes(shape=Location, fill=Habitat_Location, size=3, alpha=.9))+
       scale_fill_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
       scale_colour_manual(values=c("#fa9f99", "#fa9f99", "#a4c64d", "#a4c64d", "#4dd2d6", "#4dd2d6", "#d8a4ff", "#d8a4ff"))+
       scale_shape_manual(values=c(21,24,21,24,21,24,21,24))+
@@ -492,15 +509,20 @@ multi.p2
 
 #get legend
 legend <- get_legend(
-  loc.pca.plot + theme(legend.box="verticle", legend.margin=margin(), legend.position="bottom", legend.title=element_blank())
+  loc.pca.plot + theme(legend.box="verticle", legend.margin=margin(), legend.position="bottom", legend.title=element_blank(), legend.text = element_text(size=16)) 
+  + guides(fill = guide_legend(override.aes=list(shape=22)))
   
 )
 
 minor.ion.p = plot_grid(multi.p2, legend, ncol=1, rel_heights = c(1, 0.1))
 
-pdf("../results/minor-ion-plots.pdf", width=8, height=10)
+pdf("../results/minor-ion-plots.pdf", width=10, height=10)
 print(minor.ion.p)
 dev.off()
+
+
+##############################################################################################################
+
 
 ree = c("Nd", "Ce", "Pr", "Sc", "Sm",
         "Eu", "Tm", "Pm", "La", "Gd", 
@@ -514,45 +536,66 @@ ree.data = df[,names(df) %in% c("Habitat",  "Location", ree)]
 #turn into long data
 ree.long = gather(ree.data, Analyte, Concentration, Sc:Tm)
 
-#data summary function
-data_summary <- function(data, varname, groupnames){
-  require(plyr)
-  summary_func <- function(x, col){
-    c(mean = mean(x[[col]], na.rm=TRUE),
-      sd = sd(x[[col]], na.rm=TRUE))
-  }
-  data_sum<-ddply(data, groupnames, .fun=summary_func,
-                  varname)
-  data_sum <- rename(data_sum, c("mean" = varname))
-  return(data_sum)
-}
-
-#summarise data
-df3 <- data_summary(ree.long, varname="Concentration", 
-                    groupnames=c("Habitat", "Location", "Analyte"))
-head(df3)
-
-df3$Habitat <- factor(df3$Habitat,
-                      levels=c("Snow", "Spring Ice", "Summer Ice", "Cryoconite"))
-
-df3[df3 == "Lower"] <- "Lower Foxfonna"
-df3[df3 == "Upper"] <- "Upper Foxfonna"
-
-ree.plot = ggplot(df3, aes(x=Analyte, y=Concentration, group=Habitat, color=Habitat)) + 
-  geom_errorbar(aes(ymin=Concentration-sd, ymax=Concentration+sd), width=.1) +
-  geom_line() + geom_point()+
-  # scale_color_brewer(palette="Paired")+
-  theme_bw()+
-  facet_grid(rows=vars(Location))+
-  scale_colour_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
-  theme(axis.title.x = element_blank(), legend.position = "bottom", legend.title = element_blank())+
-  ylab("REE Concentration (ng L-1)")
-ree.plot
-
-pdf("../results/ree-plot.pdf", width=8, height=4)
-print(ree.plot)
-dev.off()
-
+# #data summary function
+# data_summary <- function(data, varname, groupnames){
+#   require(plyr)
+#   summary_func <- function(x, col){
+#     c(mean = mean(x[[col]], na.rm=TRUE),
+#       sd = sd(x[[col]], na.rm=TRUE))
+#   }
+#   data_sum<-ddply(data, groupnames, .fun=summary_func,
+#                   varname)
+#   data_sum <- rename(data_sum, c("mean" = varname))
+#   return(data_sum)
+# }
+# 
+# #summarise data
+# df3 <- data_summary(ree.long, varname="Concentration", 
+#                     groupnames=c("Habitat", "Location", "Analyte"))
+# head(df3)
+# 
+# df3$Habitat <- factor(df3$Habitat,
+#                       levels=c("Snow", "Spring Ice", "Summer Ice", "Cryoconite"))
+# 
+# df3[df3 == "Lower"] <- "Lower Foxfonna"
+# df3[df3 == "Upper"] <- "Upper Foxfonna"
+# 
+# ree.plot = ggplot(df3, aes(x=Analyte, y=Concentration, group=Habitat, color=Habitat)) + 
+#   geom_errorbar(aes(ymin=Concentration-sd, ymax=Concentration+sd), width=.1) +
+#   geom_line() + geom_point()+
+#   # scale_color_brewer(palette="Paired")+
+#   theme_bw()+
+#   facet_grid(rows=vars(Location))+
+#   scale_colour_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
+#   theme(axis.title.x = element_blank(), legend.position = "bottom", legend.title = element_blank())+
+#   ylab("REE Concentration (ng L-1)")
+# ree.plot
+# 
+# pdf("../results/ree-plot.pdf", width=8, height=4)
+# print(ree.plot)
+# dev.off()
+# 
+# 
+# #ree.boxplot
+# ree.long$Habitat <- factor(ree.long$Habitat,
+#                            levels=c("Snow", "Spring Ice", "Summer Ice", "Cryoconite"))
+# 
+# ree.box = ggplot(ree.long, aes(x=Analyte, y=Concentration, fill=Habitat))+
+#   geom_boxplot()+
+#   theme_bw()+
+#   scale_colour_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
+#   theme(axis.title.x = element_blank(), legend.position = "bottom", legend.title = element_blank(), legend.text = element_text(size=25))+
+#   ylab(expression("REE Concentration (ng L"^-1*")"))+
+#   scale_y_break(c(55,70))+
+#   facet_grid(cols=vars(Location))
+# 
+# ree.box
+# 
+# #save
+# pdf.options(reset = TRUE, onefile = FALSE)
+# pdf("../results/ree-boxplot.pdf", width=20, height=8)
+# print(ree.box)
+# dev.off()
 
 #ree.boxplot
 ree.long$Habitat <- factor(ree.long$Habitat,
@@ -560,17 +603,31 @@ ree.long$Habitat <- factor(ree.long$Habitat,
 
 ree.box = ggplot(ree.long, aes(x=Analyte, y=Concentration, fill=Habitat))+
   geom_boxplot()+
+  facet_grid(rows=("Location"))+
   theme_bw()+
-  scale_colour_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
-  theme(axis.title.x = element_blank(), legend.position = "bottom", legend.title = element_blank(), legend.text = element_text(size=25))+
-  ylab(expression("REE Concentration (ng L"^-1*")"))+
-  scale_y_break(c(55,70))+
-  facet_grid(cols=vars(Location))
-
+  theme(axis.title.x = element_blank(), legend.position = "bottom", legend.title = element_blank())+
+  ylab(expression("REE Concentration (ng L"^-1*")"))
+#ylim(0,40)
 ree.box
 
 #save
 pdf.options(reset = TRUE, onefile = FALSE)
-pdf("../results-proportional/ree-boxplot.pdf", width=20, height=8)
+pdf("../results/ree-boxplot.pdf", width=20, height=8)
 print(ree.box)
+dev.off()
+
+
+#Combine REE and minor elements plots
+
+#make titles and legend
+title1 <- ggdraw() + draw_label("Minor Ions", size=16, hjust=6.2, fontface = "bold")
+title2 <- ggdraw() + draw_label("Rare Earth Elements", size=16, hjust=3.2,fontface = "bold")
+
+legend <- get_legend(loc.pca.plot + theme(legend.box="horizontal", legend.title = element_blank(), legend.text=element_text(size=16)) + guides(colour = guide_legend(nrow = 1), shape = guide_legend(nrow = 1), fill = guide_legend(nrow = 1, override.aes=list(shape=22))))
+
+combi.plot = title1 / (plots2save[[1]] | plots2save[[2]]) / (plots2save[[3]] | plots2save[[4]] ) / (plots2save[[5]] | plots2save[[6]]) / plot_spacer() / title2 / (ree.box + theme(legend.position = "none", axis.text = element_text(size=15), strip.text = element_text(size=15))) / plot_spacer() / legend + plot_layout(heights = c(0.1, 1, 1, 1, 0.1, 0.1, 3, 0.1, 0.1))
+combi.plot
+
+pdf("../results/chem-combi-plot.pdf", width=15, height=25)
+print(combi.plot)
 dev.off()

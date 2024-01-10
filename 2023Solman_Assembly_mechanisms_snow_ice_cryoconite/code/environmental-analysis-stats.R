@@ -116,6 +116,10 @@ chem.phy = cbind(phy, sp.sum.0[,-c(1:2)])
 rm <- c("DiamNS", "DiamEW", "SnowDepth1", "SnowDepth2", "SnowDepth3")
 chem.phy.ed <- chem.phy[,!names(chem.phy) %in% rm]
 
+#one of our results is anomalous - we have a conductivity result of 183, while the next lowest is 42 so I'm going to remove this value
+chem.phy.ed = chem.phy.ed %>% 
+  mutate(Conductivity_muS = replace(Conductivity_muS, Conductivity_muS > 150, NA))
+
 #add in control data to edited chemical data
 chem.phy.ed.cont = rbind(cont, chem.phy.ed)
 
@@ -277,5 +281,17 @@ for (i in 6:nrow(data2save)){
   
 }
 
+#order for table rows
+#this is the order we want our analytes in
+order = c("pH", "Conductivity", "Temp", "Area", "Depth", "TC", "DOC", "TN", "NO2", "NO3", "PO4", "SO4", "Cl", "Br", 
+          "Fl", "Fe", "Na", "Mg", "K", "Ca", "Li", "Al", "Ti", "V", "Cr", "Mn", "Co", "Ni", "Cu", "Zn", "Y", "Rb", 
+          "Sr", "Mo", "Ag", "Ba", "Lu", "Pb", "Zr", "Cd", "As", "Se", "Nb", "Sn", "Cs", "Hf", "Ta", "Re", "U", "La", "Ce", 
+          "Pr", "Nd", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Yb", "Ru", "Sc", "Tm")
+#get the index of the order we want against the analyte rows we want to reorder
+idx <- match(order, data2save$data.Analyte)
+#reorder based on those indexes
+data2save_ordered  <- data2save[idx,]
+
+
 #save dataframe
-write.csv(data2save, "../results/physical-data-stats.csv")
+write.csv(data2save_ordered, "../results/physical-data-stats.csv")
