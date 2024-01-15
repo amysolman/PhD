@@ -31,3 +31,9 @@ Rscript PERMANOVA.R
 
 #Differential abundance analysis
 Rscript differential-abundance.R
+
+#Distance-decay analysis
+Rscript DDR.R
+
+#Explore differences in communities over different spatial scales
+Rscript spatial-scales.R

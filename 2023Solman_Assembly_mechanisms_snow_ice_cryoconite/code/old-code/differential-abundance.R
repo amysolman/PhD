@@ -28,6 +28,8 @@ library(plyr)
 ps.pro <- readRDS("../results/16S-ps-controls-removed.rds")
 #eukaryotes without micrometazoans
 ps.euk <- readRDS("../results/18S-ps-no-mm-controls-removed.rds")
+#micrometazoans only
+ps.mm <- readRDS("../results/18S-ps-mm-only-controls-removed.rds")
 
 #remove the sample low read count samples as we did previously
 
@@ -37,6 +39,9 @@ ps.f.pro = filter_taxa(ps.p.pro, function(x) sum(x) >= 1, TRUE) #remove ASVs wit
 #eukaryotes
 ps.p.euk = prune_samples(sample_sums(ps.euk)>= 1900, ps.euk) #retain samples with >= num counts
 ps.f.euk = filter_taxa(ps.p.euk, function(x) sum(x) >= 1, TRUE) #remove ASVs with zero counts
+#micrometazoans
+ps.p.mm = prune_samples(sample_sums(ps.mm)>= 500, ps.mm) #retain samples with >= num counts
+ps.f.mm = filter_taxa(ps.p.mm, function(x) sum(x) >= 1, TRUE) #remove ASVs with zero counts
 
 
 
@@ -113,6 +118,34 @@ wilcoxon.daa <- function(phylo, group, lev){
   #remove those that say uncultured or of unknown placement
   test.res_sig_tax_rm = test.res_sig_tax[test.res_sig_tax$Family != "uncultured",]
   test.res_sig_tax_rm = test.res_sig_tax[test.res_sig_tax$Family != "Incertae_Sedis",]
+  
+  #only plot those with the lowest p-values
+  # low_p <- wilcoxon_p_sig_tax_rm
+  # low_p = head(low_p[order(low_p$p_adjusted),], n = 9)
+  # 
+  # #plot these taxa
+  # plot_data <- aa_data[names(aa_data) %in% c(low_p$taxa, "Habitat")]
+  # names(plot_data) = c(low_p$Family, "Habitat")
+  # 
+  # 
+  # #data to long format
+  # data_long <- gather(plot_data,
+  #                     taxa, 
+  #                     clr, names(plot_data)[1]:names(plot_data)[length(names(plot_data))-1])
+  # 
+  # p = ggplot(data_long, aes(x=Habitat, y=clr, fill=Habitat)) +
+  #   geom_boxplot()+
+  #   theme_bw()+
+  #   theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1))+
+  #   facet_wrap(~taxa, ncol=3)+
+  #   # geom_pwc(
+  #   #   method = "wilcox.test", label = "p.adj.format",
+  #   #   p.adjust.method = "fdr",
+  #   #   #bracket.nudge.y = 0.5
+  #   # )+
+  #   theme(legend.position = "bottom", axis.title.x = element_blank())+
+  #   ylab("centered-log-ratio transformed counts")
+  # print(p)
   
   return(test.res_sig_tax_rm)
   
@@ -231,6 +264,34 @@ DESeq2 <- function(phylo, lev){
   data = data[data$Family != "uncultured",]
   data = data[data$Family != "Incertae_Sedis",]
   
+  # # #only keep top and bottom 5 families
+  # data_top = head(data2plot[order(data2plot$log2FoldChange),], n = 10)
+  # data_bottom = tail(data2plot[order(data2plot$log2FoldChange),], n = 10)
+  # 
+  # data2plot = rbind(data_top, data_bottom)
+  # 
+  #  #set order of data
+  #  x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+  #  x = sort(x, TRUE)
+  #  data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+  # 
+  #  x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+  #  x = sort(x, TRUE)
+  #  data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
+  # 
+  #  #plot results
+  #  p = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) + 
+  #  geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
+  #  scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in ', hab2), paste0('Enriched in ', hab1)))+
+  #  coord_flip()+
+  #  theme(legend.position = "bottom", legend.title = element_blank())+
+  #  ylab("log2FoldChange")+
+  #    ylim(-26,15)
+  #    # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+  #    #              position=position_dodge(.9))
+  #  
+  #  print(p)
+  #  
   return(data)
   
 }
@@ -341,8 +402,8 @@ pro.wx2 = cbind(Test = "Snow Vs Summer Ice", pro.wx2)
 pro.wx3 = wilcoxon.daa(phylo = ps.f.pro, group = c(data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Cryoconite")))$SampleID), lev = "Family")
 pro.wx3 = cbind(Test = "Snow Vs Cryoconite", pro.wx3)
 
-pro.wx4 = wilcoxon.daa(phylo = ps.f.pro, group = c(data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Spring Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Summer Ice")))$SampleID), lev = "Family") #no differences
-#pro.wx4 = cbind(Test = "Spring Ice Vs Summer Ice", pro.wx4) #no significant differences
+# pro.wx4 = wilcoxon.daa(phylo = ps.f.pro, group = c(data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Spring Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Summer Ice")))$SampleID), lev = "Family") #no differences
+# pro.wx4 = cbind(Test = "Spring Ice Vs Summer Ice", pro.wx4)
 
 pro.wx5 = wilcoxon.daa(phylo = ps.f.pro, group = c(data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Spring Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Cryoconite")))$SampleID), lev = "Family")
 pro.wx5 = cbind(Test = "Spring Ice Vs Cryoconite", pro.wx5)
@@ -363,8 +424,8 @@ pro.ax2 = cbind(Test = "Snow Vs Summer Ice", pro.ax2)
 pro.ax3 = ALDEx2(phylo = ps.f.pro, group = c(data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Cryoconite")))$SampleID), lev = "Family")
 pro.ax3 = cbind(Test = "Snow Vs Cryoconite", pro.ax3)
 
-pro.ax4 = ALDEx2(phylo = ps.f.pro, group = c(data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Spring Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Summer Ice")))$SampleID), lev = "Family")
-#pro.ax4 = cbind(Test = "Spring Ice Vs Summer Ice", pro.ax4) #no significant differences
+# pro.ax4 = ALDEx2(phylo = ps.f.pro, group = c(data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Spring Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Summer Ice")))$SampleID), lev = "Family")
+# pro.ax4 = cbind(Test = "Spring Ice Vs Summer Ice", pro.ax4)
 
 pro.ax5 = ALDEx2(phylo = ps.f.pro, 
                  group = c(data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Spring Ice")))$SampleID,
@@ -443,9 +504,24 @@ rows2add = tax.data.fam[!tax.data.fam$Family %in% data2plot1$Family,]
 rows2add2 = data.frame(Test = "Snow Vs Spring Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Domain=rows2add$Domain, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
                        Genus=NA, Species=NA)
 data2plot1 = rbind(data2plot1, rows2add2)
+# data2plot1 = data2plot1[with(data2plot1, order(-data2plot1$Phylum, data2plot1$Family)),]
 
 data2plot1 =arrange(data2plot1 ,desc(Phylum),Family)
+#data2plot1 = data2plot1[order(data2plot1$Phylum, decreasing = TRUE), ]
 data2plot1$Family = paste0(data2plot1$Family, " (", data2plot1$Phylum, ")")
+
+#this is so we see both in the legend
+# data2plot1 = data.frame(rbind(data2plot1, data2plot1[1,]))
+# data2plot1$log2FoldChange[nrow(data2plot1)] = -0.00000000000000000000000000001
+
+#set order of data
+# x = tapply(data2plot1$log2FoldChange, data2plot1$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot1$Phylum = factor(as.character(data2plot1$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot1$log2FoldChange, data2plot1$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot1$Family = factor(as.character(data2plot1$Family), levels=names(x))
 
 data2plot1$Family = factor(data2plot1$Family, levels = unique(data2plot1$Family))
 
@@ -473,9 +549,21 @@ rows2add = tax.data.fam[!tax.data.fam$Family %in% data2plot2$Family,]
 rows2add2 = data.frame(Test = "Snow Vs Summer Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Domain=rows2add$Domain, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
                        Genus=NA, Species=NA)
 data2plot2 = rbind(data2plot2, rows2add2)
-
+# data2plot2 = data2plot2[order(data2plot2$Phylum, decreasing = TRUE), ]
 data2plot2 =arrange(data2plot2 ,desc(Phylum),Family)
 data2plot2$Family = paste0(data2plot2$Family, " (", data2plot2$Phylum, ")")
+
+# data2plot2 = data.frame(rbind(data2plot2, data2plot2[1,]))
+# data2plot2$log2FoldChange[nrow(data2plot2)] = -0.00000000000000000000000000001
+
+#set order of data so our plot goes from most enriched to least enriched
+# x = tapply(data2plot2$log2FoldChange, data2plot2$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot2$Phylum = factor(as.character(data2plot2$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot2$log2FoldChange, data2plot2$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot2$Family = factor(as.character(data2plot2$Family), levels=names(x))
 
 data2plot2$Family = factor(data2plot2$Family, levels = unique(data2plot2$Family))
 
@@ -490,6 +578,19 @@ p2 = ggplot(data2plot2, aes(x=Family, y=log2FoldChange)) +
   ylab("log2FoldChange")+
   ylim(-6,10)+
   ggtitle("Summer Ice/Snow")
+
+#   p2 = ggplot(data2plot2, aes(x=Family, y=log2FoldChange)) + 
+# geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
+# scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in Summer Ice'), paste0('Enriched in Snow')))+
+# coord_flip()+
+# theme(legend.position = "none", legend.title = element_blank(), plot.title = element_text(hjust = 0.5),
+#       axis.ticks.y=element_blank(), axis.title.y=element_blank(),
+#       axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x=element_blank(), legend.key.size = unit(0.5, 'cm'), legend.text = element_text(size=3))+
+# ylab("log2FoldChange")+
+#   ylim(-6,10)+
+#   ggtitle("Summer Ice/Snow")
+# geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#              position=position_dodge(.9))
 
 print(p2)
 
@@ -507,6 +608,18 @@ data2plot = rbind(data2plot, rows2add2)
 data2plot =arrange(data2plot ,desc(Phylum),Family)
 data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 
+# data2plot = data.frame(rbind(data2plot, data2plot[1,]))
+# data2plot$log2FoldChange[nrow(data2plot)] = -0.00000000000000000000000000001
+
+#set order of data
+# x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
+
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
 #plot results
@@ -520,6 +633,8 @@ p3 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   ylab("log2FoldChange")+
   ylim(-6,10)+
   ggtitle("Cryoconite/Snow")
+# geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#              position=position_dodge(.9))
 
 print(p3)
 
@@ -573,6 +688,15 @@ data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot = data.frame(rbind(data2plot, data2plot[1,]))
 data2plot$log2FoldChange[nrow(data2plot)] = -0.00000000000000000000000000001
 
+#set order of data
+# x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
+
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
 #plot results
@@ -586,7 +710,8 @@ p5 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   ylab("log2FoldChange")+
   ylim(-6,10)+
   ggtitle("Cryoconite/Spring Ice")
-
+# geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#              position=position_dodge(.9))
 
 print(p5)
 
@@ -609,6 +734,15 @@ data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot = data.frame(rbind(data2plot, data2plot[1,]))
 data2plot$log2FoldChange[nrow(data2plot)] = -0.00000000000000000000000000001
 
+#set order of data
+# x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
+
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
 #plot results
@@ -622,11 +756,54 @@ p6 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   ylab("log2FoldChange")+
   ylim(-6,10)+
   ggtitle("Cryoconite/Summer Ice")
+# geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#              position=position_dodge(.9))
 
 print(p6)
 
 (p1 | p2 | p3 | p4 | p5 | p6)
 
+#   pro.p = plot_grid(p1 + theme(legend.justification = c(0.4,0), 
+#                                axis.title.x=element_blank(), 
+#                                axis.title.y=element_blank(),
+#                                axis.text.x=element_blank(),
+#                                axis.ticks.x=element_blank(), 
+#                                plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                                legend.position = "right"),
+#                     p2+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                       axis.title.y=element_blank(),
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(), 
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "right"),
+#                     p3+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                       axis.title.y=element_blank(), 
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(), 
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "right"),
+#                     p4+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                               axis.title.y=element_blank(),
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(),
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#         legend.position = "right"),
+#             p5+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.y=element_blank(),
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "right"),
+#             ncol=1,
+#             rel_heights = c(0.6, 0.8, 0.8, 0.25, 0.4),
+#             align="v")
+# 
+# pro.p
+# 
+# pdf("../results-proportional/pro-deseq2.pdf", height=12)
+# pro.p
+# dev.off()
 
 #Eukaryotes
 
@@ -655,8 +832,8 @@ euk.wx6 = cbind(Test = "Summer Ice Vs Cryoconite", euk.wx6)
 euk.d2 = DESeq2(ps.f.euk, "Family")
 
 #Aldex2
-euk.ax1 = ALDEx2(phylo = ps.f.euk, group = c(data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Spring Ice")))$SampleID), lev = "Family")
-#euk.ax1 = cbind(Test = "Snow Vs Spring Ice", euk.ax1) #no significant difference
+# euk.ax1 = ALDEx2(phylo = ps.f.euk, group = c(data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Spring Ice")))$SampleID), lev = "Family")
+# euk.ax1 = cbind(Test = "Snow Vs Spring Ice", euk.ax1)
 
 euk.ax2 = ALDEx2(phylo = ps.f.euk, group = c(data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Summer Ice")))$SampleID), lev = "Family")
 euk.ax2 = cbind(Test = "Snow Vs Summer Ice", euk.ax2)
@@ -679,9 +856,9 @@ euk.ax6 = cbind(Test = "Summer Ice Vs Cryoconite", euk.ax6)
 #eukaryotes
 
 #Snow and Spring Ice
-euk.snow.sp.ice.tax = Reduce(intersect, list(euk.wx1$Family,
-                       euk.d2[euk.d2$Test == "Snow Vs Spring Ice",]$Family,
-                       euk.ax1$Family))
+# euk.snow.sp.ice.tax = Reduce(intersect, list(euk.wx1$Family,
+#                        euk.d2[euk.d2$Test == "Snow Vs Spring Ice",]$Family,
+#                        euk.ax1$Family))
 
 #Snow and Summer Ice
 euk.snow.sum.ice.tax = Reduce(intersect, list(euk.wx2$Family,
@@ -771,6 +948,15 @@ data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot = data.frame(rbind(data2plot, data2plot[1,]))
 data2plot$log2FoldChange[nrow(data2plot)] = 0.00000000000000000000000000001
 
+#set order of data
+# x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
+
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
 #plot results
@@ -786,6 +972,8 @@ p8 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   guides(fill=guide_legend(nrow=2, byrow=TRUE))+
   ylab("log2FoldChange")+
   ylim(-6,10)
+# geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#              position=position_dodge(.9))
 
 print(p8)
 
@@ -806,6 +994,15 @@ data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot = data.frame(rbind(data2plot, data2plot[1,]))
 data2plot$log2FoldChange[nrow(data2plot)] = -0.00000000000000000000000000001
 
+#set order of data
+# x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
+
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
 #plot results
@@ -821,6 +1018,8 @@ p9 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   guides(fill=guide_legend(nrow=2, byrow=TRUE))+
   ylab("log2FoldChange")+
   ylim(-6,10)
+# geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#              position=position_dodge(.9))
 
 print(p9)
 
@@ -841,6 +1040,14 @@ data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot = data.frame(rbind(data2plot, data2plot[1,]))
 data2plot$log2FoldChange[nrow(data2plot)] = 0.00000000000000000000000000001
 
+#set order of data
+# x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
 
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
@@ -877,6 +1084,15 @@ data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot = data.frame(rbind(data2plot, data2plot[1,]))
 data2plot$log2FoldChange[nrow(data2plot)] = 0.00000000000000000000000000001
 
+#set order of data
+# x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
+
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
 #plot results
@@ -892,6 +1108,8 @@ p11 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   guides(fill=guide_legend(nrow=2, byrow=TRUE))+
   ylab("log2FoldChange")+
   ylim(-6,10)
+# geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#              position=position_dodge(.9))
 
 print(p11)
 
@@ -914,6 +1132,14 @@ data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot = data.frame(rbind(data2plot, data2plot[1,]))
 data2plot$log2FoldChange[nrow(data2plot)] = -0.00000000000000000000000000001
 
+#set order of data
+# x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+# x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+# x = sort(x, TRUE)
+# data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
 
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
@@ -930,7 +1156,8 @@ p12 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   guides(fill=guide_legend(nrow=2, byrow=TRUE))+
   ylab("log2FoldChange")+
   ylim(-6,10)
-
+# geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#              position=position_dodge(.9))
 
 print(p12)
 
@@ -943,9 +1170,343 @@ pdf("../results/daa-pro-euk.pdf", width=15, height=5)
 print(all.p)
 dev.off()
 
-###### LOCATION DAA #######################################################
+#  euk.p =  plot_grid(p6 + theme(legend.justification = c(0.4,0), 
+#                                axis.title.x=element_blank(), 
+#                                axis.title.y=element_blank(),
+#                                axis.text.x=element_blank(),
+#                                axis.ticks.x=element_blank(), 
+#                                plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                                legend.position = "right"),
+#                     p7+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                       axis.title.y=element_blank(),
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(), 
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "right"),
+#                     p8+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                       axis.title.y=element_blank(), 
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(), 
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "right"),
+#                     p9+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                               axis.title.y=element_blank(),
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(),
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#         legend.position = "right"),
+#             p10+ theme(legend.justification = c(0.4,0), 
+#                        axis.title.y=element_blank(), 
+#                        plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                        legend.position = "right"),
+#             ncol=1,
+#             rel_heights = c(0.5, 0.5, 0.35, 0.35, 0.6),
+#             align="v")
+# 
+# euk.p
+# 
+# pdf("../results-proportional/euk-deseq2.pdf", height=6)
+# euk.p
+# dev.off()
 
+
+#MICROMETAZOANS
+
+#Get results of each analysis and identify which Families overlap
+
+
+#Wilcoxon
+# mm.wx1 = wilcoxon.daa(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Spring Ice")))$SampleID), lev = "Genus")
+# mm.wx1 = cbind(Test = "Snow Vs Spring Ice", mm.wx1)
+
+# mm.wx2 = wilcoxon.daa(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Summer Ice")))$SampleID), lev = "Genus")
+# mm.wx2 = cbind(Test = "Snow Vs Summer Ice", mm.wx2)
+
+# mm.wx3 = wilcoxon.daa(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Cryoconite")))$SampleID), lev = "Genus")
+# mm.wx3 = cbind(Test = "Snow Vs Cryoconite", mm.wx3)
+
+# mm.wx4 = wilcoxon.daa(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Spring Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Summer Ice")))$SampleID), lev = "Genus") #no differences
+# mm.wx4 = cbind(Test = "Spring Ice Vs Summer Ice", mm.wx4)
+
+# mm.wx5 = wilcoxon.daa(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Spring Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Cryoconite")))$SampleID), lev = "Genus")
+# mm.wx5 = cbind(Test = "Spring Ice Vs Cryoconite", mm.wx5)
+
+# mm.wx6 = wilcoxon.daa(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Summer Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Cryoconite")))$SampleID), lev = "Genus")
+# mm.wx6 = cbind(Test = "Summer Ice Vs Cryoconite", mm.wx6)
+
+#DESeq2
+# mm.d2 = DESeq2(ps.f.mm, "Genus")
+
+#Aldex2
+# mm.ax1 = ALDEx2(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Spring Ice")))$SampleID), lev = "Genus")
+# mm.ax1 = cbind(Test = "Snow Vs Spring Ice", mm.ax1)
+
+# mm.ax2 = ALDEx2(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Summer Ice")))$SampleID), lev = "Genus")
+# mm.ax2 = cbind(Test = "Snow Vs Summer Ice", mm.ax2)
+# 
+# mm.ax3 = ALDEx2(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Snow")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Cryoconite")))$SampleID), lev = "Genus")
+# mm.ax3 = cbind(Test = "Snow Vs Cryoconite", mm.ax3)
+# 
+# mm.ax4 = ALDEx2(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Spring Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Summer Ice")))$SampleID), lev = "Genus")
+# mm.ax4 = cbind(Test = "Spring Ice Vs Summer Ice", mm.ax4)
+# 
+# mm.ax5 = ALDEx2(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Spring Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Cryoconite")))$SampleID), lev = "Genus")
+# mm.ax5 = cbind(Test = "Spring Ice Vs Cryoconite", mm.ax5)
+# 
+# mm.ax6 = ALDEx2(phylo = ps.f.mm, group = c(data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Summer Ice")))$SampleID,data.frame(sample_data(subset_samples(ps.f.mm, Habitat == "Cryoconite")))$SampleID), lev = "Genus")
+# mm.ax6 = cbind(Test = "Summer Ice Vs Cryoconite", mm.ax6)
+
+#Which Families were found in all three analyses?
+
+#mmaryotes
+
+#Snow and Spring Ice
+# mm.snow.sp.ice.tax = Reduce(intersect, list(mm.wx1$Genus,
+#                        mm.d2[mm.d2$Test == "Snow Vs Spring Ice",]$Genus,
+#                        mm.ax1$Genus))
+
+# #Snow and Summer Ice
+# mm.snow.sum.ice.tax = Reduce(intersect, list(mm.wx2$Genus,
+#                        mm.d2[mm.d2$Test == "Snow Vs Summer Ice",]$Genus,
+#                        mm.ax2$Genus))
+# 
+# #Snow and Cryoconite
+# mm.snow.cry.tax = Reduce(intersect, list(mm.wx3$Genus,
+#                        mm.d2[mm.d2$Test == "Snow Vs Cryoconite",]$Genus,
+#                        mm.ax3$Genus))
+# 
+# #Spring Ice and Summer Ice
+# mm.sp.sum.ice.tax = Reduce(intersect, list(mm.wx4$Genus,
+#                        mm.d2[mm.d2$Test == "Spring Ice Vs Summer Ice",]$Genus,
+#                        mm.ax4$Genus))
+# 
+# #Spring Ice and Cryoconite
+# mm.sp.ice.cry.tax = Reduce(intersect, list(mm.wx5$Genus,
+#                        mm.d2[mm.d2$Test == "Spring Ice Vs Cryoconite",]$Genus,
+#                        mm.ax5$Genus))
+# 
+# #Summer Ice and Cryoconite
+# mm.sum.ice.cry.tax = Reduce(intersect, list(mm.wx6$Genus,
+#                        mm.d2[mm.d2$Test == "Summer Ice Vs Cryoconite",]$Genus,
+#                        mm.ax6$Genus))
+
+
+#Plot DESeq2 results only for those families with significant differences in all three analyses.
+
+
+#   #SNOW AND SUMMER ICE
+#   
+#   data2plot = mm.d2[mm.d2$Test == "Snow Vs Summer Ice",]
+# data2plot = data2plot[data2plot$Genus %in% mm.snow.sum.ice.tax,]
+# 
+# data2plot = data.frame(rbind(data2plot, data2plot[1,]))
+# data2plot$log2FoldChange[nrow(data2plot)] = 0.00000000000000000000000000001
+# 
+# #set order of data
+#   x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+#   x = tapply(data2plot$log2FoldChange, data2plot$Genus, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Genus = factor(as.character(data2plot$Genus), levels=names(x))
+# 
+#   #plot results
+#   p6 = ggplot(data2plot, aes(x=Genus, y=log2FoldChange)) + 
+#   geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
+#   scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in Summer Ice'), paste0('Enriched in Snow')))+
+#   coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("log2FoldChange")+
+#     ylim(-5,7)
+#     # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#     #              position=position_dodge(.9))
+#   
+#   print(p6)
+# 
+#   #SNOW AND CRYOCONITE
+#   
+#     data2plot = mm.d2[mm.d2$Test == "Snow Vs Cryoconite",]
+# data2plot = data2plot[data2plot$Genus %in% mm.snow.cry.tax,]
+# 
+# data2plot = data.frame(rbind(data2plot, data2plot[1,]))
+# data2plot$log2FoldChange[nrow(data2plot)] = -0.00000000000000000000000000001
+# 
+# #set order of data
+#   x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+#   x = tapply(data2plot$log2FoldChange, data2plot$Genus, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Genus = factor(as.character(data2plot$Genus), levels=names(x))
+# 
+#   #plot results
+#   p7 = ggplot(data2plot, aes(x=Genus, y=log2FoldChange)) + 
+#   geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
+#   scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in Cryoconite'), paste0('Enriched in Snow')))+
+#   coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("log2FoldChange")+
+#     ylim(-5,7)
+#     # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#     #              position=position_dodge(.9))
+#   
+#   print(p7)
+#   
+#   #SPRING ICE AND SUMMER ICE
+# 
+# data2plot = mm.d2[mm.d2$Test == "Spring Ice Vs Summer Ice",]
+# data2plot = data2plot[data2plot$Genus %in% mm.sp.sum.ice.tax,]
+# 
+# data2plot = data.frame(rbind(data2plot, data2plot[1,]))
+# data2plot$log2FoldChange[nrow(data2plot)] = 0.00000000000000000000000000001
+# 
+# #set order of data
+#   x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+#   x = tapply(data2plot$log2FoldChange, data2plot$Genus, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Genus = factor(as.character(data2plot$Genus), levels=names(x))
+# 
+#   #plot results
+#   p8 = ggplot(data2plot, aes(x=Genus, y=log2FoldChange)) + 
+#   geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
+#    scale_fill_manual(drop = FALSE, breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in Summer Ice'), paste0('Enriched in Spring Ice')))+
+#   coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("log2FoldChange")+
+#     ylim(-5,7)
+#   
+#   print(p8)
+#   
+#   
+#   #SPRING ICE AND CRYOCONITE
+# data2plot = mm.d2[mm.d2$Test == "Spring Ice Vs Cryoconite",]
+# data2plot = data2plot[data2plot$Genus %in% mm.sp.ice.cry.tax,]
+# 
+# data2plot = data.frame(rbind(data2plot, data2plot[1,]))
+# data2plot$log2FoldChange[nrow(data2plot)] = 0.00000000000000000000000000001
+# 
+# #set order of data
+#   x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+#   x = tapply(data2plot$log2FoldChange, data2plot$Genus, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Genus = factor(as.character(data2plot$Genus), levels=names(x))
+# 
+#   #plot results
+#   p9 = ggplot(data2plot, aes(x=Genus, y=log2FoldChange)) + 
+#   geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
+#   scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in Cryoconite'), paste0('Enriched in Spring Ice')))+
+#   coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("log2FoldChange")+
+#     ylim(-5,7)
+#     # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#     #              position=position_dodge(.9))
+#   
+#   print(p9)
+#   
+#   
+#   #SUMMER ICE AND CRYOCONITE
+# 
+#   
+#   data2plot = mm.d2[mm.d2$Test == "Summer Ice Vs Cryoconite",]
+#   data2plot = data2plot[data2plot$Genus %in% mm.sum.ice.cry.tax,]
+#   
+#     data2plot = data.frame(rbind(data2plot, data2plot[1,]))
+#   data2plot$log2FoldChange[nrow(data2plot)] = -0.00000000000000000000000000001
+# 
+# #set order of data
+#   x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+# 
+#   x = tapply(data2plot$log2FoldChange, data2plot$Genus, function(x) max(x))
+#   x = sort(x, TRUE)
+#   data2plot$Genus = factor(as.character(data2plot$Genus), levels=names(x))
+# 
+#   #plot results
+#   p10 = ggplot(data2plot, aes(x=Genus, y=log2FoldChange)) + 
+#   geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
+#   scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in Cryoconite'), paste0('Enriched in Summer Ice')))+
+#   coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("log2FoldChange")+
+#     ylim(-5,7)
+#     # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+#     #              position=position_dodge(.9))
+#   
+#   print(p1)
+
+#  mm.p =  plot_grid(p6 + theme(legend.justification = c(0.4,0), 
+#                                axis.title.x=element_blank(), 
+#                                axis.title.y=element_blank(),
+#                                axis.text.x=element_blank(),
+#                                axis.ticks.x=element_blank(), 
+#                                plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                                legend.position = "right"),
+#                     p7+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                       axis.title.y=element_blank(),
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(), 
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "right"),
+#                     p8+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                       axis.title.y=element_blank(), 
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(), 
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "right"),
+#                     p9+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                               axis.title.y=element_blank(),
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(),
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#         legend.position = "right"),
+#             p10+ theme(legend.justification = c(0.4,0), 
+#                        axis.title.y=element_blank(), 
+#                        plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                        legend.position = "right"),
+#             ncol=1,
+#             rel_heights = c(0.5, 0.5, 0.35, 0.35, 0.6),
+#             align="v")
+# 
+# mm.p
+# 
+# pdf("../results-proportional/mm-deseq2.pdf", height=6)
+# euk.p
+# dev.off()
+
+
+# final.p = plot_grid(pro.p,
+#                     plot_grid(euk.p,
+#                               NULL, ncol=1),
+#                     ncol=2,
+#                     rel_heights = c(1, 0.4, 0.6),
+#                     labels="AUTO")
+# 
+# final.p
+# 
+# pdf("../results-proportional/full-deseq2.pdf", height=14, width=16)
+# final.p
+# dev.off()
+
+######LOCATION
 #Differential Abundance Analysis with Wilcoxon rank sum, DESeq2 and Aldex2
+
+
 
 # Wilcoxon Rank Sum Test
 
@@ -976,6 +1537,13 @@ wilcoxon.daa <- function(phylo, group, lev){
   #add info to the data
   aa_data <- cbind(aa_data, 
                    Location = data.frame(sample_data(ps.clr))$Location)
+  
+  #test
+  # test = aa_data
+  # taxa = data.frame(tax_table(ps.clr))
+  # names(test) = c(data.frame(tax_table(ps.clr))$Family, "Location")
+  # test.data = test[,names(test) %in% c("Nostocaceae", "Location")]
+  # boxplot(Nostocaceae  ~ Location, data = test.data)
   
   agg <- names(aa_data[, !names(aa_data) %in% "Location"])
   
@@ -1016,6 +1584,34 @@ wilcoxon.daa <- function(phylo, group, lev){
   #remove those that say uncultured or of unknown placement
   test.res_sig_tax_rm = test.res_sig_tax[test.res_sig_tax$Family != "uncultured",]
   test.res_sig_tax_rm = test.res_sig_tax[test.res_sig_tax$Family != "Incertae_Sedis",]
+  
+  #only plot those with the lowest p-values
+  # low_p <- wilcoxon_p_sig_tax_rm
+  # low_p = head(low_p[order(low_p$p_adjusted),], n = 9)
+  # 
+  # #plot these taxa
+  # plot_data <- aa_data[names(aa_data) %in% c(low_p$taxa, "Habitat")]
+  # names(plot_data) = c(low_p$Family, "Habitat")
+  # 
+  # 
+  # #data to long format
+  # data_long <- gather(plot_data,
+  #                     taxa, 
+  #                     clr, names(plot_data)[1]:names(plot_data)[length(names(plot_data))-1])
+  # 
+  # p = ggplot(data_long, aes(x=Habitat, y=clr, fill=Habitat)) +
+  #   geom_boxplot()+
+  #   theme_bw()+
+  #   theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1))+
+  #   facet_wrap(~taxa, ncol=3)+
+  #   # geom_pwc(
+  #   #   method = "wilcox.test", label = "p.adj.format",
+  #   #   p.adjust.method = "fdr",
+  #   #   #bracket.nudge.y = 0.5
+  #   # )+
+  #   theme(legend.position = "bottom", axis.title.x = element_blank())+
+  #   ylab("centered-log-ratio transformed counts")
+  # print(p)
   
   return(test.res_sig_tax_rm)
   
@@ -1090,6 +1686,34 @@ DESeq2 <- function(phylo, group, lev){
   data = data[data$Family != "uncultured",]
   data = data[data$Family != "Incertae_Sedis",]
   
+  # # #only keep top and bottom 5 families
+  # data_top = head(data2plot[order(data2plot$log2FoldChange),], n = 10)
+  # data_bottom = tail(data2plot[order(data2plot$log2FoldChange),], n = 10)
+  # 
+  # data2plot = rbind(data_top, data_bottom)
+  # 
+  #  #set order of data
+  #  x = tapply(data2plot$log2FoldChange, data2plot$Phylum, function(x) max(x))
+  #  x = sort(x, TRUE)
+  #  data2plot$Phylum = factor(as.character(data2plot$Phylum), levels=names(x))
+  # 
+  #  x = tapply(data2plot$log2FoldChange, data2plot$Family, function(x) max(x))
+  #  x = sort(x, TRUE)
+  #  data2plot$Family = factor(as.character(data2plot$Family), levels=names(x))
+  # 
+  #  #plot results
+  #  p = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) + 
+  #  geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
+  #  scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in ', hab2), paste0('Enriched in ', hab1)))+
+  #  coord_flip()+
+  #  theme(legend.position = "bottom", legend.title = element_blank())+
+  #  ylab("log2FoldChange")+
+  #    ylim(-26,15)
+  #    # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+  #    #              position=position_dodge(.9))
+  #  
+  #  print(p)
+  #  
   return(data)
   
 }
@@ -1178,8 +1802,8 @@ return(res.trim_tax)
 #Get results of each analysis and identify which Families overlap
 
 #Wilcoxon
-pro.wx1 = wilcoxon.daa(phylo = ps.f.pro, group = data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Snow")))$SampleID, lev = "Family") #no differences
-#pro.wx1 = cbind(Test = "Snow", pro.wx1) #no significant differences
+# pro.wx1 = wilcoxon.daa(phylo = ps.f.pro, group = data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Snow")))$SampleID, lev = "Family") #no differences
+# pro.wx1 = cbind(Test = "Snow", pro.wx1)
 
 pro.wx2 = wilcoxon.daa(phylo = ps.f.pro, group = data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Spring Ice")))$SampleID, lev = "Family")
 pro.wx2 = cbind(Test = "Spring Ice", pro.wx2)
@@ -1207,8 +1831,8 @@ pro.dq4 = cbind(Test = "Cryoconite", pro.dq4)
 
 
 #Aldex2
-pro.ax1 = ALDEx2(phylo = ps.f.pro, group = data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Snow")))$SampleID, lev = "Family")
-#pro.ax1 = cbind(Test = "Snow", pro.ax1) #no significant difference
+# pro.ax1 = ALDEx2(phylo = ps.f.pro, group = data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Snow")))$SampleID, lev = "Family")
+# pro.ax1 = cbind(Test = "Snow", pro.ax1)
 
 pro.ax2 = ALDEx2(phylo = ps.f.pro, group = data.frame(sample_data(subset_samples(ps.f.pro, Habitat == "Spring Ice")))$SampleID, lev = "Family")
 pro.ax2 = cbind(Test = "Spring Ice", pro.ax2)
@@ -1224,9 +1848,9 @@ pro.ax4 = cbind(Test = "Cryoconite", pro.ax4)
 #Prokaryotes
 
 #Snow
-pro.snow.tax = Reduce(intersect, list(pro.wx1$Family,
-                                      pro.dq1$Family,
-                                      pro.ax1$Family))
+# pro.snow.tax = Reduce(intersect, list(pro.wx1$Family,
+#                                       pro.dq1$Family,
+#                                       pro.ax1$Family))
 
 #Spring Ice
 pro.sp.ice.tax = Reduce(intersect, list(pro.wx2$Family,
@@ -1249,7 +1873,7 @@ tot.fam = unique(c(pro.sp.ice.tax, pro.sum.ice.tax, pro.cry.tax))
 #get full tax data
 tax.data = data.frame(tax_table(ps.pro))
 tax.data = tax.data[tax.data$Family %in% tot.fam,]
-tax.data.fam = unique(data.frame(Domain=tax.data$Domain, Phylum = tax.data$Phylum, Class=tax.data$Class, 
+tax.data.fam = unique(data.frame(Kingdom=tax.data$Kingdom, Phylum = tax.data$Phylum, Class=tax.data$Class, 
                                  Order=tax.data$Order,
                                  Family = tax.data$Family))
 
@@ -1262,14 +1886,14 @@ data2plot = data2plot[data2plot$Family %in% pro.sp.ice.tax,]
 
 #add empty rows for all the taxa we will include
 rows2add = tax.data.fam[!tax.data.fam$Family %in% data2plot$Family,]
-rows2add2 = data.frame(Test = "Spring Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Domain=rows2add$Domain, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
+rows2add2 = data.frame(Test = "Spring Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Kingdom=rows2add$Kingdom, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
                        Genus=NA, Species=NA)
 data2plot = rbind(data2plot, rows2add2)
 data2plot =arrange(data2plot ,desc(Phylum),Family)
 data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
-p1b = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) + 
+p1 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) + 
   geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
   scale_fill_manual(drop = FALSE, breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched on Lower Foxfonna'), paste0('Enriched on Upper Foxfonna')))+
   coord_flip()+
@@ -1279,7 +1903,7 @@ p1b = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   ylim(-10,12)+
   ggtitle("Spring Ice")
 
-print(p1b)
+print(p1)
 
 
 #SUMMER ICE
@@ -1289,14 +1913,14 @@ data2plot = data2plot[data2plot$Family %in% pro.sum.ice.tax,]
 
 #add empty rows for all the taxa we will include
 rows2add = tax.data.fam[!tax.data.fam$Family %in% data2plot$Family,]
-rows2add2 = data.frame(Test = "Summer Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Domain=rows2add$Domain, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
+rows2add2 = data.frame(Test = "Summer Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Kingdom=rows2add$Kingdom, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
                        Genus=NA, Species=NA)
 data2plot = rbind(data2plot, rows2add2)
 data2plot =arrange(data2plot ,desc(Phylum),Family)
 data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
-p2b = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) + 
+p2 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) + 
   geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
   scale_fill_manual(drop = FALSE, breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched on Lower Foxfonna'), paste0('Enriched on Upper Foxfonna')))+
   coord_flip()+
@@ -1307,7 +1931,7 @@ p2b = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   ylim(-10,12)+
   ggtitle("Summer Ice")
 
-print(p2b)
+print(p2)
 
 #CRYOCONITE
 data2plot = pro.dq4[pro.dq4$Test == "Cryoconite",]
@@ -1315,14 +1939,14 @@ data2plot = data2plot[data2plot$Family %in% pro.cry.tax,]
 
 #add empty rows for all the taxa we will include
 rows2add = tax.data.fam[!tax.data.fam$Family %in% data2plot$Family,]
-rows2add2 = data.frame(Test = "Cryoconite", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Domain=rows2add$Domain, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
+rows2add2 = data.frame(Test = "Cryoconite", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Kingdom=rows2add$Kingdom, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
                        Genus=NA, Species=NA)
 data2plot = rbind(data2plot, rows2add2)
 data2plot =arrange(data2plot ,desc(Phylum),Family)
 data2plot$Family = paste0(data2plot$Family, " (", data2plot$Phylum, ")")
 data2plot$Family = factor(data2plot$Family, levels = unique(data2plot$Family))
 
-p3b = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) + 
+p3 = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) + 
   geom_bar(aes(fill = log2FoldChange < 0), stat = "identity") + 
   scale_fill_manual(drop = FALSE, breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched on Lower Foxfonna'), paste0('Enriched on Upper Foxfonna')))+
   coord_flip()+
@@ -1333,18 +1957,47 @@ p3b = ggplot(data2plot, aes(x=Family, y=log2FoldChange)) +
   ylim(-10,12)+
   ggtitle("Cryoconite")
 
-print(p3b)
+print(p3)
 
 
-p1b | p2b | p3b
+p1 | p2 | p3
+
+#   pro.p = plot_grid(p1 + theme(legend.justification = c(0.4,0), 
+#                                axis.title.x=element_blank(), 
+#                                axis.title.y=element_blank(),
+#                                axis.text.x=element_blank(),
+#                                axis.ticks.x=element_blank(), 
+#                                plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                                legend.position = "none"),
+#                     p2+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                       axis.title.y=element_blank(),
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(), 
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "none"),
+#             p3+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.y=element_blank(),
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "none"),
+#             ncol=1,
+#             rel_heights = c(0.7, 0.4, 1.5),
+#             align="v",
+#             labels = c("Spring Ice", "Summer Ice", "Cryoconite"))
+# 
+# pro.p
+# 
+# pdf("../results-proportional/pro-location-deseq2.pdf", height=12)
+# pro.p
+# dev.off()
 
 #Eukaryotes
 
 #Get results of each analysis and identify which Families overlap
 
 #Wilcoxon
-euk.wx1 = wilcoxon.daa(phylo = ps.f.euk, group = data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Snow")))$SampleID, lev = "Family") #no differences
-#euk.wx1 = cbind(Test = "Snow", euk.wx1) #no significant difference
+# euk.wx1 = wilcoxon.daa(phylo = ps.f.euk, group = data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Snow")))$SampleID, lev = "Family") #no differences
+# euk.wx1 = cbind(Test = "Snow", euk.wx1)
 
 euk.wx2 = wilcoxon.daa(phylo = ps.f.euk, group = data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Spring Ice")))$SampleID, lev = "Family")
 euk.wx2 = cbind(Test = "Spring Ice", euk.wx2)
@@ -1372,8 +2025,8 @@ euk.dq4 = cbind(Test = "Cryoconite", euk.dq4)
 
 
 #Aldex2
-euk.ax1 = ALDEx2(phylo = ps.f.euk, group = data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Snow")))$SampleID, lev = "Family")
-#euk.ax1 = cbind(Test = "Snow", euk.ax1) #no significant difference
+# euk.ax1 = ALDEx2(phylo = ps.f.euk, group = data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Snow")))$SampleID, lev = "Family")
+# euk.ax1 = cbind(Test = "Snow", euk.ax1)
 
 euk.ax2 = ALDEx2(phylo = ps.f.euk, group = data.frame(sample_data(subset_samples(ps.f.euk, Habitat == "Spring Ice")))$SampleID, lev = "Family")
 euk.ax2 = cbind(Test = "Spring Ice", euk.ax2)
@@ -1389,9 +2042,9 @@ euk.ax4 = cbind(Test = "Cryoconite", euk.ax4)
 #eukaryotes
 
 #Snow
-euk.snow.tax = Reduce(intersect, list(euk.wx1$Family,
-                                      euk.dq1$Family,
-                                      euk.ax1$Family))
+# euk.snow.tax = Reduce(intersect, list(euk.wx1$Family,
+#                                       euk.dq1$Family,
+#                                       euk.ax1$Family))
 
 #Spring Ice
 euk.sp.ice.tax = Reduce(intersect, list(euk.wx2$Family,
@@ -1414,7 +2067,7 @@ tot.fam = unique(c(euk.sp.ice.tax, euk.sum.ice.tax, euk.cry.tax))
 #get full tax data
 tax.data = data.frame(tax_table(ps.euk))
 tax.data = tax.data[tax.data$Family %in% tot.fam,]
-tax.data.fam = unique(data.frame(Domain=tax.data$Domain, Phylum = tax.data$Phylum, Class=tax.data$Class, 
+tax.data.fam = unique(data.frame(Kingdom=tax.data$Kingdom, Phylum = tax.data$Phylum, Class=tax.data$Class, 
                                  Order=tax.data$Order,
                                  Family = tax.data$Family))
 
@@ -1428,7 +2081,7 @@ data2plot = data2plot[data2plot$Family %in% euk.sp.ice.tax,]
 
 #add empty rows for all the taxa we will include
 rows2add = tax.data.fam[!tax.data.fam$Family %in% data2plot$Family,]
-rows2add2 = data.frame(Test = "Spring Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Domain=rows2add$Domain, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
+rows2add2 = data.frame(Test = "Spring Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Kingdom=rows2add$Kingdom, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
                        Genus=NA, Species=NA)
 data2plot = rbind(data2plot, rows2add2)
 data2plot =arrange(data2plot ,desc(Phylum),Family)
@@ -1455,7 +2108,7 @@ data2plot = data2plot[data2plot$Family %in% euk.sum.ice.tax,]
 
 #add empty rows for all the taxa we will include
 rows2add = tax.data.fam[!tax.data.fam$Family %in% data2plot$Family,]
-rows2add2 = data.frame(Test = "Summer Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Domain=rows2add$Domain, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
+rows2add2 = data.frame(Test = "Summer Ice", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Kingdom=rows2add$Kingdom, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
                        Genus=NA, Species=NA)
 data2plot = rbind(data2plot, rows2add2)
 data2plot =arrange(data2plot ,desc(Phylum),Family)
@@ -1481,7 +2134,7 @@ data2plot = data2plot[data2plot$Family %in% euk.cry.tax,]
 
 #add empty rows for all the taxa we will include
 rows2add = tax.data.fam[!tax.data.fam$Family %in% data2plot$Family,]
-rows2add2 = data.frame(Test = "Cryoconite", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Domain=rows2add$Domain, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
+rows2add2 = data.frame(Test = "Cryoconite", baseMean=0, log2FoldChange=0, lfcSE=0, stat=0, pvalue=0, padj=0, Kingdom=rows2add$Kingdom, Phylum=rows2add$Phylum, Class=rows2add$Class, Order=rows2add$Order, Family=rows2add$Family,
                        Genus=NA, Species=NA)
 data2plot = rbind(data2plot, rows2add2)
 data2plot =arrange(data2plot ,desc(Phylum),Family)
@@ -1511,32 +2164,357 @@ print(all.p2)
 dev.off()
 
 
-#combine all plots with titles
+#  euk.p =  plot_grid(p4 + theme(legend.justification = c(0.4,0), 
+#                                axis.title.x=element_blank(), 
+#                                axis.title.y=element_blank(),
+#                                axis.text.x=element_blank(),
+#                                axis.ticks.x=element_blank(), 
+#                                plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                                legend.position = "none"),
+#                     p5+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.x=element_blank(), 
+#                       axis.title.y=element_blank(),
+#                       axis.text.x=element_blank(),
+#                       axis.ticks.x=element_blank(), 
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "none"),
+#             p6+ theme(legend.justification = c(0.4,0), 
+#                       axis.title.y=element_blank(),
+#                       plot.margin = unit(c(1,0.5,0.5,0.5), "cm"),
+#                       legend.position = "none"),
+#             ncol=1,
+#             rel_heights = c(0.9, 0.6, 1.5),
+#             align="v",
+#             labels = c("Spring Ice", "Summer Ice", "Cryoconite"))
+# 
+# euk.p
+# 
+# pdf("../results-proportional/euk-location-deseq2.pdf", height=6)
+# euk.p
+# dev.off()
 
-#my plots
-p1
-p2
-p3
-p4
-p5
-p6
-p1b
-p2b
-p3b
-p4b
-p5b
-p6b
-all.p
-all.p2
+# final.p = plot_grid(pro.p,
+#                     plot_grid(euk.p,
+#                               NULL, ncol=1, rel_heights = c(0.7, 0.3)),
+#                     ncol=2,
+#                     labels="AUTO")
 
-#get our titles
-title1 <- ggdraw() + draw_label("DAA Between Habitats", size=20, hjust=2.8, fontface = "bold")
-title2 <- ggdraw() + draw_label("DAA Between Upper/Lower Foxfonna", size=20, hjust=1.7, fontface = "bold")
+# final.p = plot_grid(pro.p,
+#           euk.p,
+#           ncol=2,
+#           #rel_heights = c(1, 0.4, 0.6),
+#           labels="AUTO")
 
-combi.plot = title1 / plot_spacer() / ((p1 + labs(title="Spring Ice Vs \n Snow") + theme(axis.text = element_text(size=10), axis.title.y = element_text(size=20), plot.title = element_text(size=20))) | (p2 + labs(title="Summer Ice Vs \n Snow") + theme(plot.title = element_text(size=20))) | (p3 + labs(title="Cryoconite Vs \n Snow") + theme(plot.title = element_text(size=20))) | (p4 + labs(title="Summer Ice Vs \n Spring Ice") + theme(plot.title = element_text(size=20))) | (p5 + labs(title="Cryoconite Vs \n Spring Ice") + theme(plot.title = element_text(size=20))) | (p6 + labs(title="Cryoconite Vs \n Summer Ice") + theme(plot.title = element_text(size=20)))) / ((p7 + theme(legend.text = element_text(size=10), axis.text = element_text(size=10), axis.title.y = element_text(size=20)))| (p8 + theme(legend.text = element_text(size=10))) | (p9 + theme(legend.text = element_text(size=10))) | (p10 + theme(legend.text = element_text(size=10))) | (p11 + theme(legend.text = element_text(size=10))) | (p12 + theme(legend.text = element_text(size=10)))) / plot_spacer() /
-  title2 / plot_spacer() /((p1b + theme(axis.text = element_text(size=10), axis.title.y = element_text(size=20), plot.title = element_text(size=25))) | (p2b + theme(plot.title = element_text(size=25))) | (p3b + theme(plot.title = element_text(size=25)))) / ((p4b + theme(axis.text = element_text(size=10), axis.title.y = element_text(size=20))) | (p5b + theme(legend.text = element_text(size=20))) | p6b) +
-  plot_layout(heights = c(0.1, 0.1, 1, 0.4, 0.1, 0.1, 0.1, 2.7, 1.4))
+# final.p
+# 
+# #add legend
+# 
+# leg <- get_legend(p1 + theme(legend.position = "bottom",
+#                              axis.text=element_text(size=20),
+#                              axis.title=element_text(size=20,face="bold"),
+#                              legend.text = element_text(size=20), 
+#                              legend.title = element_blank()))
+# 
+# final.p2 = plot_grid(final.p, leg, ncol = 1,rel_heights = c(1, 0.1))
+# 
+# 
+# pdf("../results/full-location-deseq2.pdf", height=16, width=10)
+# final.p2
+# dev.off()
 
-pdf("../results/daa-plot.pdf", width=15, height=25)
-print(combi.plot)
-dev.off()
+
+# plot_grid(pro.p,
+#           euk.p)
+
+#print results
+#Snow and Spring Ice
+# ps = ps.f.euk
+# ps = subset_samples(ps, Habitat %in% c("Snow", "Spring Ice"))
+# ps = subset_taxa(ps, Family %in% euk.snow.sp.ice.tax)
+# ps = tax_glom(ps, "Family")
+# ps <- microbiome::transform(ps, "clr")
+# df = data.frame(t(otu_table(ps)))
+# names(df) = data.frame(tax_table(ps))$Family
+# df$Habitat = data.frame(sample_data(ps))$Habitat
+# data_long <- gather(df,Family,clr, names(df)[1]:names(df)[length(names(df))-1])
+# 
+# p = ggplot(data_long, aes(x=Habitat, y=clr, fill=Habitat)) +
+#   geom_boxplot()+
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1))+
+#   facet_wrap(~Family)+
+#   theme(legend.position = "bottom", axis.title.x = element_blank())+
+#   ylab("centered-log-ratio transformed counts")
+# print(p)
+# 
+# x = euk.d2[which(euk.d2$Test == "Snow Vs Spring Ice" & euk.d2$Family %in% euk.snow.sp.ice.tax),]
+# y = euk.ax1[euk.ax1$Family %in% euk.snow.sp.ice.tax,]
+# z = euk.wx1[euk.wx1$Family %in% euk.snow.sp.ice.tax,]
+# 
+# #prep to plot
+# data2plot = data.frame(cbind(x$Test, x$Family, x$log2FoldChange*-1, y$effect, z$effect))
+# names(data2plot) = c("Test", "Family", "DESeq2", "ALDEX2", "Wilcoxon")
+# data2plot_long <- gather(data2plot, Method, Effect, names(data2plot)[3]:names(data2plot)[length(names(data2plot))])
+# 
+#   df <- data.frame(Method=data2plot_long$Method,
+#                 Family=data2plot_long$Family,
+#                 Effect.Size=as.numeric(data2plot_long$Effect))
+#   
+#   #plot results
+#   p1 <- ggplot(data=df, aes(x=Family, y=Effect.Size, fill=Method)) +
+# geom_bar(stat="identity", color="black", position=position_dodge())+
+#     coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("Effect Size")+
+#     #geom_bar(aes(fill = Effect < 0), stat = "identity") +
+#   #scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in '), paste0('Enriched in ')))+
+#   theme_minimal()+
+#     ggtitle("Snow Vs Spring Ice")+
+#     ylim(-15, 15)
+#   p1
+
+#Snow and Summer Ice
+# ps = ps.f.euk
+# ps = subset_samples(ps, Habitat %in% c("Snow", "Summer Ice"))
+# ps = subset_taxa(ps, Family %in% euk.snow.sum.ice.tax)
+# ps = tax_glom(ps, "Family")
+# ps <- microbiome::transform(ps, "clr")
+# df = data.frame(t(otu_table(ps)))
+# names(df) = data.frame(tax_table(ps))$Family
+# df$Habitat = data.frame(sample_data(ps))$Habitat
+# data_long <- gather(df,Family,clr, names(df)[1]:names(df)[length(names(df))-1])
+# 
+# p = ggplot(data_long, aes(x=Habitat, y=clr, fill=Habitat)) +
+#   geom_boxplot()+
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1))+
+#   facet_wrap(~Family)+
+#   theme(legend.position = "bottom", axis.title.x = element_blank())+
+#   ylab("centered-log-ratio transformed counts")
+# print(p)
+# 
+# x = euk.d2[which(euk.d2$Test == "Snow Vs Summer Ice" & euk.d2$Family %in% euk.snow.sum.ice.tax),]
+# y = euk.ax2[euk.ax2$Family %in% euk.snow.sum.ice.tax,]
+# z = euk.wx2[euk.wx2$Family %in% euk.snow.sum.ice.tax,]
+# 
+# #prep to plot
+# data2plot = data.frame(cbind(x$Test, x$Family, x$log2FoldChange*-1, y$effect, z$effect))
+# names(data2plot) = c("Test", "Family", "DESeq2", "ALDEX2", "Wilcoxon")
+# data2plot_long <- gather(data2plot, Method, Effect, names(data2plot)[3]:names(data2plot)[length(names(data2plot))])
+# 
+#   df <- data.frame(Method=data2plot_long$Method,
+#                 Family=data2plot_long$Family,
+#                 Effect.Size=as.numeric(data2plot_long$Effect))
+#   
+#   #plot results
+#   p2 <- ggplot(data=df, aes(x=Family, y=Effect.Size, fill=Method)) +
+# geom_bar(stat="identity", color="black", position=position_dodge())+
+#     coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("Effect Size")+
+#     #geom_bar(aes(fill = Effect < 0), stat = "identity") +
+#   #scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in '), paste0('Enriched in ')))+
+#   theme_minimal()+
+#     ggtitle("Snow Vs Summer Ice")+
+#     ylim(-5, 10)
+#   p2
+
+#Snow and Cryoconite
+# ps = ps.f.euk
+# ps = subset_samples(ps, Habitat %in% c("Snow", "Cryoconite"))
+# ps = subset_taxa(ps, Family %in% euk.snow.cry.tax)
+# ps = tax_glom(ps, "Family")
+# ps <- microbiome::transform(ps, "clr")
+# df = data.frame(t(otu_table(ps)))
+# names(df) = data.frame(tax_table(ps))$Family
+# df$Habitat = data.frame(sample_data(ps))$Habitat
+# data_long <- gather(df,Family,clr, names(df)[1]:names(df)[length(names(df))-1])
+# 
+# p = ggplot(data_long, aes(x=Habitat, y=clr, fill=Habitat)) +
+#   geom_boxplot()+
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1))+
+#   facet_wrap(~Family)+
+#   theme(legend.position = "bottom", axis.title.x = element_blank())+
+#   ylab("centered-log-ratio transformed counts")
+# print(p)
+# 
+# x = euk.d2[which(euk.d2$Test == "Snow Vs Cryoconite" & euk.d2$Family %in% euk.snow.cry.tax),]
+# y = euk.ax3[euk.ax3$Family %in% euk.snow.cry.tax,]
+# z = euk.wx3[euk.wx3$Family %in% euk.snow.cry.tax,]
+# 
+# #prep to plot
+# data2plot = data.frame(cbind(x$Test, x$Family, x$log2FoldChange, y$effect, z$effect))
+# names(data2plot) = c("Test", "Family", "DESeq2", "ALDEX2", "Wilcoxon")
+# data2plot_long <- gather(data2plot, Method, Effect, names(data2plot)[3]:names(data2plot)[length(names(data2plot))])
+# 
+#   df <- data.frame(Method=data2plot_long$Method,
+#                 Family=data2plot_long$Family,
+#                 Effect.Size=as.numeric(data2plot_long$Effect))
+#   
+#   #plot results
+#   p3 <- ggplot(data=df, aes(x=Family, y=Effect.Size, fill=Method)) +
+# geom_bar(stat="identity", color="black", position=position_dodge())+
+#     coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("Effect Size")+
+#     #geom_bar(aes(fill = Effect < 0), stat = "identity") +
+#   #scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in '), paste0('Enriched in ')))+
+#   theme_minimal()+
+#     ggtitle("Cryoconite Vs Snow")+
+#     ylim(-5, 10)
+#   p3
+
+
+#Spring Ice and Summer Ice
+# euk.sp.sum.ice.tax 
+
+# ps = ps.f.euk
+# ps = subset_samples(ps, Habitat %in% c("Spring Ice", "Summer Ice"))
+# ps = subset_taxa(ps, Family %in% euk.sp.sum.ice.tax)
+# ps = tax_glom(ps, "Family")
+# #ps <- microbiome::transform(ps, "clr")
+# df = data.frame(t(otu_table(ps)))
+# names(df) = data.frame(tax_table(ps))$Family
+# df$Habitat = data.frame(sample_data(ps))$Habitat
+# data_long <- gather(df,Family,clr, names(df)[1]:names(df)[length(names(df))-1])
+# 
+# p = ggplot(data_long, aes(x=Habitat, y=clr, fill=Habitat)) +
+#   geom_boxplot()+
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1))+
+#   facet_wrap(~Family)+
+#   theme(legend.position = "bottom", axis.title.x = element_blank())+
+#   ylab("centered-log-ratio transformed counts")
+# print(p)
+# 
+# x = euk.d2[which(euk.d2$Test == "Spring Ice Vs Summer Ice" & euk.d2$Family %in% euk.sp.sum.ice.tax ),]
+# y = euk.ax4[euk.ax4$Family %in% euk.sp.sum.ice.tax ,]
+# z = euk.wx4[euk.wx4$Family %in% euk.sp.sum.ice.tax ,]
+# 
+# #prep to plot
+# data2plot = data.frame(cbind(x$Test, x$Family, x$log2FoldChange*-1, y$effect, z$effect))
+# names(data2plot) = c("Test", "Family", "DESeq2", "ALDEX2", "Wilcoxon")
+# data2plot_long <- gather(data2plot, Method, Effect, names(data2plot)[3]:names(data2plot)[length(names(data2plot))])
+# 
+#   df <- data.frame(Method=data2plot_long$Method,
+#                 Family=data2plot_long$Family,
+#                 Effect.Size=as.numeric(data2plot_long$Effect))
+#   
+#   #plot results
+#   p4 <- ggplot(data=df, aes(x=Family, y=Effect.Size, fill=Method)) +
+# geom_bar(stat="identity", color="black", position=position_dodge())+
+#     coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("Effect Size")+
+#     #geom_bar(aes(fill = Effect < 0), stat = "identity") +
+#   #scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in '), paste0('Enriched in ')))+
+#   theme_minimal()+
+#     ggtitle("Spring Ice Vs Summer Ice")+
+#     ylim(-5, 10)
+#   p4
+
+#Spring Ice and Cryoconite
+# euk.sp.ice.cry.tax
+
+# ps = ps.f.euk
+# ps = subset_samples(ps, Habitat %in% c("Spring Ice", "Cryoconite"))
+# ps = subset_taxa(ps, Family %in% euk.sp.ice.cry.tax)
+# ps = tax_glom(ps, "Family")
+# # ps <- microbiome::transform(ps, "clr")
+# df = data.frame(t(otu_table(ps)))
+# names(df) = data.frame(tax_table(ps))$Family
+# df$Habitat = data.frame(sample_data(ps))$Habitat
+# data_long <- gather(df,Family,clr, names(df)[1]:names(df)[length(names(df))-1])
+# 
+# p = ggplot(data_long, aes(x=Habitat, y=clr, fill=Habitat)) +
+#   geom_boxplot()+
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1))+
+#   facet_wrap(~Family)+
+#   theme(legend.position = "bottom", axis.title.x = element_blank())+
+#   ylab("centered-log-ratio transformed counts")
+# print(p)
+# 
+# x = euk.d2[which(euk.d2$Test == "Spring Ice Vs Cryoconite" & euk.d2$Family %in% euk.sp.ice.cry.tax),]
+# y = euk.ax5[euk.ax5$Family %in% euk.sp.ice.cry.tax,]
+# z = euk.wx5[euk.wx5$Family %in% euk.sp.ice.cry.tax,]
+# 
+# #prep to plot
+# data2plot = data.frame(cbind(x$Test, x$Family, x$log2FoldChange, y$effect, z$effect))
+# names(data2plot) = c("Test", "Family", "DESeq2", "ALDEX2", "Wilcoxon")
+# data2plot_long <- gather(data2plot, Method, Effect, names(data2plot)[3]:names(data2plot)[length(names(data2plot))])
+# 
+#   df <- data.frame(Method=data2plot_long$Method,
+#                 Family=data2plot_long$Family,
+#                 Effect.Size=as.numeric(data2plot_long$Effect))
+#   
+#   #plot results
+#   p5 <- ggplot(data=df, aes(x=Family, y=Effect.Size, fill=Method)) +
+# geom_bar(stat="identity", color="black", position=position_dodge())+
+#     coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("Effect Size")+
+#     #geom_bar(aes(fill = Effect < 0), stat = "identity") +
+#   #scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in '), paste0('Enriched in ')))+
+#   theme_minimal()+
+#     ggtitle("Cryoconite Vs Spring Ice")+
+#     ylim(-5, 10)
+#   p5
+
+#Summer Ice and Cryoconite
+# euk.sum.ice.cry.tax
+
+# ps = ps.f.euk
+# ps = subset_samples(ps, Habitat %in% c("Summer Ice", "Cryoconite"))
+# ps = subset_taxa(ps, Family %in% euk.sum.ice.cry.tax)
+# ps = tax_glom(ps, "Family")
+# ps <- microbiome::transform(ps, "clr")
+# df = data.frame(t(otu_table(ps)))
+# names(df) = data.frame(tax_table(ps))$Family
+# df$Habitat = data.frame(sample_data(ps))$Habitat
+# data_long <- gather(df,Family,clr, names(df)[1]:names(df)[length(names(df))-1])
+# 
+# p = ggplot(data_long, aes(x=Habitat, y=clr, fill=Habitat)) +
+#   geom_boxplot()+
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1))+
+#   facet_wrap(~Family)+
+#   theme(legend.position = "bottom", axis.title.x = element_blank())+
+#   ylab("centered-log-ratio transformed counts")
+# print(p)
+# 
+# x = euk.d2[which(euk.d2$Test == "Summer Ice Vs Cryoconite" & euk.d2$Family %in% euk.sum.ice.cry.tax),]
+# y = euk.ax6[euk.ax6$Family %in% euk.sum.ice.cry.tax,]
+# z = euk.wx6[euk.wx6$Family %in% euk.sum.ice.cry.tax,]
+# 
+# #prep to plot
+# data2plot = data.frame(cbind(x$Test, x$Family, x$log2FoldChange, y$effect, z$effect))
+# names(data2plot) = c("Test", "Family", "DESeq2", "ALDEX2", "Wilcoxon")
+# data2plot_long <- gather(data2plot, Method, Effect, names(data2plot)[3]:names(data2plot)[length(names(data2plot))])
+# 
+#   df <- data.frame(Method=data2plot_long$Method,
+#                 Family=data2plot_long$Family,
+#                 Effect.Size=as.numeric(data2plot_long$Effect))
+#   
+#   #plot results
+#   p6 <- ggplot(data=df, aes(x=Family, y=Effect.Size, fill=Method)) +
+# geom_bar(stat="identity", color="black", position=position_dodge())+
+#     coord_flip()+
+#   theme(legend.position = "bottom", legend.title = element_blank())+
+#   ylab("Effect Size")+
+#     #geom_bar(aes(fill = Effect < 0), stat = "identity") +
+#   #scale_fill_manual(breaks = c(TRUE, FALSE), values=c("gray", "red"), labels=c(paste0('Enriched in '), paste0('Enriched in ')))+
+#   theme_minimal()+
+#     ggtitle("Cryoconite Vs Summer Ice")+
+#     ylim(-5, 10)
+#   p6
+
+#Combine plots
+
+# plot_grid(p2 + theme(legend.position = "none"),
+#           p3 + theme(legend.position = "none"),
+#           p4 + theme(legend.position = "none"),
+#           p5 + theme(legend.position = "none"),
+#           p6 + theme(legend.position = "bottom"),
+#           ncol=1)

@@ -19,7 +19,7 @@ library(cowplot)
 # library(microbiome) #for summarize_phyloseq
 library(tibble) # for add_column
 library(patchwork)
-library(glue)
+#library(glue)
 
 #prokaryotes
 ps.pro <- readRDS("../results/16S-ps-norm.rds") 
@@ -61,7 +61,7 @@ pro.nmds.p = ggplot(data=data2plot) +
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank())+
-  ggtitle("Prokaryote")
+  ggtitle(expression(bold("Prokaryote")))
 
 print(pro.nmds.p)
 
@@ -99,7 +99,7 @@ euk.nmds.p = ggplot(data=data2plot) +
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank())+
-  ggtitle("Microbial eukaryote")
+ggtitle(expression(bold("Microbial Eukaryote")))
 
 print(euk.nmds.p)
 
@@ -131,7 +131,8 @@ mm.nmds.p = ggplot(data=data2plot) +
   xlim(-1.5, 4.5)+
   theme_bw()+
   theme(legend.position="none")+
-  ggtitle("Microfauna")
+ggtitle(expression(bold("Microfauna")))
+
 
 print(mm.nmds.p)
 
