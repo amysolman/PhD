@@ -35,5 +35,46 @@ Rscript differential-abundance.R
 #Distance-decay analysis
 Rscript DDR.R
 
-#Explore differences in communities over different spatial scales
+#Explore differences in communities and environment over different spatial scales
 Rscript spatial-scales.R
+
+#Single variable mantel tests
+Rscript mantel-single-var.R
+
+#CCA and db-RDA 
+Rscript constrained-ordination.R
+
+#mantel and db-RDA plots were combined manually using powerpoint because I struggled to do this with code
+
+#VPA and (partial) Mantel Tests
+Rscript vpa-mantel.R
+
+#Mantel correlograms - don't run this locally as it's too computationally expensive! Run on HPC.
+#Rscript mantel-correlogram.R #full script
+#model for each group to make it run quicker
+#Rscript mantel-correlogram-pro.R 
+#Rscript mantel-correlogram-euk.R 
+#Rscript mantel-correlogram-mm.R 
+
+#Mantel correlogram plots - plot the data from the HPC
+Rscript mantel-correlogram-plots.R
+
+#Null model - don't run this locally as it's too computationally expensive! Run on HPC.
+#Rscript null-model.R #full model
+#model in parts to make it quicker to run
+#Rscript null-model-pro-bnti.R
+#Rscript null-model-euk-bnti.R
+#Rscript null-model-pro-rcbray.R
+#Rscript null-model-euk-rcbray.R
+
+#Neutral model and null model plot
+Rscript neutral-model-with-null-model-plot.R
+
+#Network analysis
+Rscript network-analysis.R
+
+#Network properties - stats for the whole networks
+Rscript network-properties.R
+
+#Node properties - stats for ASVs in the networks
+Rscript node-properties.R

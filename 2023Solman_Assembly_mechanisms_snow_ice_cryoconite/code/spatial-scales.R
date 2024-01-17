@@ -14,6 +14,7 @@ library(fossil) #for earth.dist function
 library(patchwork)
 library(ggpubr)
 library(dplyr)
+library(plyr)
 
 #prokaryotes
 ps.pro <- readRDS("../results/16S-ps-norm.rds") 
@@ -225,7 +226,7 @@ pro.all.habs$Habitat <- ordered(pro.all.habs$Habitat,
 
 # STEP TWO COMPUTE SUMMARY STATISTICS
 pro.sum.stats = group_by(pro.all.habs, Group, Habitat) %>%
-  summarise(
+  dplyr::summarise(
     count = n(),
     Beta_mean = mean(Beta, na.rm = TRUE),
     Beta_sd = sd(Beta, na.rm = TRUE),
@@ -238,6 +239,117 @@ pro.line.p
 pdf("../results/prokaryote-line-distance.pdf", width=20, height=10)
 print(pro.line.p)
 dev.off()
+
+#####TEST FOR DIFFERENCES
+#Is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+
+#snow
+#Is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = pro.snow.df[pro.snow.df$m < 55,]$ChemDist
+y = pro.snow.df[pro.snow.df$m > 1500,]$ChemDist
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p > 0.05 so the data is normally distributed i.e. not significant different from normal distribution
+shapiro.test(y) #p > 0.05 so the data is normally distributed i.e. not significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p < 0.05 so variances are significantly different
+#conduct t.test (which will be a welch test which assumes normality but not equal variances)
+snow.euc = t.test(x,y,alternative = "two.sided", var.equal=FALSE) #two-sided = greater or less, var.equal = are the variances equal? If FALSE then a Welch test is used.
+#answer = no!
+
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = pro.snow.df[pro.snow.df$m < 55,]$Beta
+y = pro.snow.df[pro.snow.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p > 0.05 so variances are not significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+pro.snow.com = wilcox.test(x, y, alternative = "two.sided") # p > 0.05 so not significantly different
+
+
+#spring ice
+#Is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = pro.sp.df[pro.sp.df$m < 55,]$ChemDist
+y = pro.sp.df[pro.sp.df$m > 1500,]$ChemDist
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p > 0.05 so the data is normally distributed i.e. not significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+sp.euc = wilcox.test(x, y, alternative = "two.sided") # p < 0.05  significantly different
+
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = pro.sp.df[pro.sp.df$m < 55,]$Beta
+y = pro.sp.df[pro.sp.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p < 0.05 so variances are significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+pro.sp.com = wilcox.test(x, y, alternative = "two.sided") # p < 0.05 so significantly different
+
+
+
+#summer ice
+#Is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = pro.sm.df[pro.sm.df$m < 55,]$ChemDist
+y = pro.sm.df[pro.sm.df$m > 1500,]$ChemDist
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+sm.euc = wilcox.test(x, y, alternative = "two.sided") # p < 0.05  significantly different
+
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = pro.sm.df[pro.sm.df$m < 55,]$Beta
+y = pro.sm.df[pro.sm.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p > 0.05 so the data is normally distributed i.e. not significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p < 0.05 so variances are significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+pro.sm.com = wilcox.test(x, y, alternative = "two.sided") # p < 0.05 so significantly different
+
+
+#cryoconite
+#Is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = pro.cr.df[pro.cr.df$m < 55,]$ChemDist
+y = pro.cr.df[pro.cr.df$m > 1500,]$ChemDist
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+cr.euc = wilcox.test(x, y, alternative = "two.sided") # p < 0.05  significantly different
+
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = pro.cr.df[pro.cr.df$m < 55,]$Beta
+y = pro.cr.df[pro.cr.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p < 0.05 so variances are significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+pro.cr.com = wilcox.test(x, y, alternative = "two.sided") # p < 0.05 so significantly different
 
 #EUKARYOTE
 
@@ -260,8 +372,8 @@ euk.all.habs$Habitat <- ordered(euk.all.habs$Habitat,
 
 
 # STEP TWO COMPUTE SUMMARY STATISTICS
-euk.sum.stats = group_by(euk.all.habs, Group, Habitat) %>%
-  summarise(
+euk.sum.stats = dplyr::group_by(euk.all.habs, Group, Habitat) %>%
+  dplyr::summarise(
     count = n(),
     Beta_mean = mean(Beta, na.rm = TRUE),
     Beta_sd = sd(Beta, na.rm = TRUE),
@@ -274,6 +386,69 @@ euk.line.p
 pdf("../results/eukaryote-line-distance.pdf", width=20, height=10)
 print(euk.line.p)
 dev.off()
+
+#####TEST FOR DIFFERENCES
+#Is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+
+#snow
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = euk.snow.df[euk.snow.df$m < 55,]$Beta
+y = euk.snow.df[euk.snow.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p > 0.05 so the data is normally distributed i.e. not significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p > 0.05 so variances are not significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+euk.snow.com = wilcox.test(x, y, alternative = "two.sided") # p > 0.05 so not significantly different
+
+
+#spring ice
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = euk.sp.df[euk.sp.df$m < 55,]$Beta
+y = euk.sp.df[euk.sp.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p > 0.05 so the data is normally distributed i.e. not significant different from normal distribution
+shapiro.test(y) #p > 0.05 so the data is normally distributed i.e. not significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p < 0.05 so variances are significantly different
+#perform Welch's test for normally distributed data with unequal variances
+euk.sp.com = t.test(x,y,alternative = "two.sided", var.equal=FALSE)
+
+
+#summer ice
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = euk.sm.df[euk.sm.df$m < 55,]$Beta
+y = euk.sm.df[euk.sm.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p > 0.05 so the data is normally distributed i.e. not significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p < 0.05 so variances are significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+euk.sm.com = wilcox.test(x, y, alternative = "two.sided") # p < 0.05 so significantly different
+
+
+#cryoconite
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = euk.cr.df[euk.cr.df$m < 55,]$Beta
+y = euk.cr.df[euk.cr.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p > 0.05 so variances are not significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+euk.cr.com = wilcox.test(x, y, alternative = "two.sided") # p < 0.05 so significantly different
 
 #MICROFAUNA
 
@@ -296,8 +471,8 @@ mm.all.habs$Habitat <- ordered(mm.all.habs$Habitat,
 
 
 # STEP TWO COMPUTE SUMMARY STATISTICS
-mm.sum.stats = group_by(mm.all.habs, Group, Habitat) %>%
-  summarise(
+mm.sum.stats = dplyr::group_by(mm.all.habs, Group, Habitat) %>%
+  dplyr::summarise(
     count = n(),
     Beta_mean = mean(Beta, na.rm = TRUE),
     Beta_sd = sd(Beta, na.rm = TRUE),
@@ -311,6 +486,117 @@ pdf("../results/microfauna-line-distance.pdf", width=20, height=10)
 print(mm.line.p)
 dev.off()
 
+#####TEST FOR DIFFERENCES
+#Is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+
+#snow
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = mm.snow.df[mm.snow.df$m < 55,]$Beta
+y = mm.snow.df[mm.snow.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p > 0.05 so the data is normally distributed i.e. not significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p > 0.05 so variances are not significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+mm.snow.com = wilcox.test(x, y, alternative = "two.sided") # p > 0.05 so not significantly different
+
+
+#spring ice
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = mm.sp.df[mm.sp.df$m < 55,]$Beta
+y = mm.sp.df[mm.sp.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. not significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. not significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p < 0.05 so variances are significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+mm.sp.com = wilcox.test(x, y, alternative = "two.sided")
+
+
+#summer ice
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = mm.sm.df[mm.sm.df$m < 55,]$Beta
+y = mm.sm.df[mm.sm.df$m > 1300,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p > 0.05 so the data is normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p < 0.05 so variances are significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+mm.sm.com = wilcox.test(x, y, alternative = "two.sided") # p < 0.05 so significantly different
+
+
+#cryoconite
+#Is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?
+x = mm.cr.df[mm.cr.df$m < 55,]$Beta
+y = mm.cr.df[mm.cr.df$m > 1500,]$Beta
+
+#check t.test assumptions
+# Shapiro-Wilk normality test for <55m distance
+shapiro.test(x) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+shapiro.test(y) #p < 0.05 so the data is not normally distributed i.e. significant different from normal distribution
+#Do they have the same variances
+var.test(x, y) #p < 0.05 so variances are significantly different
+#we will use a Wilcoxon test instead (non-parametric alternative to t.test)
+mm.cr.com = wilcox.test(x, y, alternative = "two.sided") # p < 0.05 so significantly different
+
+###################################################################################################
+###################################################################################################
+
+#Report RESULTS
+sink("../results/distance-decay-relationship-results.txt", type="output")
+writeLines("===============================================================
+DISTANCE DECAY RESULTS
+===============================================================")
+writeLines("For snow, is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?")
+snow.euc
+writeLines("For prokayrotes in snow, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+pro.snow.com
+writeLines("For eukayrotes in snow, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+euk.snow.com
+writeLines("For microfauna in snow, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+mm.snow.com
+
+writeLines("For spring ice, is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?")
+sp.euc
+writeLines("For prokayrotes in spring ice, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+pro.sp.com
+writeLines("For eukayrotes in spring ice, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+euk.sp.com
+writeLines("For microfauna in spring ice, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+mm.sp.com
+
+writeLines("For summer ice, is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?")
+sp.euc
+writeLines("For prokayrotes in summer ice, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+pro.sm.com
+writeLines("For eukayrotes in summer ice, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+euk.sm.com
+writeLines("For microfauna in summer ice, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+mm.sm.com
+
+writeLines("For cryoconite, is the mean chemical dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?")
+cr.euc
+writeLines("For prokayrotes in cryoconite, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+pro.cr.com
+writeLines("For eukayrotes in cryoconite, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+euk.cr.com
+writeLines("For microfauna in cryoconite, is the mean community dissimilarity significantly higher between samples 1500-2200m apart compared to <55m apart?") 
+mm.cr.com
+
+sink()
+
+###################################################################################################
+###################################################################################################
 
 #Combine Plots + save results tables
 write.csv(pro.sum.stats, "../results/prokaryote-distance-stats.csv")
@@ -328,4 +614,213 @@ all.p
 
 pdf("../results/environmental-community-dissimilarities.pdf", width=12, height=25)
 print(all.p)
+dev.off()
+
+
+
+#Combined plot
+
+#put all data together
+pro.sum.stats$Taxa = "Prokaryote"
+euk.sum.stats$Taxa = "Microbial Eukaryote"
+mm.sum.stats$Taxa = "Microfauna"
+data2plot = rbind(pro.sum.stats, euk.sum.stats, mm.sum.stats)
+
+#plot
+
+#Snow
+snow.df = data2plot[data2plot$Habitat == "Snow",]
+chem_data = snow.df[snow.df$Taxa == "Prokaryote",]
+#scale=12
+
+#scale the data
+#Taken from https://stackoverflow.com/questions/58774705/y-limits-for-ggplot-with-sec-axis
+ylim.prim <- c(0, 1)
+ylim.sec <- c(6, 12)
+EUCL <- snow.df$Chem_mean #needed for coherent normalisation
+# This is quite hacky, but it works if you want to set a boundary for the secondary y-axis
+fit = lm(b ~ . + 0, 
+         tibble::tribble(
+           ~a, ~s,  ~b,
+           1,  (ylim.sec[1] - mean(EUCL))/sd(EUCL),  ylim.prim[1],
+           1,  (ylim.sec[2] - mean(EUCL))/sd(EUCL), ylim.prim[2]))
+a <- fit$coefficients['a']
+s <- fit$coefficients['s']
+
+snow.df$Taxa <- factor(snow.df$Taxa, levels=c("Prokaryote", "Microbial Eukaryote", "Microfauna"))
+snow.p <-ggplot(snow.df, aes(x=Group, y=Beta_mean, group=Taxa)) +
+  geom_line(aes(color="#fa9f99"))+
+  geom_point(aes(color="#fa9f99", shape=Taxa, size=4))+
+  geom_point(data = chem_data, aes(x = Group, y =(a + ((Chem_mean - mean(EUCL))/sd(EUCL)) * s), size=4), color="#000000")+
+  geom_line(data = chem_data, aes(x = Group, y = (a + ((Chem_mean - mean(EUCL))/sd(EUCL)) * s)), color="#000000")+
+  scale_shape_manual(values=c(10,9,8))+
+  scale_y_continuous(limits=c(0,1)) +
+  expand_limits(y = 0)+
+  theme_bw()+
+  # geom_errorbar(aes(ymin = Beta_mean-Beta_sd, ymax = Beta_mean+Beta_sd, color=Taxa), width = 0.2) +
+  # geom_errorbar(data = chem_data, aes(ymin = (Chem_mean/scale)-(Chem_sd/scale), ymax = (Chem_mean/scale)+(Chem_sd/scale)),width = 0.2, color="#000000")
+  theme(legend.position = "none", 
+        axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        axis.ticks.x=element_blank(),
+        plot.title = element_text(face="bold"))+
+  ylab("Community Bray-Curtis Dissimilarity")+
+  ggtitle("Snow")
+  
+snow.p
+  
+
+#Spring Ice
+sp.df = data2plot[data2plot$Habitat == "Spring Ice",]
+chem_data = sp.df[sp.df$Taxa == "Prokaryote",]
+
+#scale the data
+#Taken from https://stackoverflow.com/questions/58774705/y-limits-for-ggplot-with-sec-axis
+ylim.prim <- c(0, 1)
+ylim.sec <- c(6, 12)
+EUCL <- sp.df$Chem_mean #needed for coherent normalisation
+# This is quite hacky, but it works if you want to set a boundary for the secondary y-axis
+fit = lm(b ~ . + 0, 
+         tibble::tribble(
+           ~a, ~s,  ~b,
+           1,  (ylim.sec[1] - mean(EUCL))/sd(EUCL),  ylim.prim[1],
+           1,  (ylim.sec[2] - mean(EUCL))/sd(EUCL), ylim.prim[2]))
+a <- fit$coefficients['a']
+s <- fit$coefficients['s']
+
+sp.p <-ggplot(sp.df, aes(x=Group, y=Beta_mean, group=Taxa)) +
+  geom_line(aes(color="#a4c64d"), color="#a4c64d")+
+  geom_point(aes(color="#a4c64d", shape=Taxa, size=4), color="#a4c64d")+
+  geom_point(data = chem_data, aes(x = Group, y = (a + ((Chem_mean - mean(EUCL))/sd(EUCL)) * s), size=4), color="#000000")+
+  geom_line(data = chem_data, aes(x = Group, y = (a + ((Chem_mean - mean(EUCL))/sd(EUCL)) * s)), color="#000000")+
+  scale_shape_manual(values=c(10,9,8))+
+  scale_y_continuous(limits=c(0,1), sec.axis = sec_axis(~ (. - a) / s * sd(EUCL) + mean(EUCL), name="Environmental Euclidean Distance")) +
+  expand_limits(y = 0)+
+  theme_bw()+
+  # geom_errorbar(aes(ymin = Beta_mean-Beta_sd, ymax = Beta_mean+Beta_sd, color=Taxa), width = 0.2) +
+  # geom_errorbar(data = chem_data, aes(ymin = (Chem_mean/scale)-(Chem_sd/scale), ymax = (Chem_mean/scale)+(Chem_sd/scale)),width = 0.2, color="#000000")
+  theme(legend.position = "none", 
+        axis.text.x = element_blank(), 
+        axis.title.x = element_blank(), 
+        axis.ticks.x=element_blank(),
+        axis.text.y.left = element_blank(),
+        axis.ticks.y.left = element_blank(),
+        axis.title.y.left = element_blank(),
+        plot.title = element_text(face="bold"))+
+  ylab(" ")+
+  ylab("Community Bray-Curtis Dissimilarity")+
+  ggtitle("Spring Ice")
+
+sp.p
+
+
+#Summer Ice
+sm.df = data2plot[data2plot$Habitat == "Summer Ice",]
+chem_data = sm.df[sm.df$Taxa == "Prokaryote",]
+
+#scale the data
+#Taken from https://stackoverflow.com/questions/58774705/y-limits-for-ggplot-with-sec-axis
+ylim.prim <- c(0, 1)
+ylim.sec <- c(6, 12)
+EUCL <- sm.df$Chem_mean #needed for coherent normalisation
+# This is quite hacky, but it works if you want to set a boundary for the secondary y-axis
+fit = lm(b ~ . + 0, 
+         tibble::tribble(
+           ~a, ~s,  ~b,
+           1,  (ylim.sec[1] - mean(EUCL))/sd(EUCL),  ylim.prim[1],
+           1,  (ylim.sec[2] - mean(EUCL))/sd(EUCL), ylim.prim[2]))
+a <- fit$coefficients['a']
+s <- fit$coefficients['s']
+
+sm.p <-ggplot(sm.df, aes(x=Group, y=Beta_mean, group=Taxa)) +
+  geom_line(aes(color="#4dd2d6"), color="#4dd2d6")+
+  geom_point(aes(color="#4dd2d6", shape=Taxa, size=4), color="#4dd2d6")+
+  geom_point(data = chem_data, aes(x = Group, y = (a + ((Chem_mean - mean(EUCL))/sd(EUCL)) * s), size=4), color="#000000")+
+  geom_line(data = chem_data, aes(x = Group, y = (a + ((Chem_mean - mean(EUCL))/sd(EUCL)) * s)), color="#000000")+
+  scale_shape_manual(values=c(10,9,8))+
+  scale_y_continuous(limits=c(0,1)) +
+  expand_limits(y = 0)+
+  theme_bw()+
+  # geom_errorbar(aes(ymin = Beta_mean-Beta_sd, ymax = Beta_mean+Beta_sd, color=Taxa), width = 0.2) +
+  # geom_errorbar(data = chem_data, aes(ymin = (Chem_mean/scale)-(Chem_sd/scale), ymax = (Chem_mean/scale)+(Chem_sd/scale)),width = 0.2, color="#000000")
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(), 
+        axis.ticks.x=element_blank(),
+        axis.text.x = element_text(angle = 45, hjust=1, size=10),
+        plot.title = element_text(face="bold"))+
+  ylab("Community Bray-Curtis Dissimilarity")+
+  ggtitle("Summer Ice")
+
+sm.p
+
+#Cryoconite
+cr.df = data2plot[data2plot$Habitat == "Cryoconite",]
+chem_data = cr.df[cr.df$Taxa == "Prokaryote",]
+
+#scale the data
+#Taken from https://stackoverflow.com/questions/58774705/y-limits-for-ggplot-with-sec-axis
+ylim.prim <- c(0, 1)
+ylim.sec <- c(6, 12)
+EUCL <- sm.df$Chem_mean #needed for coherent normalisation
+# This is quite hacky, but it works if you want to set a boundary for the secondary y-axis
+fit = lm(b ~ . + 0, 
+         tibble::tribble(
+           ~a, ~s,  ~b,
+           1,  (ylim.sec[1] - mean(EUCL))/sd(EUCL),  ylim.prim[1],
+           1,  (ylim.sec[2] - mean(EUCL))/sd(EUCL), ylim.prim[2]))
+a <- fit$coefficients['a']
+s <- fit$coefficients['s']
+
+cr.p <-ggplot(cr.df, aes(x=Group, y=Beta_mean, group=Taxa)) +
+  geom_line(aes(color="#d8a4ff"), color="#d8a4ff")+
+  geom_point(aes(color="#d8a4ff", shape=Taxa, size=4), color="#d8a4ff")+
+  geom_point(data = chem_data, aes(x = Group, y = (a + ((Chem_mean - mean(EUCL))/sd(EUCL)) * s), size=4), color="#000000")+
+  geom_line(data = chem_data, aes(x = Group, y = (a + ((Chem_mean - mean(EUCL))/sd(EUCL)) * s)), color="#000000")+
+  scale_shape_manual(values=c(10,9,8))+
+  scale_y_continuous(limits=c(0,1), sec.axis = sec_axis(~ (. - a) / s * sd(EUCL) + mean(EUCL), name="Environmental Euclidean Distance")) +
+  expand_limits(y = 0)+
+  theme_bw()+
+  # geom_errorbar(aes(ymin = Beta_mean-Beta_sd, ymax = Beta_mean+Beta_sd, color=Taxa), width = 0.2) +
+  # geom_errorbar(data = chem_data, aes(ymin = (Chem_mean/scale)-(Chem_sd/scale), ymax = (Chem_mean/scale)+(Chem_sd/scale)),width = 0.2, color="#000000")
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(), 
+        axis.ticks.x=element_blank(),
+        axis.text.x = element_text(angle = 45, hjust=1, size=10),
+        axis.text.y.left = element_blank(),
+        axis.ticks.y.left = element_blank(),
+        axis.title.y.left = element_blank(),
+        plot.title = element_text(face="bold"))+
+  ggtitle("Cryoconite")
+
+cr.p
+
+
+#put the plots together
+
+#get legend
+
+leg1 = get_legend(snow.p + theme(legend.position = "bottom", 
+                                legend.title=element_blank(),
+                                legend.text = element_text(size=15)) + 
+                   guides(color = "none", size="none", 
+                          shape=guide_legend(override.aes = list(size=6))))
+
+#get a second legend by making a plot that will plot the euclidean distances on the primary axis
+plot.df = cr.df 
+plot.df$ChemShape = "Environmental Euclidean Distance"
+plot4leg <-ggplot(plot.df, aes(x=Group, y=Chem_mean)) +
+  geom_line(aes(color="#000000"), color="#000000")+
+  geom_point(aes(color="#000000", shape = ChemShape), color="#000000", size=4)+
+  theme_bw()+
+  theme(legend.title = element_blank(), legend.text = element_text(size=15))+
+  guides(shape=guide_legend(override.aes = list(size=6)))
+plot4leg
+
+leg2 = get_legend(plot4leg)
+
+full.p = (snow.p + sp.p + sm.p + cr.p) / leg1 / leg2 + plot_layout(heights = c(1, 0.1, 0.1))
+full.p
+
+pdf("../results/coms-and-euclidean.pdf", width=10, height=8)
+print(full.p)
 dev.off()
