@@ -44,6 +44,9 @@ Rscript pma-qPCR-plot.R
 #pma qPCR inhibition test
 Rscript pma-qPCR-inhibition-test.R
 
+#pma protocol test analysis script
+Rscript pma-qPCR-test.R
+
 #METATRANSCRIPTOMICS workflow
 
 #process the 16S and 18S amplicons via command line 

@@ -20,6 +20,10 @@ ps.pro = prune_samples(sample_sums(ps.pro)>= 1900, ps.pro)
 #remove ASVs with zero counts
 ps.pro = filter_taxa(ps.pro, function(x) sum(x) >= 1, TRUE)
 
+#rarefy data to an even depth - possibly remove this?
+set.seed(72)  # setting seed for reproducibility
+ps.pro = rarefy_even_depth(ps.pro)
+
 #Code taken from Barnett et al., (2020) was used for the model fitting (https://github.com/seb369/landuse_comm_assembly).  
 
 #Compute Beta-nearest Taxon Index (βNTI)
@@ -79,7 +83,8 @@ Phylo_turnover <- function(physeq, reps, nproc){
 get_bnti_res <- function(ps, hab, group, habitat){
   phylo = prune_samples(hab, ps)
   #run function on proportionall transformed data
-  df = Phylo_turnover(transform_sample_counts(phylo, function(x) x/sum(x)), 1000, 10) #should be 1000 10
+  #df = Phylo_turnover(transform_sample_counts(phylo, function(x) x/sum(x)), 1000, 10) #should be 1000 10
+  df = Phylo_turnover(phylo, 1000, 10) #should be 1000 10
   df$Group = group
   df$Habitat = habitat
   return(df)

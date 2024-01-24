@@ -328,6 +328,13 @@ cca_func <- function(ps, hab, group, habitat, col){
 # https://rfunctions.blogspot.com/2016/11/canonical-correspondence-analysis-cca.html
 # https://r.qcbs.ca/workshop10/book-en/partial-redundancy-analysis.html
 
+#test function
+# ps = ps.pro
+# hab = data.frame(sample_data(subset_samples(ps.pro, Habitat == "Spring Ice")))$SampleID
+# group = "Prokaryote"
+# habitat = "Spring Ice"
+# col="#a4c64d"
+
 dbRDA_func <- function(ps, hab, group, habitat, col){
   
   ##############################PREP THE DATA##############################
@@ -484,8 +491,15 @@ dbRDA_func <- function(ps, hab, group, habitat, col){
     
     #set a scaling factor
     scaling_factor <- 2
+    # Scaling 2 shows the effects of explanatory variables.
+    # Longer arrows mean this variable strongly drives the variation in the community matrix.
+    # Arrows pointing in opposite directions have a negative relationship.
+    # Arrows pointing in the same direction have a positive relationship.
     
     if(any(names(fmod) == "CAP2")){
+      
+      #basic plot
+      ordiplot(rdamodel2, display = c("sites", "cn"), scaling = 2, type = "text")
       
       #plot with ggplot
       p = ggplot(fmod, aes(x = CAP1, y = CAP2))+

@@ -12,8 +12,12 @@ library(svglite)
 
 
 #Load data 
-man.pro = read.csv("../results/prokaryote-mantel-results.csv")
-man.euk = read.csv("../results/eukaryote-mantel-results.csv")
+# man.pro = read.csv("../results/prokaryote-mantel-results.csv")
+# man.euk = read.csv("../results/eukaryote-mantel-results.csv")
+# man.mm = read.csv("../results/microfauna-mantel-results.csv")
+
+man.pro = read.csv("../results/2024-01-23-null-results/prokaryote-mantel-results.csv")
+man.euk = read.csv("../results/2024-01-23-null-results/eukaryote-mantel-results.csv")
 man.mm = read.csv("../results/microfauna-mantel-results.csv")
 
 plot.df = rbind(man.euk, man.mm, man.pro)

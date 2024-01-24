@@ -1295,24 +1295,34 @@ write.csv(final.perc.df, "../results/perc-neutral-model.csv")
 #load null model results
 
 #bnti
-pro.bnti = read.csv("../results/16S-bNTI-results-table.csv")
-euk.bnti = read.csv("../results/18S-bNTI-results-table.csv")
+# pro.bnti = read.csv("../results/16S-bNTI-results-table.csv")
+# euk.bnti = read.csv("../results/18S-bNTI-results-table.csv")
+
+pro.bnti = read.csv("../results/2024-01-23-null-results/16S-bNTI-results-table.csv")
+euk.bnti = read.csv("../results/2024-01-23-null-results/18S-bNTI-results-table.csv")
+
 
 #bind together
 full.bNTI.df = rbind(pro.bnti, euk.bnti)
 
 #export full table
-write.csv(full.bNTI.df, "../results/full-bNTI-results-table.csv")
+#write.csv(full.bNTI.df, "../results/full-bNTI-results-table.csv")
+write.csv(full.bNTI.df, "../results/2024-01-23-null-results/full-bNTI-results-table.csv")
 
 #rcbray results
-pro.rcbray = read.csv("../results/16S-RCbray-results-table.csv")
-euk.rcbray = read.csv("../results/18S-RCbray-results-table.csv")
+# pro.rcbray = read.csv("../results/16S-RCbray-results-table.csv")
+# euk.rcbray = read.csv("../results/18S-RCbray-results-table.csv")
+
+pro.rcbray = read.csv("../results/2024-01-23-null-results/16S-RCbray-results-table.csv")
+euk.rcbray = read.csv("../results/2024-01-23-null-results/18S-RCbray-results-table.csv")
 
 #bind together
 full.rcbray.df = rbind(pro.rcbray, euk.rcbray)
 
 #export full table
-write.csv(full.rcbray.df, "../results/full-RCbray-results-table.csv")
+#write.csv(full.rcbray.df, "../results/full-RCbray-results-table.csv")
+
+write.csv(full.rcbray.df, "../results/2024-01-23-null-results/full-RCbray-results-table.csv")
 
 
 #GET RESULTS READY FOR PLOTTING
@@ -1360,7 +1370,7 @@ pro_final_data$Group = "Prokaryote"
 
 #Eukaryotes
 euk_final_data <- data.frame(process=character(), n_sites=integer(), perc=numeric(), Habitat=character())
-new.df <- subset(turnover.df, Group == "Eukaryote")
+new.df <- subset(turnover.df, Group == "Microbial Eukaryote")
 
 for (i in 1:length(hab.list)){
   x <- new.df[new.df$Habitat == hab.list[i], ]
@@ -1372,7 +1382,7 @@ for (i in 1:length(hab.list)){
   x$Habitat<- hab.list[i]
   euk_final_data <- rbind(euk_final_data, x)
 }
-euk_final_data$Group = "Eukaryote"
+euk_final_data$Group = "Microbial Eukaryote"
 
 
 #bind results together
