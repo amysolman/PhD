@@ -53,9 +53,14 @@ g.cr <- list(g.cr1, g.cr2, g.cr3)
 
 #1. Calculate network-level properties
 
-network_level_properties <- function(g, habitat){
+g1 = g.sn[[1]]
+g2 = g.sn[[3]]
+habitat = "Snow"
+
+network_level_properties <- function(g1, g2, habitat){
   
-  cor_g <- g
+  cor_g <- g1
+  cor_p <- g2
   
   #number of nodes (a.k.a. vertices/ASVs)
   gorder(cor_g) 
@@ -63,9 +68,15 @@ network_level_properties <- function(g, habitat){
   #number of edges
   gsize(cor_g) 
   
+  #number of positive nodes
+  gorder(cor_p)
+  
+  #number of positive edges
+  gsize(cor_p)
+  
   #mean node degree (number of edges), clustering coefficient (probability that the adjacent vertices of a vertex   are connected), average path length, modularity, density, network diameter 
   #create a dataframe to store out network features
-  net_df<-as.data.frame(matrix(NA,ncol=9,nrow=1))
+  net_df<-as.data.frame(matrix(NA,ncol=11,nrow=1))
   
   net_df[1,]<-c(habitat, round(mean(degree(cor_g)),3), 
                 round(transitivity(cor_g),3), 
@@ -73,18 +84,18 @@ network_level_properties <- function(g, habitat){
                 round(graph.density(cor_g),3),
                 round(diameter(cor_g),3),
                 round(modularity(walktrap.community(cor_g)),3), 
-                gorder(cor_g), gsize(cor_g))
+                gorder(cor_g), gorder(cor_g)-gorder(cor_p), gsize(cor_g), gsize(cor_g)-gsize(cor_p))
   
-  colnames(net_df)<-c("Habitat", "AveDegree","ClustCoef","AvePathLen","Density","Diameter","Modularity", "Nodes", "Edges")
+  colnames(net_df)<-c("Habitat", "AveDegree","ClustCoef","AvePathLen","Density","Diameter","Modularity", "Nodes", "Negative_Nodes", "Edges", "Negative_Edges")
   
   
   return(net_df)
 }
 
-sn.net <- network_level_properties(g.sn[[1]], "Snow")
-sp.net <- network_level_properties(g.sp[[1]], "Spring Ice")
-sm.net <- network_level_properties(g.sm[[1]], "Summer Ice")
-cr.net <- network_level_properties(g.cr[[1]], "Cryoconite")
+sn.net <- network_level_properties(g.sn[[1]], g.sn[[3]], "Snow")
+sp.net <- network_level_properties(g.sp[[1]], g.sp[[3]], "Spring Ice")
+sm.net <- network_level_properties(g.sm[[1]], g.sm[[3]], "Summer Ice")
+cr.net <- network_level_properties(g.cr[[1]], g.cr[[3]], "Cryoconite")
 
 #bind together
 t.net = rbind(sn.net, sp.net, sm.net, cr.net)
@@ -155,7 +166,7 @@ w.res = rbind(sn.rand[[2]], sp.rand[[2]], sm.rand[[2]], cr.rand[[2]])
 #Merge data frames to make table
 
 #Snow
-r = data.frame(AveDegree = NA, ClustCoef = sn.rand[[1]][2,2], AvePathLen = sn.rand[[1]][2,3], Density = NA, Diameter = NA, Modularity = sn.rand[[1]][2,1], Nodes = sn.net$Nodes[1], Edges = sn.net$Edges[1])
+r = data.frame(AveDegree = NA, ClustCoef = sn.rand[[1]][2,2], AvePathLen = sn.rand[[1]][2,3], Density = NA, Diameter = NA, Modularity = sn.rand[[1]][2,1], Nodes = sn.net$Nodes[1], Negative_Nodes = NA, Edges = sn.net$Edges[1], Negative_Edges = NA)
 sn.tab = rbind(sn.net[,-c(1)], r)
 rownames(sn.tab) <- c("Full", "Random Network Mean (SD)")
 df1 <- tibble::rownames_to_column(sn.tab, "Network")
@@ -163,7 +174,7 @@ df1 = cbind(rep("Snow", 2), df1)
 names(df1)[1] = "Habitat"
 
 #Spring Ice
-r = data.frame(AveDegree = NA, ClustCoef = sp.rand[[1]][2,2], AvePathLen = sp.rand[[1]][2,3], Density = NA, Diameter = NA, Modularity = sp.rand[[1]][2,1], Nodes = sp.net$Nodes[1], Edges = sp.net$Edges[1])
+r = data.frame(AveDegree = NA, ClustCoef = sp.rand[[1]][2,2], AvePathLen = sp.rand[[1]][2,3], Density = NA, Diameter = NA, Modularity = sp.rand[[1]][2,1], Nodes = sp.net$Nodes[1], Negative_Nodes = NA, Edges = sp.net$Edges[1], Negative_Edges = NA)
 sp.tab = rbind(sp.net[,-c(1)], r)
 rownames(sp.tab) <- c("Full", "Random Network Mean (SD)")
 df2 <- tibble::rownames_to_column(sp.tab, "Network")
@@ -171,7 +182,7 @@ df2 = cbind(rep("Spring Ice", 2), df2)
 names(df2)[1] = "Habitat"
 
 #Summer Ice
-r = data.frame(AveDegree = NA, ClustCoef = sm.rand[[1]][2,2], AvePathLen = sm.rand[[1]][2,3], Density = NA, Diameter = NA, Modularity = sm.rand[[1]][2,1], Nodes = sm.net$Nodes[1], Edges = sm.net$Edges[1])
+r = data.frame(AveDegree = NA, ClustCoef = sm.rand[[1]][2,2], AvePathLen = sm.rand[[1]][2,3], Density = NA, Diameter = NA, Modularity = sm.rand[[1]][2,1], Nodes = sm.net$Nodes[1], Negative_Nodes = NA, Edges = sm.net$Edges[1], Negative_Edges = NA)
 sm.tab = rbind(sm.net[,-c(1)], r)
 rownames(sm.tab) <- c("Full", "Random Network Mean (SD)")
 df3 <- tibble::rownames_to_column(sm.tab, "Network")
@@ -179,7 +190,7 @@ df3 = cbind(rep("Summer Ice", 2), df3)
 names(df3)[1] = "Habitat"
 
 #Cryoconite
-r = data.frame(AveDegree = NA, ClustCoef = cr.rand[[1]][2,2], AvePathLen = cr.rand[[1]][2,3], Density = NA, Diameter = NA, Modularity = cr.rand[[1]][2,1], Nodes = cr.net$Nodes[1], Edges = cr.net$Edges[1])
+r = data.frame(AveDegree = NA, ClustCoef = cr.rand[[1]][2,2], AvePathLen = cr.rand[[1]][2,3], Density = NA, Diameter = NA, Modularity = cr.rand[[1]][2,1], Nodes = cr.net$Nodes[1], Negative_Nodes = NA, Edges = cr.net$Edges[1], Negative_Edges = NA)
 cr.tab = rbind(cr.net[,-c(1)], r)
 rownames(cr.tab) <- c("Full", "Random Network Mean (SD)")
 df4 <- tibble::rownames_to_column(cr.tab, "Network")
@@ -199,7 +210,6 @@ write.csv(final.net.df, "../results/network-properties.csv")
 rand_real_sig_dif = rbind(sn.rand[[2]], sp.rand[[2]], sm.rand[[2]], cr.rand[[2]])
 write.csv(rand_real_sig_dif, "../results/wilcoxon-rand-real-networks.csv")
 
-#Script breakdown
 
 #3. Scale-free characteristics analysis
 

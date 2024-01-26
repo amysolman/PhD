@@ -1298,8 +1298,8 @@ write.csv(final.perc.df, "../results/perc-neutral-model.csv")
 # pro.bnti = read.csv("../results/16S-bNTI-results-table.csv")
 # euk.bnti = read.csv("../results/18S-bNTI-results-table.csv")
 
-pro.bnti = read.csv("../results/2024-01-23-null-results/16S-bNTI-results-table.csv")
-euk.bnti = read.csv("../results/2024-01-23-null-results/18S-bNTI-results-table.csv")
+pro.bnti = read.csv("../results/2024-01-24-null-results/16S-bNTI-results-table.csv")
+euk.bnti = read.csv("../results/2024-01-24-null-results/18S-bNTI-results-table.csv")
 
 
 #bind together
@@ -1307,14 +1307,14 @@ full.bNTI.df = rbind(pro.bnti, euk.bnti)
 
 #export full table
 #write.csv(full.bNTI.df, "../results/full-bNTI-results-table.csv")
-write.csv(full.bNTI.df, "../results/2024-01-23-null-results/full-bNTI-results-table.csv")
+write.csv(full.bNTI.df, "../results/2024-01-24-null-results/full-bNTI-results-table.csv")
 
 #rcbray results
 # pro.rcbray = read.csv("../results/16S-RCbray-results-table.csv")
 # euk.rcbray = read.csv("../results/18S-RCbray-results-table.csv")
 
-pro.rcbray = read.csv("../results/2024-01-23-null-results/16S-RCbray-results-table.csv")
-euk.rcbray = read.csv("../results/2024-01-23-null-results/18S-RCbray-results-table.csv")
+pro.rcbray = read.csv("../results/2024-01-24-null-results/16S-RCbray-results-table.csv")
+euk.rcbray = read.csv("../results/2024-01-24-null-results/18S-RCbray-results-table.csv")
 
 #bind together
 full.rcbray.df = rbind(pro.rcbray, euk.rcbray)
@@ -1322,7 +1322,7 @@ full.rcbray.df = rbind(pro.rcbray, euk.rcbray)
 #export full table
 #write.csv(full.rcbray.df, "../results/full-RCbray-results-table.csv")
 
-write.csv(full.rcbray.df, "../results/2024-01-23-null-results/full-RCbray-results-table.csv")
+write.csv(full.rcbray.df, "../results/2024-01-24-null-results/full-RCbray-results-table.csv")
 
 
 #GET RESULTS READY FOR PLOTTING
@@ -1418,7 +1418,7 @@ null.p = ggplot(final_data.edit, aes(x = Habitat,y = n_sites,
   geom_bar(stat = "identity", position = "fill") +
   scale_y_continuous(labels=scales::percent)+
   geom_text(
-    aes(label = percent(frac)), position = position_fill(0.5), size=5) +
+    aes(label = percent(frac)), position = position_fill(0.5), size=4) +
   facet_grid(~ Group)+
   theme_bw()+
   ylab("Relative Contribution %")+

@@ -1,0 +1,412 @@
+#Script breakdown
+#1. Add positive and negative colours to edge dataframes
+#2. Give modules correct numbers in node dataframes
+#3. Add taxonomic information and give Phyla the correct colours
+#4. Add Upper Only/Lower Only/Both data to node dataframe
+#5. Identify hub taxa in each module
+
+rm(list=ls())
+graphics.off()
+
+library(tibble)
+library(ggplot2)
+library(stringr)
+library(reshape2)
+library(dplyr)
+library(phyloseq)
+#install.packages("ggtern")
+library(ggtern)
+source("00-solman-functions.R")
+library(RColorBrewer) #for our pie chart colours
+# install.packages("randomcoloR")
+library(randomcoloR)
+
+#Import gephi data tables and add colour column for taxonomy on node df 
+#and colour column for positive/negative correlations on edge df.
+
+
+#prokaryotes
+ps.pro <- readRDS("../results/16S-ps-norm.rds") 
+#eukaryotes without micrometazoans
+ps.euk <- readRDS("../results/18S-no-mm-ps-norm.rds") 
+#micrometazoans only
+ps.mm <- readRDS("../results/18S-mm-only-ps-norm.rds") 
+
+#Load graphics dataframes from Gephi step
+#Snow
+sn.node <- read.csv("../results/network-nodes-snow.csv")
+sn.edge <- read.csv("../results/network-edges-snow.csv")
+
+#Spring Ice
+sp.node <- read.csv("../results/network-nodes-spring-ice.csv")
+sp.edge <- read.csv("../results/network-edges-spring-ice.csv")
+
+#Summer Ice
+sm.node <- read.csv("../results/network-nodes-summer-ice.csv")
+sm.edge <- read.csv("../results/network-edges-summer-ice.csv")
+
+#cryoconite
+cr.node <- read.csv("../results/network-nodes-cryoconite.csv")
+cr.edge <- read.csv("../results/network-edges-cryoconite.csv")
+
+#load plotting colours
+pro.cols <- read.csv("../data/thesis-plotting-colours-prokaryotes.csv")
+euk.cols <- read.csv("../data/thesis-plotting-colours-eukaryotes.csv")
+
+#load html-hex-rgb colour conversion sheet
+conv_cols = read.csv("../data/colours-html-hex-rgb.csv")
+
+#join colour dataframes togther
+all_col = rbind(pro.cols, euk.cols)
+
+#add HEX colours
+col_hex = left_join(all_col, conv_cols, by=c("Colour1" = "HTML...CSS"))
+
+#1. Add positive and negative colours to edge dataframes
+
+#edge.df <- sp.edge
+
+add_pos_neg_col <- function(edge.df){
+  
+  new.df = edge.df %>%
+    mutate(colour = case_when(
+      Weight < 0  ~ "#e4211d",
+      Weight >= 0 ~ "#377eb8"
+    ))
+  
+  return(new.df)
+}
+
+sn.edge.new <- add_pos_neg_col(sn.edge)
+write.csv(sn.edge.new, "../results/edge-df-snow.csv", row.names=FALSE)
+
+sp.edge.new <- add_pos_neg_col(sp.edge)
+write.csv(sp.edge.new, "../results/edge-df-spring-ice.csv", row.names=FALSE)
+
+sm.edge.new <- add_pos_neg_col(sm.edge)
+write.csv(sm.edge.new, "../results/edge-df-summer-ice.csv", row.names=FALSE)
+
+cr.edge.new <- add_pos_neg_col(cr.edge)
+write.csv(cr.edge.new, "../results/edge-df-cryoconite.csv", row.names=FALSE)
+
+
+#2. Give modules correct numbers in node dataframes
+
+change_mod_num <- function(df){
+  right_order = c(as.numeric(names(sort(table(df$modularity_class), decreasing = TRUE))))
+  new.df = data.frame()
+  for (i in 1:length(unique(df$modularity_class))){
+    sub = df[df$modularity_class == right_order[i],]
+    sub$modularity_class = i
+    new.df = rbind(new.df, sub)
+  }
+  return(new.df)
+}
+
+node.sn.df2 = change_mod_num(sn.node)
+node.sp.df2 = change_mod_num(sp.node)
+node.sm.df2 = change_mod_num(sm.node)
+node.cr.df2 = change_mod_num(cr.node)
+
+#3. Add taxonomic information and give Phyla the correct colours
+
+# ps1 = ps.pro
+# ps2 = ps.euk
+# ps3 = ps.mm
+# df = node.sn.df2
+# col_df = col_hex
+  
+add_tax <- function(ps1, ps2, ps3, df, col_df){
+  
+  tax1 <- data.frame(tax_table(ps1))
+  tax1a <- tibble::rownames_to_column(tax1, "ID")
+  
+  tax2 <- data.frame(tax_table(ps2))
+  tax2a <- tibble::rownames_to_column(tax2, "ID")
+  
+  tax3 <- data.frame(tax_table(ps3))
+  tax3a <- tibble::rownames_to_column(tax3, "ID")
+  
+  #bind together
+  tax.tab = rbind(tax1a, tax2a, tax3a)
+  
+  #Append to gephi table
+  #subset tax data by network IDs
+  tax.trim = tax.tab[tax.tab$ID %in% df$name, ]
+  
+  #this gives the index order in which to put our data frame to match the gephi.tab order
+  tax.order = match(df$name, tax.trim$ID)
+  
+  #so now we just reorder it!
+  tax.reordered = tax.trim[tax.order,]
+  
+  #now append to our gephi data table
+  final.df = cbind(df, tax.reordered)
+  
+  #now combine with colours for the phyla
+  df = left_join(final.df, col_df[,c(2,5)], by="Phylum")
+  
+  #change the colour column name
+  names(df)[names(df) == 'Hex.Code'] <- 'Colour'
+  
+  return(df)
+  
+}
+
+node.sn.df3 = add_tax(ps1 = ps.pro, ps2 = ps.euk, ps3 = ps.mm, df = node.sn.df2, col_df = col_hex)
+node.sp.df3 = add_tax(ps1 = ps.pro, ps2 = ps.euk, ps3 = ps.mm, df = node.sp.df2, col_df = col_hex)
+node.sm.df3 = add_tax(ps1 = ps.pro, ps2 = ps.euk, ps3 = ps.mm, df = node.sm.df2, col_df = col_hex)
+node.cr.df3 = add_tax(ps1 = ps.pro, ps2 = ps.euk, ps3 = ps.mm, df = node.cr.df2, col_df = col_hex)
+
+#manual colour change
+#because we are plotting prokaryotes and eukaryotes together, 
+#some of the colours overlap so I'm going to change a couple
+# Basidiomycota to darkblue #00008b
+# Chytridiomycota to darkred 	#8b0000
+# Ciliophora to darkolivegreen4 #6e8b3d
+# Cyanobacteria to darkgreen #006400
+# Planctomycetota to deeppink4 #8b0a50
+
+node.sn.df3$Colour[node.sn.df3$Phylum == "Basidiomycota"] <- '#00008b'
+node.sn.df3$Colour[node.sn.df3$Phylum == "Chytridiomycota"] <- '#8b0000'
+node.sn.df3$Colour[node.sn.df3$Phylum == "Ciliophora"] <- '#6e8b3d'
+node.sn.df3$Colour[node.sn.df3$Phylum == "Cyanobacteria"] <- '#006400'
+node.sn.df3$Colour[node.sn.df3$Phylum == "Planctomycetota"] <- '#8b0a50'
+
+node.sp.df3$Colour[node.sp.df3$Phylum == "Basidiomycota"] <- '#00008b'
+node.sp.df3$Colour[node.sp.df3$Phylum == "Chytridiomycota"] <- '#8b0000'
+node.sp.df3$Colour[node.sp.df3$Phylum == "Ciliophora"] <- '#6e8b3d'
+node.sp.df3$Colour[node.sp.df3$Phylum == "Cyanobacteria"] <- '#006400'
+node.sp.df3$Colour[node.sp.df3$Phylum == "Planctomycetota"] <- '#8b0a50'
+
+node.sm.df3$Colour[node.sm.df3$Phylum == "Basidiomycota"] <- '#00008b'
+node.sm.df3$Colour[node.sm.df3$Phylum == "Chytridiomycota"] <- '#8b0000'
+node.sm.df3$Colour[node.sm.df3$Phylum == "Ciliophora"] <- '#6e8b3d'
+node.sm.df3$Colour[node.sm.df3$Phylum == "Cyanobacteria"] <- '#006400'
+node.sm.df3$Colour[node.sm.df3$Phylum == "Planctomycetota"] <- '#8b0a50'
+
+node.cr.df3$Colour[node.cr.df3$Phylum == "Basidiomycota"] <- '#00008b'
+node.cr.df3$Colour[node.cr.df3$Phylum == "Chytridiomycota"] <- '#8b0000'
+node.cr.df3$Colour[node.cr.df3$Phylum == "Ciliophora"] <- '#6e8b3d'
+node.cr.df3$Colour[node.cr.df3$Phylum == "Cyanobacteria"] <- '#006400'
+node.cr.df3$Colour[node.cr.df3$Phylum == "Planctomycetota"] <- '#8b0a50'
+
+#Which are the top 15 most abundant phyla in the networks?
+x1 = rbind(data.frame(table(node.sn.df3$Phylum)), data.frame(table(node.sp.df3$Phylum)), data.frame(table(node.sm.df3$Phylum)), data.frame(table(node.cr.df3$Phylum)))
+#merge where Phyla is the same and keep only the top 15
+x2 = x1 %>%
+  dplyr::group_by(Var1) %>%
+  dplyr::summarise(Freq = sum(Freq)) %>%
+  arrange(desc(Freq)) %>% 
+  slice(1:15)
+
+#replace phyla colour with grey if it is not in the top 15 most abundant phyla
+node.sn.df4 <- within(node.sn.df3, Colour[!Phylum %in% x2$Var1] <- '#D3D3D3')
+node.sp.df4 <- within(node.sp.df3, Colour[!Phylum %in% x2$Var1] <- '#D3D3D3')
+node.sm.df4 <- within(node.sm.df3, Colour[!Phylum %in% x2$Var1] <- '#D3D3D3')
+node.cr.df4 <- within(node.cr.df3, Colour[!Phylum %in% x2$Var1] <- '#D3D3D3')
+
+
+#4. Add Upper Only/Lower Only/Both data to node dataframe
+
+#First merge the datasets
+
+merge_ps <- function(ps1, ps2, ps3){
+  
+  #Extract ASV tables
+  tab1 = data.frame(t(otu_table(ps1)), check.names = FALSE)
+  tab2 = data.frame(t(otu_table(ps2)), check.names = FALSE)
+  tab3 = data.frame(t(otu_table(ps3)), check.names = FALSE)
+  
+  #sample name to column
+  tab1 <- tibble::rownames_to_column(tab1, "SampleID")
+  tab2 <- tibble::rownames_to_column(tab2, "SampleID")
+  tab3 <- tibble::rownames_to_column(tab3, "SampleID")
+  
+  #use dplyr to join the ASV tables
+  full.tab <- full_join(tab1, tab2, by="SampleID")
+  full.tab[is.na(full.tab)] <- 0
+  full.tab <- full_join(full.tab, tab3, by="SampleID")
+  full.tab[is.na(full.tab)] <- 0
+  
+  #test if this worked
+  ncol(tab1) + ncol(tab2) + ncol(tab3) - 3 == ncol(full.tab) - 1 #should say TRUE
+  
+  #get rid of our sample ID column
+  full.tab <- tibble::column_to_rownames(full.tab, var="SampleID")
+  
+  #combine taxa tables
+  full.tax = as.matrix(rbind(data.frame(tax_table(ps1)), data.frame(tax_table(ps2)), data.frame(tax_table(ps3))))
+  
+  #combine metadata
+  meta1 = data.frame(sample_data(ps1))
+  meta2 = data.frame(sample_data(ps2))
+  meta3 = data.frame(sample_data(ps3))
+  
+  #get vector of all our samples
+  all.samp = unique(c(meta1$SampleID, meta2$SampleID, meta3$SampleID))
+  
+  #bind the rows of our metadata
+  full.meta = rbind(meta1[,-c(2)], meta2[,-c(2)], meta3[,-c(2)])
+  
+  #remove rownames
+  rownames(full.meta) <- NULL
+  
+  #remove duplicate rows using dplyr
+  full.meta2 <- full.meta %>% distinct()
+  
+  #check that this has worked
+  all.samp == full.meta2$SampleID #should all equal TRUE
+  
+  #make rownames sample ID again
+  rownames(full.meta2) <- full.meta2$SampleID
+  
+  #make new phyloseq object
+  ASV = otu_table(t(full.tab), taxa_are_rows = TRUE)
+  TAX = tax_table(full.tax)
+  META = sample_data(full.meta2)
+  new.phylo = phyloseq(ASV, TAX, META)
+  
+  return(new.phylo)
+  
+}
+
+ps.f <- merge_ps(ps.pro, ps.euk, ps.mm)
+
+#get upper foxfonna samples only
+upper = subset_samples(ps.f, Location == "Upper") 
+#remove ASVs with zero counts
+upper = prune_taxa(taxa_sums(upper) > 0, upper)
+#get lower foxfonna samples only
+lower = subset_samples(ps.f, Location == "Lower")
+#remove ASVs with zero counts
+lower = prune_taxa(taxa_sums(lower) > 0, lower)
+#get list of ASVs on upper foxfonna
+upper.asv = rownames(data.frame(otu_table(upper)))
+#get list of ASVs on lower foxfonna
+lower.asv = rownames(data.frame(otu_table(lower)))
+#which ASVs are found on both?
+both = intersect(upper.asv, lower.asv)
+#which are only found on upper?
+upper.asv.only = upper.asv[!upper.asv %in% both]
+#which are only found on lower?
+lower.asv.only = lower.asv[!lower.asv %in% both]
+#test this has worked
+length(c(upper.asv.only, both)) == length(upper.asv) #should equal TRUE
+length(c(lower.asv.only, both)) == length(lower.asv) #should equal TRUE
+#categorise each ASV and put into a df
+upper.df = data.frame(name = upper.asv.only, Category = "Upper", color="#4DAF4A", Polygon=3)
+lower.df = data.frame(name = lower.asv.only, Category = "Lower", color="#FF7F00", Polygon=20)
+both.df = data.frame(name = both, Category = "Both", color = "#6A3D9A", Polygon=4)
+loc.df = rbind(upper.df, lower.df, both.df)
+
+#use dplyr to bind this to our node data
+node.sn.df5 = left_join(node.sn.df4, loc.df, by="name")
+node.sp.df5 = left_join(node.sp.df4, loc.df, by="name")
+node.sm.df5 = left_join(node.sm.df4, loc.df, by="name")
+node.cr.df5 = left_join(node.cr.df4, loc.df, by="name")
+
+write.csv(node.sn.df5, "../results/node-df-snow.csv", row.names = FALSE)
+write.csv(node.sp.df5, "../results/node-df-spring-ice.csv", row.names = FALSE)
+write.csv(node.sm.df5, "../results/node-df-summer-ice.csv", row.names = FALSE)
+write.csv(node.cr.df5, "../results/node-df-cryoconite.csv", row.names = FALSE)
+
+
+#5. Identify hub taxa in each module
+
+edge.df = cr.edge.new
+node.df = node.cr.df5
+
+module_analysis <- function(edge.df, node.df){
+  
+  #exclude negative connections
+  edge.df = edge.df[edge.df$Weight > 0,]
+  
+  #find out which ASVs are present in each modules and how many edges they have
+  x = data.frame(table(edge.df$Source))
+  x2 = data.frame(table(edge.df$Target))
+  df = rbind(x, x2)
+  df$Var1 = as.character(df$Var1)
+  names(df) = c("Id", "Edges")
+  
+  #merge where ASV is the same
+  df2 = df %>%
+    dplyr::group_by(Id) %>%
+    dplyr::summarise(Edges = sum(Edges))
+  
+  #get ASV tax info
+  node.df$Id = as.character(node.df$Id)
+  df3 = full_join(df2, node.df, by="Id")
+  
+  #if any nodes have NA edges make it equal to 1
+  df3$Edges[is.na(df3$Edges)] <- 1
+  
+  #subset to module 1
+  mode.1 = df3[df3$modularity_class == 1,]
+  #which is the most connected ASV?
+  hub.1 = subset(mode.1, Edges == max(Edges))
+  hub.1$Module = 1
+  
+  #subset to module 2
+  mode.2 = df3[df3$modularity_class == 2,]
+  #which is the most connected ASV?
+  hub.2 = subset(mode.2, Edges == max(Edges))
+  hub.2$Module = 2
+  
+  #subset to module 3
+  mode.3 = df3[df3$modularity_class == 3,]
+  #which is the most connected ASV?
+  hub.3 = subset(mode.3, Edges == max(Edges))
+  hub.3$Module = 3
+  
+  #subset to module 4
+  mode.4 = df3[df3$modularity_class == 4,]
+  #which is the most connected ASV?
+  hub.4 = subset(mode.4, Edges == max(Edges))
+  hub.4$Module = 4
+  
+  #subset to module 5
+  mode.5 = df3[df3$modularity_class == 5,]
+  #which is the most connected ASV?
+  hub.5 = subset(mode.5, Edges == max(Edges))
+  hub.5$Module = 5
+  
+  #subset to module 6
+  mode.6 = df3[df3$modularity_class == 6,]
+  #which is the most connected ASV?
+  hub.6 = subset(mode.6, Edges == max(Edges))
+  hub.6$Module = 6
+  
+  res = rbind(hub.1, hub.2, hub.3, hub.4, hub.5, hub.6)
+  
+  return(res)
+  
+}
+
+
+#run function
+
+#Snow
+#get the numbers of the top 6 modules
+sn.mod <- module_analysis(sn.edge.new, node.sn.df4)
+sn.mod$Habitat = "Snow"
+
+#Spring Ice
+sp.mod <- module_analysis(sp.edge.new, node.sp.df4)
+sp.mod$Habitat = "Spring Ice"
+
+#Summer Ice
+sm.mod <- module_analysis(sm.edge.new, node.sm.df4)
+sm.mod$Habitat = "Summer Ice"
+
+#Cryoconite
+cr.mod <- module_analysis(cr.edge.new, node.cr.df4)
+cr.mod$Habitat = "Cryoconite"
+
+#full results
+full.df = rbind(sn.mod, sp.mod, sm.mod, cr.mod)
+
+#export results
+write.csv(full.df, "../results/network-hub-taxa.csv")
+
+

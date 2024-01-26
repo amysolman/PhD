@@ -135,8 +135,12 @@ Phylo_turnover <- function(physeq, reps, nproc){
 
 get_bnti_res <- function(phylo, subcom, group, pole){
   
+  #remove taxa with zero counts
+  phylo = filter_taxa(phylo, function(x) sum(x) > 0, TRUE)
+  #remove samples with zero counts
+  phylo = prune_samples(sample_sums(phylo) > 0, phylo)
   
-  df = Phylo_turnover(transform_sample_counts(phylo, function(x) x/sum(x)), 1000, 10) #should be 1000 10
+  df = Phylo_turnover(phylo, 1000, 10) #should be 1000 10
   df$Group = group
   df$Subcommunity = subcom
   df$Pole = pole

@@ -77,4 +77,10 @@ Rscript network-analysis.R
 Rscript network-properties.R
 
 #Node properties - stats for ASVs in the networks
-Rscript node-properties.R
+Rscript network-nodes.R
+
+#Use Gephi software to perform modularity analysis and create visualisations
+#See Gephi-instructions.txt
+
+#Prep Gephi dataframes for producing the graphics and find hub taxa
+Rscript network-graphics.R 

@@ -118,11 +118,11 @@ write.csv(my_stats2, "../results/PMA-qPCR-test-res-no-anom.csv")
 
 #8. Plot the data
 
-p2 <- ggplot(my_data3, aes(x=CombiGroups, y=log10GenesPerMg)) + 
+p2 <- ggplot(my_data3, aes(x=CombiGroups, y=log10GenesPerMg, fill=Treatment)) + 
   geom_boxplot()+
   theme_bw()+
-  theme(axis.title.x = element_blank())+
-  ylab("log10 Genes per Mg")
+  theme(axis.title.x = element_blank(), legend.position="bottom")+
+  ylab("log10 16S rRNA Genes per Mg E.coli Cells")
 p2
 
 #save the plot

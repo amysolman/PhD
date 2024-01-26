@@ -19,6 +19,12 @@ ps.pro = prune_samples(sample_sums(ps.pro)>= 1900, ps.pro)
 #remove ASVs with zero counts
 ps.pro = filter_taxa(ps.pro, function(x) sum(x) >= 1, TRUE)
 
+#rarefy data to an even depth - possibly remove this?
+# set.seed(72)  # setting seed for reproducibility
+# ps.pro = rarefy_even_depth(ps.pro)
+
+#Code taken from Barnett et al., (2020) was used for the model fitting (https://github.com/seb369/landuse_comm_assembly)
+
 # C) Compute RC_Bray Model
 
 # 1 Define function for calculating null values
@@ -84,14 +90,8 @@ Calc_RCbray <- function(physeq, reps, nproc){
   otu.PA.table[otu.PA.table > 0] = 1
   alpha.df = data.frame(Sample_ID = colnames(otu.PA.table), OTU.n = colSums(otu.PA.table), stringsAsFactors = F)
   
-  #transform data for Bray-Curtis calculation
-  physeq.rel = transform_sample_counts(physeq, function(x) x/sum(x))
-  
-  #get community data table
-  rel.tab = data.frame(t(otu_table(physeq.rel)))
-  
   # Get beta diversity matrix
-  beta.table = as.matrix(vegdist(rel.tab), method="bray", diag=TRUE, upper=TRUE)
+  beta.table = as.matrix(vegdist(t(otu.PA.table), method="bray", diag=TRUE, upper=TRUE))
   
   ## Get metacommunity
   # Calculate the number of individuals in the meta community (Average read depth)
@@ -137,8 +137,16 @@ Calc_RCbray <- function(physeq, reps, nproc){
 
 get_rcbray_res <- function(ps, hab, group, habitat){
   
+  #subset to habitat
   phylo = prune_samples(hab, ps)
-  #phylo
+  #rarefy data to an even depth
+  set.seed(72)  # setting seed for reproducibility
+  phylo = rarefy_even_depth(phylo)
+  #remove taxa with zero counts
+  phylo = filter_taxa(phylo, function(x) sum(x) > 0, TRUE)
+  #remove samples with zero counts
+  phylo = prune_samples(sample_sums(phylo) > 0, phylo)
+  
   df = Calc_RCbray(phylo, 999, 20) #should be 999 20
   df$Group = group
   df$Habitat = habitat

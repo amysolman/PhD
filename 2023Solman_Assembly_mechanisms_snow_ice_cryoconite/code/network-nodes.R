@@ -96,7 +96,8 @@ sm.node = node_level_properties(g.sm[[1]], "Summer Ice")
 cr.node = node_level_properties(g.cr[[1]], "Cryoconite")
 
 #combine and export node-level properties
-write.csv(rbind(sn.node, sp.node, sm.node, cr.node), "../results/node-properties.csv")
+x = rbind(sn.node, sp.node, sm.node, cr.node)
+write.csv(x, "../results/node-properties.csv")
 
 #2. Get taxonomy of nodes + report
 
@@ -209,95 +210,155 @@ write.csv(x, "../results/network-domains.csv")
 
 #PHYLUM BREAKDOWN
 
+test = cr.net.tax[[1]]
+
 #Snow phylum
 sn.df.phy1 = sn.net.tax[[3]]
 sn.df.phy2 <- sn.df.phy1[order(sn.df.phy1$perc, decreasing = TRUE), ]
+sn.df.phy2$Habitat = "Snow"
 
 #spring ice phylum
 sp.df.phy1 = sp.net.tax[[3]]
 sp.df.phy2 <- sp.df.phy1[order(sp.df.phy1$perc, decreasing = TRUE), ]
+sp.df.phy2$Habitat = "Spring Ice"
 
 #summer ice phylum
 sm.df.phy1 = sm.net.tax[[3]]
 sm.df.phy2 <- sm.df.phy1[order(sm.df.phy1$perc, decreasing = TRUE), ]
+sm.df.phy2$Habitat = "Summer Ice"
 
 #cryoconite phylum
 cr.df.phy1 = cr.net.tax[[3]]
 cr.df.phy2 <- cr.df.phy1[order(cr.df.phy1$perc, decreasing = TRUE), ]
+cr.df.phy2$Habitat = "Cryoconite"
 
+#combine and export
+x = rbind(sn.df.phy2, sp.df.phy2, sm.df.phy2, cr.df.phy2)
+x$perc = round(x$perc,2)
+write.csv(x, "../results/network-phyla.csv")
 
 #CLASS BREAKDOWN
 
 #Snow class
 sn.df.cla1 = sn.net.tax[[4]]
 sn.df.cla2 <- sn.df.cla1[order(sn.df.cla1$perc, decreasing = TRUE), ]
+sn.df.cla2$Habitat = "Snow"
 
 #spring ice class
 sp.df.cla1 = sp.net.tax[[4]]
 sp.df.cla2 <- sp.df.cla1[order(sp.df.cla1$perc, decreasing = TRUE), ]
+sp.df.cla2$Habitat = "Spring Ice"
 
 #summer ice class
 sm.df.cla1 = sm.net.tax[[4]]
 sm.df.cla2 <- sm.df.cla1[order(sm.df.cla1$perc, decreasing = TRUE), ]
+sm.df.cla2$Habitat = "Summer Ice"
 
 #cryoconite class
 cr.df.cla1 = cr.net.tax[[4]]
 cr.df.cla2 <- cr.df.cla1[order(cr.df.cla1$perc, decreasing = TRUE), ]
+cr.df.cla2$Habitat = "Cryoconite"
+
+#combine and export
+x = rbind(sn.df.cla2, sp.df.cla2, sm.df.cla2, cr.df.cla2)
+x$perc = round(x$perc,2)
+write.csv(x, "../results/network-class.csv")
 
 #ORDER BREAKDOWN
 
 #Snow order
 sn.df.ord1 = sn.net.tax[[5]]
 sn.df.ord2 <- sn.df.ord1[order(sn.df.ord1$perc, decreasing = TRUE), ]
+sn.df.ord2$Habitat = "Snow"
 
 #spring ice order
 sp.df.ord1 = sp.net.tax[[5]]
 sp.df.ord2 <- sp.df.ord1[order(sp.df.ord1$perc, decreasing = TRUE), ]
+sp.df.ord2$Habitat = "Spring Ice"
 
 #summer ice order
 sm.df.ord1 = sm.net.tax[[5]]
 sm.df.ord2 <- sm.df.ord1[order(sm.df.ord1$perc, decreasing = TRUE), ]
+sm.df.ord2$Habitat = "Summer Ice"
 
 #cryoconite order
 cr.df.ord1 = cr.net.tax[[5]]
 cr.df.ord2 <- cr.df.ord1[order(cr.df.ord1$perc, decreasing = TRUE), ]
+cr.df.ord2$Habitat = "Cryoconite"
+
+#combine and export
+x = rbind(sn.df.ord2, sp.df.ord2, sm.df.ord2, cr.df.ord2)
+x$perc = round(x$perc,2)
+write.csv(x, "../results/network-order.csv")
 
 #FAMILY BREAKDOWN
 
 #Snow family
 sn.df.fam1 = sn.net.tax[[6]]
 sn.df.fam2 <- sn.df.fam1[order(sn.df.fam1$perc, decreasing = TRUE), ]
+sn.df.fam2$Habitat = "Snow"
 
 #spring ice family
 sp.df.fam1 = sp.net.tax[[6]]
 sp.df.fam2 <- sp.df.fam1[order(sp.df.fam1$perc, decreasing = TRUE), ]
+sp.df.fam2$Habitat = "Spring Ice"
 
 #summer ice family
 sm.df.fam1 = sm.net.tax[[6]]
 sm.df.fam2 <- sm.df.fam1[order(sm.df.fam1$perc, decreasing = TRUE), ]
+sm.df.fam2$Habitat = "Summer Ice"
 
 #cryoconite family
 cr.df.fam1 = cr.net.tax[[6]]
 cr.df.fam2 <- cr.df.fam1[order(cr.df.fam1$perc, decreasing = TRUE), ]
+cr.df.fam2$Habitat = "Cryoconite"
+
+#combine and export
+x = rbind(sn.df.fam2, sp.df.fam2, sm.df.fam2, cr.df.fam2)
+x$perc = round(x$perc,2)
+write.csv(x, "../results/network-family.csv")
 
 #GENUS BREAKDOWN
 
 #Snow genus
 sn.df.gen1 = sn.net.tax[[7]]
 sn.df.gen2 <- sn.df.gen1[order(sn.df.gen1$perc, decreasing = TRUE), ]
+sn.df.gen2$Habitat = "Snow"
 
 #spring ice genus
 sp.df.gen1 = sp.net.tax[[7]]
 sp.df.gen2 <- sp.df.gen1[order(sp.df.gen1$perc, decreasing = TRUE), ]
+sp.df.gen2$Habitat = "Spring Ice"
 
 #summer ice genus
 sm.df.gen1 = sm.net.tax[[7]]
 sm.df.gen2 <- sm.df.gen1[order(sm.df.gen1$perc, decreasing = TRUE), ]
+sm.df.gen2$Habitat = "Summer Ice"
 
 #cryoconite genus
 cr.df.gen1 = cr.net.tax[[7]]
 cr.df.gen2 <- cr.df.gen1[order(cr.df.gen1$perc, decreasing = TRUE), ]
+cr.df.gen2$Habitat = "Cryoconite"
 
+#combine and export
+x = rbind(sn.df.gen2, sp.df.gen2, sm.df.gen2, cr.df.gen2)
+x$perc = round(x$perc,2)
+write.csv(x, "../results/network-genus.csv")
+
+#MICROFAUNA CONTRIBUTION
+sn.mf = sn.net.tax[[3]][sn.net.tax[[3]]$Phylum == "Tardigrada" | sn.net.tax[[3]]$Phylum == "Rotifera" | sn.net.tax[[3]]$Phylum == "Nematozoa",]
+sn.mf$Habitat = "Snow"
+sp.mf = sp.net.tax[[3]][sp.net.tax[[3]]$Phylum == "Tardigrada" | sp.net.tax[[3]]$Phylum == "Rotifera" | sp.net.tax[[3]]$Phylum == "Nematozoa",]
+sp.mf$Habitat = "Spring Ice"
+sm.mf = sm.net.tax[[3]][sm.net.tax[[3]]$Phylum == "Tardigrada" | sm.net.tax[[3]]$Phylum == "Rotifera" | sm.net.tax[[3]]$Phylum == "Nematozoa",]
+sm.mf$Habitat = "Summer Ice"
+cr.mf = cr.net.tax[[3]][cr.net.tax[[3]]$Phylum == "Tardigrada" | cr.net.tax[[3]]$Phylum == "Rotifera" | cr.net.tax[[3]]$Phylum == "Nematozoa",]
+cr.mf$Habitat = "Cryoconite"
+
+#combine and export
+x = rbind(sn.mf, sp.mf, sm.mf, cr.mf)
+x$perc = round(x$perc,2)
+write.csv(x, "../results/network-microfauna.csv")
 
 #3. Find differences between subcommunities
 
@@ -318,25 +379,32 @@ signif_dif_nodes <- function(df1, df2, df3, df4){
   my_comparisons <- list( c("Snow", "Spring Ice"), c("Snow", "Summer Ice"), c("Snow", "Cryoconite"),
                           c("Spring Ice", "Summer Ice"), c("Spring Ice", "Cryoconite"), c("Summer Ice", "Cryoconite"))
   
-  p1 <- ggboxplot(df, x = "habitat", y = "degree",
+  #log10-transform the data
+  df$log10degree = log10(df$degree)
+  
+  p1 <- ggboxplot(df, x = "habitat", y = "log10degree",
                   fill = "habitat")+ 
-    stat_compare_means(comparisons = my_comparisons, size=5)+
+    stat_compare_means(comparisons = my_comparisons, size=5, p.adjust.method = "bonferroni")+
     #scale_fill_brewer(palette="Set1")
     scale_colour_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
-    ylab("Degree")+
+    ylab("log10 Degree")+
     theme(axis.title.y=element_text(size=20))
   p1 = p1 + # Add pairwise comparisons p-value
     stat_compare_means(label.y = layer_scales(p1)$y$range$range[2]*1.1, size=5)  # Add global p-value
   p1
   
   #Between
-  p2 <- ggboxplot(df, x = "habitat", y = "betweenness",
+  
+  #log10-transform the data
+  df$log10betweenness = log10(df$betweenness)
+  
+  p2 <- ggboxplot(df, x = "habitat", y = "log10betweenness",
                   fill = "habitat")+
     #ylim(0, 3000)+
-    stat_compare_means(comparisons = my_comparisons, size=5)+
+    stat_compare_means(comparisons = my_comparisons, size=5, p.adjust.method = "bonferroni")+
     #scale_fill_brewer(palette="Set1")
     scale_colour_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
-    ylab("Betweenness")+
+    ylab("log10 Betweenness")+
     theme(axis.title.y=element_text(size=20))
   p2 = p2 + # Add pairwise comparisons p-value
     stat_compare_means(label.y = layer_scales(p2)$y$range$range[2]*1.1, size=5)  # Add global p-value
@@ -345,28 +413,36 @@ signif_dif_nodes <- function(df1, df2, df3, df4){
   #Closeness
   # df.close = df[order(df$closeness, decreasing = TRUE), ]
   # df.close = df.close[27:nrow(df.close),]
-  p3 <- ggboxplot(df, x = "habitat", y = "closeness",
+  
+  #log10-transform the data
+  df$log10closeness = log10(df$closeness)
+  
+  p3 <- ggboxplot(df, x = "habitat", y = "log10closeness",
                   fill = "habitat")+ 
     #ylim(0, 0.6)+
-    stat_compare_means(comparisons = my_comparisons, size=5)+
+    stat_compare_means(comparisons = my_comparisons, size=5, p.adjust.method = "bonferroni")+
     #scale_fill_brewer(palette="Set1")
     scale_colour_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
-    ylab("Closeness")+
+    ylab("log10 Closeness")+
     theme(axis.title.y=element_text(size=20))
   p3 = p3 + # Add pairwise comparisons p-value
     stat_compare_means(label.y = layer_scales(p3)$y$range$range[2]*1.1, size=5)  # Add global p-value
   p3
   
   #Eigenvector
-  p4 <- ggboxplot(df, x = "habitat", y = "eigenvector",
+  
+  #log10-transform the data
+  df$log10eigenvector = log10(df$eigenvector)
+  
+  p4 <- ggboxplot(df, x = "habitat", y = "log10eigenvector",
                   fill= "habitat")+ 
     #ylim(0, 0.01)+
-    stat_compare_means(comparisons = my_comparisons, size=5)+
+    stat_compare_means(comparisons = my_comparisons, size=5, p.adjust.method = "bonferroni")+ # Add pairwise comparisons p-value
     #scale_fill_brewer(palette="Set1")
     scale_colour_manual(values=c("#fa9f99", "#a4c64d", "#4dd2d6", "#d8a4ff"))+
-    ylab("Eigenvector Centrality")+
+    ylab("log10 Eigenvector Centrality")+
     theme(axis.title.y=element_text(size=20))
-  p4 = p4 + # Add pairwise comparisons p-value
+  p4 = p4 +
     stat_compare_means(label.y = layer_scales(p4)$y$range$range[2]*1.1, size=5)  # Add global p-value
   p4
   
@@ -399,13 +475,17 @@ final.p = plot_grid(prow, legend_b, ncol = 1, rel_heights = c(1, .1))
 final.p
 
 #export
-pdf("../results/node-level-proporties-boxplot.pdf", height=15, width=10)
+pdf("../results/node-level-proporties-boxplot.pdf", height=10, width=13)
 print(final.p)
 dev.off()
 
 #14. Identify keystone taxa
 
-get_keys <- function(ps, node_df, num1, num2, num3, habitat){
+# ps = ps
+# node_df = sn.node
+# habitat = "Snow"
+
+get_keys <- function(ps, node_df, habitat){
   
   #Get taxonomy of most highly connected/influential nodes
   tax.tab = data.frame(tax_table(ps))
@@ -417,9 +497,23 @@ get_keys <- function(ps, node_df, num1, num2, num3, habitat){
   #use dplyr to bind the dataframes
   res <- inner_join(tax.tab, node_df, by = "ASVID")
   
-  #Key taxa with more than num1 degrees and less than num2 betweenness centrality
-  k.node = res[res$degree > num1 & res$betweenness < num2 & res$closeness > num3,]
-  #k.node = res[res$degree > num1 & res$betweenness < num2,]
+  #only keep taxa in the top 40% of degree abundance
+  #sort by top degree values and extract only the top 10%
+  order.degree <- res[order(-res$degree),]
+  max.degree <- head(order.degree,0.40*nrow(order.degree))
+  
+  #only keep taxa in the top 40% of closeness
+  #sort by top closeness values and extract only the top 10%
+  order.close <- res[order(-res$close),]
+  max.close <- head(order.close,0.40*nrow(order.close))
+  
+  #only keep taxa in the bottom 40% of betweeness
+  #sort by bottom betweeness values and extract only the bottom 10%
+  order.between <- res[order(res$between),]
+  min.between <- head(order.between,0.40*nrow(order.between))
+
+  #Keystone taxa are those that overlap
+  k.node = res[res$ASVID %in% max.degree$ASVID & res$ASVID %in% max.close$ASVID & res$ASVID %in% min.between$ASVID,]
   
   write.csv(k.node, paste0("../results/", habitat , "-keystone-taxa.csv"))
   
@@ -427,33 +521,15 @@ get_keys <- function(ps, node_df, num1, num2, num3, habitat){
   
 }
 
-sn.k <- get_keys(ps, sn.node, 50, 10, 0.001, "Snow")
-sp.k <- get_keys(ps, sp.node, 50, 10, 0.001, "SpringIce")
-sm.k <- get_keys(ps, sm.node, 50, 10, 0.001, "SummerIce")
-cr.k <- get_keys(ps, cr.node, 50, 10, 0.001, "Cryoconite")
+k.sn <- get_keys(ps, sn.node, "Snow")
+k.sp <- get_keys(ps, sp.node, "SpringIce")
+k.sm <- get_keys(ps, sm.node, "SummerIce")
+k.cr <- get_keys(ps, cr.node, "Cryoconite")
 
+#combine and export
+x = rbind(k.sn, k.sp, k.sm, k.cr)
+write.csv(x, "../results/network-keystone.csv")
 
-{r, echo=FALSE, warning=FALSE, message=FALSE}
-rownames(sn.k) <- NULL
-knitr::kable(sn.k, caption = 'Table 11. Keystone taxa within the snow network, defined as those with high degree abundance and low betweenness centrality.')
-
-
-{r, echo=FALSE, warning=FALSE, message=FALSE}
-rownames(sp.k) <- NULL
-knitr::kable(sp.k, caption = 'Table 12. Keystone taxa within the spring ice network, defined as those with high degree abundance and low betweenness centrality.')
-
-
-{r, echo=FALSE, warning=FALSE, message=FALSE}
-rownames(sm.k) <- NULL
-knitr::kable(sm.k, caption = 'Table 13. Keystone taxa within the summer ice network, defined as those with high degree abundance and low betweenness centrality.')
-
-
-{r, echo=FALSE, warning=FALSE, message=FALSE}
-rownames(cr.k) <- NULL
-knitr::kable(cr.k, caption = 'Table 14. Keystone taxa within the cryoconite network, defined as those with high degree abundance and low betweenness centrality.')
-
-
-results
 #Which ASVs had the highest number of degrees?
 #What was their taxonomy?
 #Which ASVs had negative connections?
@@ -505,20 +581,6 @@ top_degree_and_neg_corr <- function(g, ps, node_df){
   df.cut <- df[df$weight <0,]
   names(df.cut) <- c("ASVID", "to", "weight")
   
-  # #replace IDs with taxonomy
-  # ord <- data.frame(cbind(net.tax.df$ASVID, net.tax.df$Order))
-  # names(ord) <- c("ASVID", "Order")
-  # df.m <- merge(df.cut, ord, by="ASVID")
-  # names(df.m) <- c("From", "ASVID", "weight", "FromOrder")
-  # df.m2 <- merge(df.m, ord, by="ASVID")
-  # 
-  # fam <- data.frame(cbind(net.tax.df$ASVID, net.tax.df$Family))
-  # names(fam) <- c("ASVID", "Family")
-  # df.fam <- merge(df.cut, fam, by="ASVID")
-  # names(df.fam) <- c("From", "ASVID", "weight", "FromFamily")
-  # df.fam2 <- merge(df.fam, fam, by="ASVID")
-  # names(df.fam2) <- c("From", "To", "weight", "FromFamily", "ToFamily")
-  
   gen <- data.frame(cbind(net.tax.df$ASVID, net.tax.df$Genus))
   names(gen) <- c("ASVID", "Genus")
   df.gen <- merge(df.cut, gen, by="ASVID")
@@ -532,79 +594,47 @@ top_degree_and_neg_corr <- function(g, ps, node_df){
 sn.t.n <- top_degree_and_neg_corr(g.sn[[2]], ps, sn.node)
 sn.t.n[[1]] #top 5 ASVs with high degree abundance
 x1 = sn.t.n[[2]] #negative correlations
+#get dataframe of number of negative correlations
+x1.b = as.data.frame(sort(table(c(x1$FromGenus, x1$ToGenus)), decreasing = TRUE))
+x1.b$Habitat = "Snow"
 
 sp.t.n <- top_degree_and_neg_corr(g.sp[[2]], ps, sp.node)
 sp.t.n[[1]] #top 5 ASVs with high degree abundance
 x2 = sp.t.n[[2]] #negative correlations
+#get dataframe of number of negative correlations
 x2.b = as.data.frame(sort(table(c(x2$FromGenus, x2$ToGenus)), decreasing = TRUE))
+x2.b$Habitat = "Spring Ice"
 
 sm.t.n <- top_degree_and_neg_corr(g.sm[[2]], ps, sm.node)
 sm.t.n[[1]] #top 5 ASVs with high degree abundance
 x3 = sm.t.n[[2]] #negative correlations
+#get dataframe of number of negative correlations
 x3.b = as.data.frame(sort(table(c(x3$FromGenus, x3$ToGenus)), decreasing = TRUE))
+x3.b$Habitat = "Summer Ice"
 
 cr.t.n <- top_degree_and_neg_corr(g.cr[[2]], ps, cr.node)
 cr.t.n[[1]] #top 5 ASVs with high degree abundance
 x4 = cr.t.n[[2]] #negative correlations
+#get dataframe of number of negative correlations
 x4.b = as.data.frame(sort(table(c(x4$FromGenus, x4$ToGenus)), decreasing = TRUE))
+x4.b$Habitat = "Cryoconite"
 
+#combine and export
+x = rbind(x1.b, x2.b, x3.b, x4.b)
+write.csv(x, "../results/network-negative-associations.csv")
 
-
-row.names(sn.t.n[[1]]) <- NULL
-knitr::kable(sn.t.n[[1]], caption = "Table. Top 5 ASVs with highest degree abundance in the snow network.")
-
-row.names(sp.t.n[[1]]) <- NULL
-knitr::kable(sp.t.n[[1]], caption = "Table. Top 5 ASVs with highest degree abundance in the spring ice network.")
-
-row.names(sm.t.n[[1]]) <- NULL
-knitr::kable(sm.t.n[[1]], caption = "Table. Top 5 ASVs with highest degree abundance in the summer ice network.")
-
-row.names(cr.t.n[[1]]) <- NULL
-knitr::kable(cr.t.n[[1]], caption = "Table. Top 5 ASVs with highest degree abundance in the cryoconite network.")
-
-
-
-row.names(sn.t.n[[2]]) <- NULL
-knitr::kable(sn.t.n[[2]], caption = "Table. Genus-level classifications of ASVs with negative correlations in the snow network.")
-
-row.names(sp.t.n[[2]]) <- NULL
-knitr::kable(sp.t.n[[2]], caption = "Table. Genus-level classifications of ASVs with negative correlations in the spring ice network.")
-
-row.names(sm.t.n[[2]]) <- NULL
-knitr::kable(sm.t.n[[2]], caption = "Table. Genus-level classifications of ASVs with negative correlations in the summer ice network.")
-
-row.names(cr.t.n[[2]]) <- NULL
-knitr::kable(cr.t.n[[2]], caption = "Table. Genus-level classifications of ASVs with negative correlations in the cryoconite network.")
-
+#Which pairs of ASVs commonly have negative interactions?
 df.sn = data.frame(table(sn.t.n[[2]][,4:5]))
-
+df.sn$Habitat = "Snow"
 df.sp = data.frame(table(sp.t.n[[2]][,4:5]))
-
+df.sp$Habitat = "Spring Ice"
 df.sm = data.frame(table(sm.t.n[[2]][,4:5]))
-
+df.sm$Habitat = "Summer Ice"
 df.c = data.frame(table(cr.t.n[[2]][,4:5]))
+df.c$Habitat = "Cryoconite"
 
+#combine and export
+x = rbind(df.sn, df.sp, df.sm, df.c)
+x = x[x$Freq > 0,]
 
-#Which pairs of ASVs most commonly have negative connections?
-
-#snow
-df.sn = sn.t.n[[2]]
-df.sn$pairs <- interaction(do.call(pmin, df.sn[4:5]), do.call(pmax, df.sn[4:5]))
-sort(table(df.sn$pairs), decreasing=TRUE)
-
-#spring ice
-df.sp = sp.t.n[[2]]
-df.sp$pairs <- interaction(do.call(pmin, df.sp[4:5]), do.call(pmax, df.sp[4:5]))
-sort(table(df.sp$pairs), decreasing = TRUE)
-
-#summer ice
-df.sm = sm.t.n[[2]]
-df.sm$pairs <- interaction(do.call(pmin, df.sm[4:5]), do.call(pmax, df.sm[4:5]))
-sort(table(df.sm$pairs), decreasing = TRUE)
-
-#cryoconite
-df.cr = cr.t.n[[2]]
-df.cr$pairs <- interaction(do.call(pmin, df.cr[4:5]), do.call(pmax, df.cr[4:5]))
-sort(table(df.cr$pairs), decreasing = TRUE)
-
-sort(table(c(df.sn$pairs, df.sp$pairs, df.sm$pairs, df.cr$pairs)), decreasing = TRUE)
+write.csv(x, "../results/network-negative-associations.csv")
